@@ -9,7 +9,7 @@ export class FileService {
     async getFileCount(directory: PathLike): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const retrievedDir = await readdir(directory);
+            const retrievedDir = await readdir(`${process.cwd()}/${directory}`);
             return retrievedDir.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -21,11 +21,11 @@ export class FileService {
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const retrievedFile = await readFile(`${directory}${fileName}`);
+            const retrievedFile = await readFile(`${process.cwd()}/${directory}${fileName}`);
             return retrievedFile;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
-            this.logger.error(message);
+            this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
     }

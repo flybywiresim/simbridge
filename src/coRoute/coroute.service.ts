@@ -8,7 +8,7 @@ import { CoRouteDto } from './dto/coroute.dto';
 export class CoRouteService {
     constructor(private fileService: FileService) {}
 
-    private coRouteDirectory = './resources/coroutes/';
+    private coRouteDirectory = 'resources/coroutes/';
 
     private readonly logger = new Logger(CoRouteService.name);
 
