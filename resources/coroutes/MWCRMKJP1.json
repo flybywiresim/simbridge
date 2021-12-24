@@ -1,5 +1,6 @@
 {
 	"departureICAO": "MWCR",
 	"arrivalICAO": "MKJP",
-	"route": "yo"
+	"route": "yo",
+	"chickens": "hello"
 }

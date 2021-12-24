@@ -2,19 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
 import { access, mkdirSync } from 'fs';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
 
 declare const module: any;
-const logDir = 'resources/logs/local-server';
+const logDir = 'resources/logs/local-api';
 const coRouteDir = 'resources/coroutes';
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
     // Pino
-    app.useLogger(app.get(Logger));
+    app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
     // Validation
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
