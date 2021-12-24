@@ -1,6 +1,24 @@
 {
-	"departureICAO": "MWCR",
-	"arrivalICAO": "MKJP",
-	"route": "yo",
-	"chickens": "hello"
+	"origin": {
+		"icao_code": "KLAX"
+	},
+	"destination": {
+		"icao_code": "KLAX"
+	},
+	"general": {
+		"route": "chicken"
+	},
+	"navlog": {
+		"fix": [
+			{
+				"ident": "MERIT",
+				"name": "MERIT",
+				"type": "wpt",
+				"via_airway": "DCT",
+				"is_sid_star": "0",
+				"pos_lat": "0.0",
+				"pos_long": "0,0"
+			}
+		]
+	}
 }

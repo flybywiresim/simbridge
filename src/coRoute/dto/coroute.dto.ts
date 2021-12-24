@@ -1,18 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
+import { ValidateNested } from 'class-validator';
+import { Navlog } from './navlog.dto';
+import { General } from './general.dto';
+import { Airport } from './airport.dto';
 
 export class CoRouteDto {
-    @ApiProperty({ description: 'The departure airport ICAO', example: 'KLAX' })
-    @IsString()
-    @MinLength(3, { message: 'Arrival ICAO is too short, minimum length is 3 characters' })
-    departureICAO: string;
+    @ApiProperty({ description: 'The departure airport dto' })
+    @ValidateNested()
+    origin: Airport;
 
-    @ApiProperty({ description: 'The arrival airport ICAO', example: 'KLAX' })
-    @IsString()
-    @MinLength(3, { message: 'Arrival ICAO is too short, minimum length is 3 characters' })
-    arrivalICAO: string;
+    @ApiProperty({ description: 'The arrival airport dto' })
+    @ValidateNested()
+    destination: Airport;
 
-    @ApiProperty({ description: 'the route', example: 'SIRO7N SIROD DCT OBURO UH10 CHABY UM733 KOPOR UM976 ABNUR UT10 ALESO T420 BUZAD DCT' })
-    @IsString()
-    route: string;
+    @ApiProperty({ description: 'General information' })
+    @ValidateNested()
+    general: General;
+
+    @ApiProperty({ description: 'The navlog information of the route' })
+    @ValidateNested()
+    navlog: Navlog
 }

@@ -1,6 +1,10 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { plainToClass } from 'class-transformer';
 import { validateOrReject } from 'class-validator';
+import { Navlog } from './dto/navlog.dto';
+import { Airport } from './dto/airport.dto';
+import { Fix } from './dto/fix.dto';
+import { General } from './dto/general.dto';
 import { FileService } from '../utilities/file.service';
 import { CoRouteDto } from './dto/coroute.dto';
 
@@ -20,8 +24,26 @@ export class CoRouteService {
             `${rteNumber}.json`,
         );
 
-        const coRoute = plainToClass(CoRouteDto, JSON.parse(buffer.toString()));
+        const coRoute = this.convertJsonToDto(JSON.parse(buffer.toString()));
         return this.validateRetrievedCoRoute(rteNumber, coRoute).then(() => coRoute);
+    }
+
+    convertJsonToDto(parsedObject: CoRouteDto): CoRouteDto {
+        try {
+            const tempCoRouteDto = new CoRouteDto();
+            const tempNavlog = new Navlog();
+            tempCoRouteDto.destination = plainToClass(Airport, parsedObject.destination);
+            tempCoRouteDto.origin = plainToClass(Airport, parsedObject.origin);
+            tempCoRouteDto.general = plainToClass(General, parsedObject.general);
+            parsedObject.navlog.fix.forEach((item) => tempNavlog.fix.push(plainToClass(Fix, item)));
+            tempCoRouteDto.navlog = tempNavlog;
+
+            return tempCoRouteDto;
+        } catch (errors) {
+            const message = 'Failed to instantiate DTO';
+            this.logger.warn(message, errors);
+            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
     }
 
     getNumOfRoutes(): Promise<number> {
