@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { PathLike } from 'fs';
+import * as xml2js from 'xml2js';
 
 @Injectable()
 export class FileService {
@@ -28,5 +29,15 @@ export class FileService {
             this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
+    }
+
+    async convertXmlToJson(xmlBuffer: Buffer): Promise<string> {
+        return xml2js.parseStringPromise(xmlBuffer.toString(), { mergeAttrs: true, explicitChildren: true, explicitArray: false })
+            .then((result) => JSON.stringify(result))
+            .catch((err) => {
+                const message = 'Error converting XML to JSON';
+                this.logger.error(message, err);
+                throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+            });
     }
 }

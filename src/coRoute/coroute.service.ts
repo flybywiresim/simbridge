@@ -21,21 +21,23 @@ export class CoRouteService {
 
         const buffer = await this.fileService.getFile(
             this.coRouteDirectory,
-            `${rteNumber}.json`,
+            `${rteNumber}.xml`,
         );
 
-        const coRoute = this.convertJsonToDto(JSON.parse(buffer.toString()));
+        const JsonString = await this.fileService.convertXmlToJson(buffer);
+
+        const coRoute = this.convertJsonToDto(JSON.parse(JsonString));
         return this.validateRetrievedCoRoute(rteNumber, coRoute).then(() => coRoute);
     }
 
-    convertJsonToDto(parsedObject: CoRouteDto): CoRouteDto {
+    convertJsonToDto(parsedObject): CoRouteDto {
         try {
             const tempCoRouteDto = new CoRouteDto();
             const tempNavlog = new Navlog();
-            tempCoRouteDto.destination = plainToClass(Airport, parsedObject.destination);
-            tempCoRouteDto.origin = plainToClass(Airport, parsedObject.origin);
-            tempCoRouteDto.general = plainToClass(General, parsedObject.general);
-            parsedObject.navlog.fix.forEach((item) => tempNavlog.fix.push(plainToClass(Fix, item)));
+            tempCoRouteDto.destination = plainToClass(Airport, parsedObject.OFP.destination);
+            tempCoRouteDto.origin = plainToClass(Airport, parsedObject.OFP.origin);
+            tempCoRouteDto.general = plainToClass(General, parsedObject.OFP.general);
+            parsedObject.OFP.navlog.fix.forEach((item) => tempNavlog.fix.push(plainToClass(Fix, item)));
             tempCoRouteDto.navlog = tempNavlog;
 
             return tempCoRouteDto;
@@ -55,10 +57,7 @@ export class CoRouteService {
         coRoute: CoRouteDto,
     ) {
         try {
-            await validateOrReject(coRoute, {
-                whitelist: true,
-                forbidNonWhitelisted: true,
-            });
+            await validateOrReject(coRoute, { whitelist: true });
         } catch (errors) {
             const message = `${rteNumber} failed validation`;
             this.logger.warn(`${rteNumber} failed validation`, errors);
