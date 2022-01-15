@@ -31,9 +31,12 @@
 	// overrides airbnb, use sparingly
 	"rules": {
 		"object-curly-newline": ["error", { "multiline": true }],
-
 		// Required for dependency injection
 		"no-useless-constructor": "off",
-		"no-empty-function": "off"
+		"no-empty-function": "off",
+
+		// Annoying shit
+		"linebreak-style": ["error", "unix"],
+		"no-await-in-loop":"off"
 	}
 }

@@ -35,4 +35,14 @@ export class CoRouteController {
     async getRte(@Query('rteNum') routeNum: String): Promise<CoRouteDto> {
         return this.coRouteService.getForRteNum(routeNum);
     }
+
+    @Get('list')
+    @ApiResponse({
+        status: 200,
+        description: 'The list of company routes matching the given origin and destination ICAOs',
+        type: [CoRouteDto],
+    })
+    async getRteForIcaos(@Query('origin') originIcao: String, @Query('destination') destinationIcao: String) {
+        return this.coRouteService.getRoutesForIcao(originIcao, destinationIcao);
+    }
 }

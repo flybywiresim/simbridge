@@ -19,6 +19,25 @@ export class FileService {
         }
     }
 
+    async getFiles(directory: PathLike): Promise<Buffer[]> {
+        try {
+            this.logger.debug(`Reading all files in directory: ${directory}`);
+
+            const fileNames = await readdir(`${process.cwd()}/${directory}`);
+
+            const files: Buffer[] = [];
+            for (const fileName of fileNames) {
+                files.push(await this.getFile(directory, fileName));
+            }
+
+            return files;
+        } catch (err) {
+            const message = `Error reading directory: ${directory}`;
+            this.logger.error(message, err);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
+        }
+    }
+
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);

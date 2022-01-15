@@ -1,16 +1,11 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { plainToClass } from 'class-transformer';
-import { validateOrReject } from 'class-validator';
-import { Navlog } from './dto/navlog.dto';
-import { Airport } from './dto/airport.dto';
-import { Fix } from './dto/fix.dto';
-import { General } from './dto/general.dto';
+import { Injectable, Logger } from '@nestjs/common';
 import { FileService } from '../utilities/file.service';
 import { CoRouteDto } from './dto/coroute.dto';
+import { CoRouteConverter } from './coroute.converter';
 
 @Injectable()
 export class CoRouteService {
-    constructor(private fileService: FileService) {}
+    constructor(private fileService: FileService, private coRouteConverter: CoRouteConverter) {}
 
     private coRouteDirectory = 'resources/coroutes/';
 
@@ -26,42 +21,35 @@ export class CoRouteService {
 
         const JsonString = await this.fileService.convertXmlToJson(buffer);
 
-        const coRoute = this.convertJsonToDto(JSON.parse(JsonString));
-        return this.validateRetrievedCoRoute(rteNumber, coRoute).then(() => coRoute);
-    }
-
-    convertJsonToDto(parsedObject): CoRouteDto {
-        try {
-            const tempCoRouteDto = new CoRouteDto();
-            const tempNavlog = new Navlog();
-            tempCoRouteDto.destination = plainToClass(Airport, parsedObject.OFP.destination);
-            tempCoRouteDto.origin = plainToClass(Airport, parsedObject.OFP.origin);
-            tempCoRouteDto.general = plainToClass(General, parsedObject.OFP.general);
-            parsedObject.OFP.navlog.fix.forEach((item) => tempNavlog.fix.push(plainToClass(Fix, item)));
-            tempCoRouteDto.navlog = tempNavlog;
-
-            return tempCoRouteDto;
-        } catch (errors) {
-            const message = 'Failed to instantiate DTO';
-            this.logger.warn(message, errors);
-            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
-        }
+        const coRoute = this.coRouteConverter.convertJsonToDto(JSON.parse(JsonString));
+        return this.coRouteConverter.validateCoRoute(coRoute, rteNumber).then(() => coRoute);
     }
 
     getNumOfRoutes(): Promise<number> {
         return this.fileService.getFileCount(this.coRouteDirectory);
     }
 
-    private async validateRetrievedCoRoute(
-        rteNumber: String,
-        coRoute: CoRouteDto,
-    ) {
-        try {
-            await validateOrReject(coRoute, { whitelist: true });
-        } catch (errors) {
-            const message = `${rteNumber} failed validation`;
-            this.logger.warn(`${rteNumber} failed validation`, errors);
-            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
-        }
+    async getRoutesForIcao(originIcao: String, destinationIcao: String): Promise<CoRouteDto[]> {
+        this.logger.debug(`Searching for CoRoutes given origin: ${originIcao} and destination: ${destinationIcao}`);
+
+        const fileBuffers = await this.fileService.getFiles(this.coRouteDirectory);
+
+        const fileJsons = await Promise.all(fileBuffers.map(async (buffer) => this.fileService.convertXmlToJson(buffer)));
+
+        const coRoutes = fileJsons.map((jsonStrings) => this.coRouteConverter.convertJsonToDto(JSON.parse(jsonStrings)));
+
+        const validatedCoRoutes: CoRouteDto[] = [];
+        coRoutes.forEach((coRoute) => this.coRouteConverter.validateCoRoute(coRoute)
+            .then(() => {
+                if (coRoute.origin.icao_code === originIcao && coRoute.destination.icao_code) {
+                    validatedCoRoutes.push(coRoute);
+                } else {
+                    this.logger.debug(`coRoute didn't match req params, skipping: ${JSON.stringify(coRoute)}`);
+                }
+            })
+            // Should we print the entire coroute ?
+            .catch(() => this.logger.warn(`coRoute failed validation: ${JSON.stringify(coRoute)}`)));
+
+        return validatedCoRoutes;
     }
 }
