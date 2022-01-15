@@ -1,14 +1,17 @@
 {
-	"name": "a32nx-local-api",
-	"version": "0.0.1",
-	"description": "",
+	"name": "fbw-local-api",
+	"version": "0.1.0",
+	"description": "The local-api server for FBW addons for various tasks the addons itself can't achieve",
 	"author": "",
-	"private": true,
-	"license": "GNu",
+	"private": false,
+	"license": "GNU",
 	"bin": {
 		"fbw-local-api": "./bin/index.js"
 	},
 	"scripts": {
+		"prepub": "copy package.json dist && copy README.md dist && copy LICENSE dist && copy CODE_OF_CONDUCT.md dist",
+		"pub": "cd dist && npm publish",
+		"postpub": "cd dist && del package.json && del README.md && del LICENSE && del CODE_OF_CONDUCT.md",
 		"prebuild": "rimraf dist",
 		"build": "nest build",
 		"build:exec": "npm run build && pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js",

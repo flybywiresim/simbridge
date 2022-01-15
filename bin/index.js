@@ -5,4 +5,4 @@ const [,, ...args] = process.argv;
 
 const { build } = require('../lib/build');
 
-build(args[0], args[1]);
+build(args[0]);
