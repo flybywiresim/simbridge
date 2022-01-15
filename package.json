@@ -5,6 +5,9 @@
 	"author": "",
 	"private": true,
 	"license": "GNu",
+	"bin": {
+		"fbw-local-api": "./bin/index.js"
+	},
 	"scripts": {
 		"prebuild": "rimraf dist",
 		"build": "nest build",
@@ -80,5 +83,10 @@
 		],
 		"coverageDirectory": "../coverage",
 		"testEnvironment": "node"
+	},
+	"pkg": {
+		"targets": [
+			"node16-win-x64"
+		]
 	}
 }
