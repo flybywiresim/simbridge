@@ -11,7 +11,7 @@ import { Navlog } from './dto/navlog.dto';
 export class CoRouteConverter {
     private readonly logger = new Logger(CoRouteConverter.name)
 
-    convertJsonToDto(parsedObject: any): CoRouteDto {
+    convertJsonToDto(parsedObject: any, routeNumber: String): CoRouteDto {
         try {
             const tempCoRouteDto = new CoRouteDto();
             const tempNavlog = new Navlog();
@@ -20,6 +20,7 @@ export class CoRouteConverter {
             tempCoRouteDto.general = plainToClass(General, parsedObject.OFP.general);
             parsedObject.OFP.navlog.fix.forEach((item: any) => tempNavlog.fix.push(plainToClass(Fix, item)));
             tempCoRouteDto.navlog = tempNavlog;
+            tempCoRouteDto.name = routeNumber.replace('.xml', '');
 
             return tempCoRouteDto;
         } catch (errors) {

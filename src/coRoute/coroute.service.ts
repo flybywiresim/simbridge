@@ -21,7 +21,7 @@ export class CoRouteService {
 
         const JsonString = await this.fileService.convertXmlToJson(buffer);
 
-        const coRoute = this.coRouteConverter.convertJsonToDto(JSON.parse(JsonString));
+        const coRoute = this.coRouteConverter.convertJsonToDto(JSON.parse(JsonString), rteNumber);
         return this.coRouteConverter.validateCoRoute(coRoute, rteNumber).then(() => coRoute);
     }
 
@@ -34,9 +34,12 @@ export class CoRouteService {
 
         const fileBuffers = await this.fileService.getFiles(this.coRouteDirectory);
 
-        const fileJsons = await Promise.all(fileBuffers.map(async (buffer) => this.fileService.convertXmlToJson(buffer)));
+        const fileJsons = await Promise.all(fileBuffers.files.map(async (buffer) => this.fileService.convertXmlToJson(buffer)));
 
-        const coRoutes = fileJsons.map((jsonStrings) => this.coRouteConverter.convertJsonToDto(JSON.parse(jsonStrings)));
+        const coRoutes = fileJsons.map((jsonStrings, index) => this.coRouteConverter.convertJsonToDto(
+            JSON.parse(jsonStrings),
+            fileBuffers.fileNames[index],
+        ));
 
         const validatedCoRoutes: CoRouteDto[] = [];
         coRoutes.forEach((coRoute) => this.coRouteConverter.validateCoRoute(coRoute)

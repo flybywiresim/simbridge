@@ -19,7 +19,7 @@ export class FileService {
         }
     }
 
-    async getFiles(directory: PathLike): Promise<Buffer[]> {
+    async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
 
@@ -30,7 +30,7 @@ export class FileService {
                 files.push(await this.getFile(directory, fileName));
             }
 
-            return files;
+            return { fileNames, files };
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);

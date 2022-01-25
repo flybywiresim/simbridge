@@ -5,6 +5,10 @@ import { General } from './general.dto';
 import { Airport } from './airport.dto';
 
 export class CoRouteDto {
+    @ApiProperty({ description: 'The name of the coroute' })
+    @IsDefined()
+    name: String;
+
     @ApiProperty({ description: 'The departure airport dto' })
     @ValidateNested()
     @IsDefined()
