@@ -7,8 +7,13 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
 
 declare const module: any;
-const logDir = 'resources/logs/local-api';
-const coRouteDir = 'resources/coroutes';
+
+const dirs = [
+    'resources/logs/local-api',
+    'resources/coroutes',
+    'resources/pdfs',
+    'resources/images',
+];
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
@@ -20,12 +25,7 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
     // Folder creation
-    access(logDir, (error) => {
-        if (error) mkdirSync(logDir, { recursive: true });
-    });
-    access(coRouteDir, (error) => {
-        if (error) mkdirSync(coRouteDir, { recursive: true });
-    });
+    generateResourceFolders();
 
     // Swagger
     const swaggerConfig = new DocumentBuilder()
@@ -44,3 +44,11 @@ async function bootstrap() {
     }
 }
 bootstrap();
+
+function generateResourceFolders() {
+    dirs.forEach((dir) => {
+        access(dir, (error) => {
+            if (error) mkdirSync(dir, { recursive: true });
+        });
+    });
+}

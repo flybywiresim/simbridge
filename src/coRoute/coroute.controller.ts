@@ -4,7 +4,7 @@ import { CoRouteService } from './coroute.service';
 import { CoRouteDto } from './dto/coroute.dto';
 
 @ApiTags('COROUTE')
-@Controller('coroute')
+@Controller('coroute/v1')
 export class CoRouteController {
     constructor(private coRouteService: CoRouteService) {}
 

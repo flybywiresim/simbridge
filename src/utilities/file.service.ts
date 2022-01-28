@@ -1,5 +1,5 @@
 import { readdir, readFile } from 'fs/promises';
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
 import { PathLike } from 'fs';
 import * as xml2js from 'xml2js';
 
@@ -38,16 +38,30 @@ export class FileService {
         }
     }
 
+    async getFolderFilenames(directory: PathLike): Promise<string[]> {
+        try {
+            this.logger.debug(`Reading all files in directory: ${directory}`);
+            return readdir(`${process.cwd()}/${directory}`);
+        } catch (err) {
+            const message = `Error reading directory: ${directory}`;
+            this.logger.error(message, err);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
+        }
+    }
+
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const retrievedFile = await readFile(`${process.cwd()}/${directory}${fileName}`);
-            return retrievedFile;
+            return readFile(`${process.cwd()}/${directory}${fileName}`);
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
             this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
+    }
+
+    async getFileStream(directory: PathLike, fileName: PathLike): Promise<StreamableFile> {
+        return new StreamableFile(await this.getFile(directory, fileName));
     }
 
     async convertXmlToJson(xmlBuffer: Buffer): Promise<string> {
