@@ -41,18 +41,16 @@ export class CoRouteService {
             fileBuffers.fileNames[index],
         ));
 
-        const validatedCoRoutes: CoRouteDto[] = [];
-        coRoutes.forEach((coRoute) => this.coRouteConverter.validateCoRoute(coRoute)
-            .then(() => {
-                if (coRoute.origin.icao_code === originIcao && coRoute.destination.icao_code) {
-                    validatedCoRoutes.push(coRoute);
-                } else {
-                    this.logger.debug(`coRoute didn't match req params, skipping: ${JSON.stringify(coRoute)}`);
-                }
-            })
-            // Should we print the entire coroute ?
-            .catch(() => this.logger.warn(`coRoute failed validation: ${JSON.stringify(coRoute)}`)));
+        return coRoutes.filter((coRoute) => this.coRouteConverter.validateCoRoute(coRoute)
+            .then(() => this.filterInvalidCoRoute(coRoute, originIcao, destinationIcao))
+            .catch(() => this.logger.warn(`coRoute failed validation: ${JSON.stringify(coRoute.name)}`)));
+    }
 
-        return validatedCoRoutes;
+    private filterInvalidCoRoute(coRoute: CoRouteDto, originIcao: String, destinationIcao: String) {
+        if (coRoute.origin.icao_code === originIcao && coRoute.destination.icao_code === destinationIcao) {
+            return true;
+        }
+        this.logger.debug(`coRoute didn't match req params, skipping: ${coRoute.name}}`);
+        return false;
     }
 }
