@@ -32,8 +32,6 @@ export class UtiliyController {
             scale: 2048,
         };
 
-        console.log(process.cwd());
-
         return pdf.convert(`${process.cwd()}\\resources\\pdfs\\${filename}`, options).then(() => {
             const expectedFilePath = `out\\out-${pagenumber}.png`;
 
