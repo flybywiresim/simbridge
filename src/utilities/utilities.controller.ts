@@ -36,7 +36,7 @@ export class UtiliyController {
             const expectedFilePath = `out\\out-${pagenumber}.png`;
 
             if (existsSync(expectedFilePath)) {
-                return this.fileService.getFileStream(`out/out-${pagenumber}.png`, '').then((file) => {
+                return this.fileService.getFileStream('out/', `out-${pagenumber}.png`).then((file) => {
                     rmSync(expectedFilePath);
                     return file;
                 });
