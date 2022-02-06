@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { existsSync, mkdirSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
+import { existsSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf';
 
@@ -70,15 +70,11 @@ export class FileService {
     }
 
     async getConvertedPdfFile(fileName: string, pageNumber: number): Promise<StreamableFile> {
-        const pagesFolder = `${process.cwd()}\\out\\${fileName.replace('.pdf', '')}`;
-
-        if (!existsSync(pagesFolder)) {
-            mkdirSync(pagesFolder);
-        }
+        const outFolderPath = `${process.cwd()}\\out`;
 
         const options = {
             format: 'png',
-            out_dir: pagesFolder,
+            out_dir: outFolderPath,
             out_prefix: 'out',
             page: pageNumber,
             scale: 2048,
@@ -86,13 +82,13 @@ export class FileService {
 
         try {
             return pdf.convert(`${process.cwd()}\\resources\\pdfs\\${fileName}`, options).then(() => {
-                const fileList = readdirSync(pagesFolder, { withFileTypes: true });
+                const fileList = readdirSync(outFolderPath, { withFileTypes: true });
 
                 if (!fileList.length) {
                     throw new Error('No files found in the output folder');
                 }
                 const pageNumberLength = fileList[0].name.replace('out-', '').replace('.png', '').length;
-                const expectedFilePath = `${pagesFolder}\\out-${pageNumber.toString().padStart(pageNumberLength, '0')}.png`;
+                const expectedFilePath = `${outFolderPath}\\out-${pageNumber.toString().padStart(pageNumberLength, '0')}.png`;
 
                 if (existsSync(expectedFilePath)) {
                     const file = new StreamableFile(readFileSync(expectedFilePath));
