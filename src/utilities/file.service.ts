@@ -64,7 +64,7 @@ export class FileService {
     }
 
     async getNumberOfPdfPages(fileName: string): Promise<number> {
-        const retrievedFile = readFileSync(`resources\\pdfs\\${fileName}`);
+        const retrievedFile = await this.getFile('resources\\pdfs\\', fileName);
 
         return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
     }
