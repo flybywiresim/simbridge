@@ -3,6 +3,7 @@ import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@
 import { existsSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf';
+import { join } from 'path';
 
 const pdf = require('pdf-poppler');
 
@@ -70,6 +71,12 @@ export class FileService {
     }
 
     async getConvertedPdfFile(fileName: string, pageNumber: number): Promise<StreamableFile> {
+        const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+
+        if (conversionFilePath.indexOf(process.cwd()) !== 0) {
+            throw new Error('Unacceptable file path');
+        }
+
         const outFolderPath = `${process.cwd()}\\out`;
 
         const options = {
@@ -81,7 +88,7 @@ export class FileService {
         };
 
         try {
-            return pdf.convert(`${process.cwd()}\\resources\\pdfs\\${fileName}`, options).then(() => {
+            return pdf.convert(conversionFilePath, options).then(() => {
                 const fileList = readdirSync(outFolderPath, { withFileTypes: true });
 
                 if (!fileList.length) {
