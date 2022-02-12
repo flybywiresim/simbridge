@@ -71,23 +71,31 @@ export class FileService {
     }
 
     async getConvertedPdfFile(fileName: string, pageNumber: number): Promise<StreamableFile> {
-        const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
-
-        if (conversionFilePath.indexOf(process.cwd()) !== 0) {
-            throw new Error('Unacceptable file path');
-        }
-
-        const outFolderPath = `${process.cwd()}\\out`;
-
-        const options = {
-            format: 'png',
-            out_dir: outFolderPath,
-            out_prefix: 'out',
-            page: pageNumber,
-            scale: 2048,
-        };
-
         try {
+            const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+
+            if (conversionFilePath.indexOf('\0') !== -1) {
+                throw new Error('Unexpected null byte encountered');
+            }
+
+            if (!/^[a-z0-9]+$/.test(conversionFilePath)) {
+                throw new Error('Invalid character found');
+            }
+
+            if (conversionFilePath.indexOf(process.cwd()) !== 0) {
+                throw new Error('Unacceptable file path');
+            }
+
+            const outFolderPath = `${process.cwd()}\\out`;
+
+            const options = {
+                format: 'png',
+                out_dir: outFolderPath,
+                out_prefix: 'out',
+                page: pageNumber,
+                scale: 2048,
+            };
+
             return pdf.convert(conversionFilePath, options).then(() => {
                 const fileList = readdirSync(outFolderPath, { withFileTypes: true });
 
