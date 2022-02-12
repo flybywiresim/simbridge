@@ -70,21 +70,29 @@ export class FileService {
         return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
     }
 
+    /**
+     * Calling this function checks the safety of the supplied file path and throws an error if it deemed not safe against various potential attacks.
+     * @param filePath
+     */
+    checkFilePathSafety(filePath: string): void {
+        if (filePath.indexOf('\0') !== -1) {
+            throw new Error('Unexpected null byte encountered');
+        }
+
+        if (!/^[a-z0-9]+$/.test(filePath)) {
+            throw new Error('Invalid character found');
+        }
+
+        if (filePath.indexOf(process.cwd()) !== 0) {
+            throw new Error('Unacceptable file path');
+        }
+    }
+
     async getConvertedPdfFile(fileName: string, pageNumber: number): Promise<StreamableFile> {
         try {
             const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
 
-            if (conversionFilePath.indexOf('\0') !== -1) {
-                throw new Error('Unexpected null byte encountered');
-            }
-
-            if (!/^[a-z0-9]+$/.test(conversionFilePath)) {
-                throw new Error('Invalid character found');
-            }
-
-            if (conversionFilePath.indexOf(process.cwd()) !== 0) {
-                throw new Error('Unacceptable file path');
-            }
+            this.checkFilePathSafety(conversionFilePath);
 
             const outFolderPath = `${process.cwd()}\\out`;
 
