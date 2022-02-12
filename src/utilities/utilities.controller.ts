@@ -11,14 +11,14 @@ export class UtiliyController {
     @Get('pdf')
     @ApiResponse({
         status: 200,
-        description: 'A Streamed PDF',
+        description: 'A streamed converted png image',
         type: StreamableFile,
     })
-    async getPdf(@Query('filename') filename: string, @Response({ passthrough: true }) res): Promise<StreamableFile> {
-        return this.fileService.getFileStream('resources/pdfs/', `${filename}`).then((file) => {
+    async getPdf(@Query('filename') filename: string, @Query('pagenumber') pagenumber: number, @Response({ passthrough: true }) res): Promise<StreamableFile> {
+        return this.fileService.getConvertedPdfFile(filename, pagenumber).then((file) => {
             res.set({
-                'Content-Type': contentType(filename),
-                'Content-Disposition': `attachment; filename=${filename}`,
+                'Content-Type': 'image/png',
+                'Content-Disposition': `attachment; filename=out-${pagenumber}.png}`,
             });
             return file;
         });
@@ -32,6 +32,16 @@ export class UtiliyController {
     })
     async getPdfFileList() {
         return this.fileService.getFolderFilenames('resources/pdfs/');
+    }
+
+    @Get('pdf/numpages')
+    @ApiResponse({
+        status: 200,
+        description: 'Returns the number of pages in the pdf',
+        type: Number,
+    })
+    async getNumberOfPages(@Query('filename') filename: string): Promise<number> {
+        return this.fileService.getNumberOfPdfPages(filename);
     }
 
     @Get('image')
