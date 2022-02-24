@@ -7,7 +7,7 @@ import { WebsocketContext } from './WebsocketContext';
 
 const App = () => {
     const [fullscreen, setFullscreen] = useState(window.location.href.endsWith('fullscreen'));
-    const socketUrl = `ws://${window.location.hostname}:__WEBSOCKET_PORT__`;
+    const socketUrl = 'ws://localhost:3838/interfaces/v1/';
 
     const [content, setContent] = useState(
         {

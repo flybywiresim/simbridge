@@ -13,8 +13,9 @@ module.exports = (_env, argv) => {
         devtool: isDevelopment && 'cheap-module-source-map',
         entry: ['./apps/mcdu/src/index.jsx'],
         output: {
-            path: path.join(__dirname, 'dist/apps/mcdu'),
+            path: path.join(__dirname, '../../dist/mcdu'),
             filename: 'index.js',
+            clean: true,
         },
         module: {
             rules: [
@@ -35,36 +36,30 @@ module.exports = (_env, argv) => {
                 {
                     test: /\.css$/,
                     use: [
-                        isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+                        'style-loader',
                         'css-loader',
                     ],
                 },
                 // Images
                 {
                     test: /\.(png|jpg|gif)$/i,
-                    use: {
-                        loader: 'url-loader',
-                        options: {
-                            limit: 8192,
-                            name: 'static/media/[name].[hash:8].[ext]',
-                        },
-                    },
+                    type: 'asset',
+                    generator: { filename: 'static/img/[name].[hash].[ext]' },
                 },
-                // Everything else
+                // Fonts
                 {
                     test: /\.(eot|otf|ttf|woff|woff2)$/,
-                    loader: require.resolve('file-loader'),
-                    options: { name: 'static/media/[name].[hash:8].[ext]' },
+                    type: 'asset',
+                    generator: { filename: 'static/fonts/[name].[hash].[ext]' },
                 },
             ],
         },
         resolve: { extensions: ['.js', '.jsx'] },
         plugins: [
-            isProduction
-                && new MiniCssExtractPlugin({
-                    filename: 'assets/css/[name].[contenthash:8].css',
-                    chunkFilename: 'assets/css/[name].[contenthash:8].chunk.css',
-                }),
+            new MiniCssExtractPlugin({
+                filename: 'assets/css/[name].[contenthash].css',
+                chunkFilename: 'assets/css/[name].[contenthash].chunk.css',
+            }),
             // TODO fix head tags, fix favicon, fix rejected fonts
             new HtmlWebpackPlugin({
                 favicon: './apps/mcdu/src/assets/images/favicon.ico',

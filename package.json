@@ -32,6 +32,7 @@
 		"@nestjs/core": "^8.0.0",
 		"@nestjs/platform-express": "^8.0.0",
 		"@nestjs/platform-socket.io": "^8.3.0",
+		"@nestjs/serve-static": "^2.2.2",
 		"@nestjs/swagger": "^5.1.5",
 		"@nestjs/websockets": "^8.3.0",
 		"@types/pdfjs-dist": "^2.10.378",
