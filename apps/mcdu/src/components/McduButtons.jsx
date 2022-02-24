@@ -1,8 +1,8 @@
 import React, { useContext } from 'react';
 
-import './McduButtons.css';
+import '../assets/css/McduButtons.css';
 
-import { WebsocketContext } from './WebsocketContext';
+import { WebsocketContext } from '../WebsocketContext';
 
 const ButtonGrid = ({ children, x, y, width, height }) => (
     <div className="button-grid" style={{ left: `${x / 10.61}%`, top: `${y / 16.50}%`, width: `${width / 10.61}%`, height: `${height / 16.50}%` }}>

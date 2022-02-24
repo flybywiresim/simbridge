@@ -1,4 +1,29 @@
 {
-  "collection": "@nestjs/schematics",
-  "sourceRoot": "src"
+	"collection": "@nestjs/schematics",
+	"monorepo": true,
+	"root": "apps/server",
+	"projects": {
+		"server": {
+			"type": "application",
+			"root": "apps/server",
+			"entryFile": "main",
+			"sourceRoot": "apps/server/src",
+			"compilerOptions": {
+				"webpack": true,
+				"tsConfigPath": "apps/server/tsconfig.app.json",
+				"webPackConfigPath": "apps/server/webpack.config.js"
+			}
+		},
+		"mcdu": {
+			"type": "application",
+			"root": "apps/mcdu",
+			"entryFile": "index",
+			"sourceRoot": "apps/mcdu/src",
+			"compilerOptions": {
+				"webpack": true,
+				"tsConfigPath": "apps/mcdu/tsconfig.app.json",
+				"webPackConfigPath": "apps/mcdu/webpack.config.js"
+			}
+		}
+	}
 }

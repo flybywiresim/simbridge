@@ -27,7 +27,7 @@ module.exports = {
         new RunScriptWebpackPlugin({ name: 'server.js' }),
     ],
     output: {
-        path: path.join(__dirname, 'dist'),
+        path: path.join(__dirname, 'dist/server'),
         filename: 'server.js',
     },
 };

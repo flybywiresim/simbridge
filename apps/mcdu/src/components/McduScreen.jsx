@@ -1,5 +1,5 @@
 import React from 'react';
-import './McduScreen.css';
+import '../assets/css/McduScreen.css';
 
 function escapeHTML(unsafeText) {
     const div = document.createElement('div');

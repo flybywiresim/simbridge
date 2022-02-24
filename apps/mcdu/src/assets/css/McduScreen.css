@@ -1,11 +1,11 @@
 @font-face {
     font-family: "HoneywellMCDU";
-    src: url("HoneywellMCDU.ttf");
+    src: url("../fonts/HoneywellMCDU.ttf");
 }
 
 @font-face {
     font-family: "HoneywellMCDUSmall";
-    src: url("HoneywellMCDUSmall.ttf");
+    src: url("../fonts/HoneywellMCDUSmall.ttf");
 }
 
 .screen {

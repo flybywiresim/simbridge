@@ -1,9 +1,8 @@
-/* eslint-disable strict */
-import './App.css';
+import './assets/css/App.css';
 import React, { useState, useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
-import { McduScreen } from './McduScreen';
-import { McduButtons } from './McduButtons';
+import { McduScreen } from './components/McduScreen';
+import { McduButtons } from './components/McduButtons';
 import { WebsocketContext } from './WebsocketContext';
 
 const App = () => {
