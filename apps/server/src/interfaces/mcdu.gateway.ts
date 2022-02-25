@@ -1,31 +1,35 @@
 import { Logger } from '@nestjs/common';
-import { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { MessageBody, OnGatewayConnection, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, WebSocket } from 'ws';
 
 @WebSocketGateway({
     cors: { origin: '*' },
-    path: '/interfaces/v1/mcdu',
-    serveClient: true,
+    path: '/interfaces/mcdu',
 })
-export class McduGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly logger = new Logger(McduGateway.name);
 
     @WebSocketServer() server: Server
 
-    @SubscribeMessage('test')
-    handleTest(client: WebSocket, payload: string): void {
-        client.send(`Hello: ${payload}`);
+    @SubscribeMessage('message')
+    handleMessage(@MessageBody() message: string) {
+        this.logger.debug(`Received message: ${message}`);
+        if (message === 'mcduConnected') {
+            this.logger.log('Simulator Connected');
+        }
+        this.server.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(message);
+            }
+        });
     }
 
-    async afterInit(server: Server): Promise<void> {
-        this.logger.log(`MCDU interface initialized ${server.options}`);
+    afterInit(server: Server) {
+        this.server = server;
+        this.logger.log(`MCDU Socket Server initialised on ${server.path} ${server.options.port}`);
     }
 
-    async handleDisconnect(_client: WebSocket): Promise<void> {
-        this.logger.log('Client disconnected');
-    }
-
-    async handleConnection(_client: WebSocket): Promise<void> {
+    handleConnection(_client: WebSocket) {
         this.logger.log('Client connected');
     }
 }

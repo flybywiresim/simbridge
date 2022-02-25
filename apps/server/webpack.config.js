@@ -5,6 +5,11 @@ const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
     entry: ['webpack/hot/poll?100', './apps/server/src/main.ts'],
+    output: {
+        path: path.join(__dirname, '../../dist/server'),
+        filename: 'server.js',
+        clean: true,
+    },
     target: 'node',
     externals: [
         nodeExternals({ allowlist: ['webpack/hot/poll?100'] }),
@@ -18,11 +23,6 @@ module.exports = {
             },
         ],
     },
-    mode: 'development',
     resolve: { extensions: ['.tsx', '.ts', '.js'] },
-    output: {
-        path: path.join(__dirname, '../../dist/server'),
-        filename: 'server.js',
-        clean: true,
-    },
+    mode: 'development',
 };

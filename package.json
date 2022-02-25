@@ -12,9 +12,11 @@
 		"prebuild": "rimraf dist",
 		"build": "npm run build:server && npm run build:mcdu",
 		"build:mcdu": "webpack --config apps/mcdu/webpack.config.js",
-		"build:server": "webpack --config apps/server/webpack.config.js",
-		"build:exec": "npm run build && pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js",
-		"build:exec:mac": "npm run build && pkg --public-packages '*' -t node16-macos-x64 --output dist/local-server dist/main.js ",
+		"build:server": "nest build",
+		"build:exec": "npm run build && npm run install",
+		"build:exec:mac": "npm run build && npm run install:mac",
+		"install:mac": "pkg --public-packages '*' -t node16-macos-x64 --output dist/local-server dist/main.js --config package.json",
+		"install": "pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js package.json",
 		"format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
 		"start": "nest start",
 		"start:dev": "webpack --config webpack.config.js --watch",
@@ -31,10 +33,11 @@
 		"@nestjs/common": "^8.0.0",
 		"@nestjs/core": "^8.0.0",
 		"@nestjs/platform-express": "^8.0.0",
-		"@nestjs/platform-socket.io": "^8.3.0",
+		"@nestjs/platform-socket.io": "^8.3.1",
+		"@nestjs/platform-ws": "^8.3.1",
 		"@nestjs/serve-static": "^2.2.2",
 		"@nestjs/swagger": "^5.1.5",
-		"@nestjs/websockets": "^8.3.0",
+		"@nestjs/websockets": "^8.3.1",
 		"@types/pdfjs-dist": "^2.10.378",
 		"class-transformer": "^0.4.0",
 		"class-validator": "^0.13.2",
@@ -135,8 +138,6 @@
 		]
 	},
 	"pkg": {
-		"targets": [
-			"node16-win-x64"
-		]
+		"assets": ["dist/mcdu/**/*"]
 	}
 }

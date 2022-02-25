@@ -60,11 +60,10 @@ module.exports = (_env, argv) => {
                 filename: 'assets/css/[name].[contenthash].css',
                 chunkFilename: 'assets/css/[name].[contenthash].chunk.css',
             }),
-            // TODO fix head tags, fix favicon, fix rejected fonts
             new HtmlWebpackPlugin({
-                favicon: './apps/mcdu/src/assets/images/favicon.ico',
+                favicon: 'apps/mcdu/src/assets/images/favicon.ico',
                 template: path.resolve(__dirname, 'src/index.html'),
-                inject: false,
+                inject: 'head',
             }),
             new webpack.DefinePlugin({
                 'process.env.NODE_ENV': JSON.stringify(
