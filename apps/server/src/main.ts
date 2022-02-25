@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { access, mkdirSync } from 'fs';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -17,6 +18,8 @@ const dirs = [
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
+
+    app.useWebSocketAdapter(new WsAdapter(app));
 
     // Pino
     app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));

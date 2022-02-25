@@ -4,7 +4,7 @@ import { contentType } from 'mime-types';
 import { FileService } from './file.service';
 
 @ApiTags('UTILITIES')
-@Controller('utility/v1')
+@Controller('api/v1/utility')
 export class UtiliyController {
     constructor(private fileService: FileService) {}
 
