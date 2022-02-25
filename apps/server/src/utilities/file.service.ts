@@ -79,10 +79,6 @@ export class FileService {
             throw new Error('Unexpected null byte encountered');
         }
 
-        if (!/^[a-z0-9]+$/.test(filePath)) {
-            throw new Error('Invalid character found');
-        }
-
         if (filePath.indexOf(process.cwd()) !== 0) {
             throw new Error('Unacceptable file path');
         }
