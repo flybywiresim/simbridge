@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { MessageBody, OnGatewayConnection, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { OnGatewayConnection, OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, WebSocket } from 'ws';
 
 @WebSocketGateway({
@@ -11,25 +11,27 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
 
     @WebSocketServer() server: Server
 
-    @SubscribeMessage('message')
-    handleMessage(@MessageBody() message: string) {
-        this.logger.debug(`Received message: ${message}`);
-        if (message === 'mcduConnected') {
-            this.logger.log('Simulator Connected');
-        }
-        this.server.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(message);
-            }
-        });
-    }
-
     afterInit(server: Server) {
         this.server = server;
-        this.logger.log(`MCDU Socket Server initialised on http://localhost3838${server.path}`);
+        this.logger.log(`Initialised on http://localhost3838:${server.path}`);
     }
 
-    handleConnection(_client: WebSocket) {
+    handleConnection(client: WebSocket) {
         this.logger.log('Client connected');
+        client.on('message', (message: String) => {
+            if (message === 'mcduConnected') {
+                console.clear();
+                this.logger.log('Simulator connected');
+            }
+            this.server.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(message);
+                }
+            });
+            if (message.startsWith('print:')) {
+                this.logger.debug('Printer called');
+                // TODO Implement this
+            }
+        });
     }
 }

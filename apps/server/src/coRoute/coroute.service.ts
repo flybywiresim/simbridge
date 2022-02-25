@@ -41,16 +41,16 @@ export class CoRouteService {
             fileBuffers.fileNames[index],
         ));
 
-        return coRoutes.filter((coRoute) => this.coRouteConverter.validateCoRoute(coRoute)
-            .then(() => this.filterInvalidCoRoute(coRoute, originIcao, destinationIcao))
-            .catch(() => this.logger.warn(`coRoute failed validation: ${JSON.stringify(coRoute.name)}`)));
+        return coRoutes
+            .filter((coRoute) => this.coRouteConverter.validateCoRoute(coRoute))
+            .filter((validatedCoRoute) => this.filterInvalidCoRoute(validatedCoRoute, originIcao, destinationIcao));
     }
 
     private filterInvalidCoRoute(coRoute: CoRouteDto, originIcao: String, destinationIcao: String) {
         if (coRoute.origin.icao_code === originIcao && coRoute.destination.icao_code === destinationIcao) {
             return true;
         }
-        this.logger.debug(`coRoute didn't match req params, skipping: ${coRoute.name}}`);
+        this.logger.debug(`coRoute didn't match req params, skipping: ${coRoute.name}`);
         return false;
     }
 }

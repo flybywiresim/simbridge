@@ -29,6 +29,10 @@
 		"test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
 		"test:e2e": "jest --config ./apps/fbw-local-api/test/jest-e2e.json"
 	},
+	"peerDependencies": {
+		"react": "^17.0.0",
+		"react-dom": "^17.0.0"
+	},
 	"dependencies": {
 		"@nestjs/common": "^8.0.0",
 		"@nestjs/core": "^8.0.0",
@@ -45,9 +49,9 @@
 		"nest-winston": "^1.6.2",
 		"pdf-poppler": "^0.2.1",
 		"pdfjs-dist": "^2.12.313",
-		"react": "^17.0.2",
-		"react-dom": "^17.0.2",
-		"react-use-websocket": "^3.0.0",
+		"react": "^17.0.0",
+		"react-dom": "^17.0.0",
+		"react-use-websocket": "^2.9.1",
 		"reflect-metadata": "^0.1.13",
 		"rimraf": "^3.0.2",
 		"rxjs": "^7.2.0",
