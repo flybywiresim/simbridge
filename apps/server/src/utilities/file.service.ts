@@ -4,8 +4,7 @@ import { existsSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
-
-const pdf = require('pdf-poppler');
+import * as pdf from 'pdf-poppler';
 
 @Injectable()
 export class FileService {
