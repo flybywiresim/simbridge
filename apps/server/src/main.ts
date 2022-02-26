@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { access, mkdirSync } from 'fs';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { WsAdapter } from '@nestjs/platform-ws';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -19,7 +20,11 @@ const dirs = [
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
 
+    // Gateway Adapter
     app.useWebSocketAdapter(new WsAdapter(app));
+
+    // Config
+    const configService = app.get(ConfigService);
 
     // Pino
     app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
@@ -39,7 +44,7 @@ async function bootstrap() {
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('local-api', app, swaggerDocument);
 
-    await app.listen(3838);
+    await app.listen(configService.get('server.port'));
 
     if (module.hot) {
         module.hot.accept();

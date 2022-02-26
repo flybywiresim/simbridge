@@ -1,29 +1,28 @@
 {
 	"collection": "@nestjs/schematics",
 	"monorepo": true,
-	"root": "apps/server",
+	"root": "server",
 	"compilierOptions": {
-		"webpack": true,
+		"webpack": false,
 		"deleteOutDir": true
 	},
 	"projects": {
 		"server": {
 			"type": "application",
 			"root": "apps/server",
-			"entryFile": "main",
+			"entryFile": "main.js",
 			"sourceRoot": "apps/server/src",
 			"compilerOptions": {
-				"tsConfigPath": "apps/server/tsconfig.app.json",
-				"webPackConfigPath": "apps/server/webpack.config.js"
+				"tsConfigPath": "apps/server/tsconfig.app.json"
 			}
 		},
 		"mcdu": {
 			"type": "application",
 			"root": "apps/mcdu",
-			"entryFile": "index",
+			"entryFile": "index.jsx",
 			"sourceRoot": "apps/mcdu/src",
 			"compilerOptions": {
-				"tsConfigPath": "apps/mcdu/tsconfig.app.json",
+				"webpack": true,
 				"webpackConfigPath": "apps/mcdu/webpack.config.js"
 			}
 		}

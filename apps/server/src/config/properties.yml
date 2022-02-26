@@ -1,0 +1,9 @@
+server:
+  port: 3838
+
+printer:
+  enabled: true
+  printerName: null
+  fontSize: 19
+  paperSize: "A4"
+  margin: null

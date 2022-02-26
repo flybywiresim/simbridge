@@ -1,19 +1,27 @@
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { OnGatewayConnection, OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, WebSocket } from 'ws';
+import { PrinterService } from '../utilities/printer.service';
+import serverConfig from '../config/server.config';
 
 @WebSocketGateway({
     cors: { origin: '*' },
     path: '/interfaces/mcdu',
 })
 export class McduGateway implements OnGatewayInit, OnGatewayConnection {
+    constructor(
+        @Inject(serverConfig.KEY) private serverConf: ConfigType<typeof serverConfig>,
+         private printerService: PrinterService,
+    ) {}
+
     private readonly logger = new Logger(McduGateway.name);
 
     @WebSocketServer() server: Server
 
     afterInit(server: Server) {
         this.server = server;
-        this.logger.log(`Initialised on http://localhost3838:${server.path}`);
+        this.logger.log(`Initialised on http://localhost:${this.serverConf.port}${server.path}`);
     }
 
     handleConnection(client: WebSocket) {
@@ -29,8 +37,8 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
                 }
             });
             if (message.startsWith('print:')) {
-                this.logger.debug('Printer called');
-                // TODO Implement this
+                const { lines } = JSON.parse(message.substring(6));
+                this.printerService.print(lines);
             }
         });
     }
