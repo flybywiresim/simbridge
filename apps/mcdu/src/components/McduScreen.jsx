@@ -37,7 +37,7 @@ const Line = ({ label, cols }) => (
 export const McduScreen = ({ content }) => {
     const lines = [];
     for (let i = 0; i < content.lines.length; i++) {
-        lines.push(<Line label={i % 2 === 0} cols={content.lines[i] || ['', '', '']} />);
+        lines.push(<Line key={i.toString()} label={i % 2 === 0} cols={content.lines[i] || ['', '', '']} />);
     }
     return (
         <div className="screen" xmlns="http://www.w3.org/1999/xhtml">

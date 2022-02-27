@@ -1,13 +1,36 @@
 import './assets/css/App.css';
-import React, { useState, useEffect } from 'react';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
-import { McduScreen } from './components/McduScreen';
-import { McduButtons } from './components/McduButtons';
-import { WebsocketContext } from './WebsocketContext';
+import React, {useEffect, useState} from 'react';
+import useWebSocket, {ReadyState} from 'react-use-websocket';
+import {McduScreen} from './components/McduScreen';
+import {McduButtons} from './components/McduButtons';
+import {WebsocketContext} from './WebsocketContext';
 
 const App = () => {
-    const [fullscreen, setFullscreen] = useState(window.location.href.endsWith('fullscreen'));
-    const socketUrl = 'ws://localhost:3838/interfaces/mcdu';
+
+    // The url can contain parameter to turn on certain features.
+    // Parse the parameters and initialize the state accordingly.
+    let fullscreenParam = false;
+    let soundParam = false;
+    let params = window.location.href.split('?');
+    if (params.length > 1) {
+        params[1].split('&').forEach((p ) => {
+            switch (p) {
+                case "fullscreen":
+                    fullscreenParam = true;
+                    break;
+                case "sound":
+                    soundParam = true;
+                    break;
+            }
+        })
+    }
+
+    const [fullscreen, setFullscreen] = useState(fullscreenParam);
+    const [sound] = useState(soundParam);
+    const [dark, setDark] = useState(false);
+
+    // as http and websocket port are always the same we can read it from the URL
+    const socketUrl = `ws://localhost:${window.location.port}/interfaces/mcdu`;
 
     const [content, setContent] = useState(
         {
@@ -65,7 +88,7 @@ const App = () => {
                     {!fullscreen && (
                         <>
                             <McduScreen content={content} />
-                            <McduButtons />
+                            <McduButtons sound={sound} />
                             <div className="button-grid" style={{ left: `${184 / 10.61}%`, top: `${158 / 16.50}%`, width: `${706 / 10.61}%`, height: `${60 / 16.50}%` }}>
                                 <div className="button-row">
                                     <div className="button" title="Fullscreen" onClick={() => setFullscreen(!fullscreen)} />

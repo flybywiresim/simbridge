@@ -50,6 +50,18 @@ module.exports = (_env, _argv) => ({
                 type: 'asset',
                 generator: { filename: 'static/fonts/[name].[hash].[ext]' },
             },
+            // Audio
+            {
+                test: /\.mp3$/,
+                use: [
+                    {
+                        loader: 'asset',
+                        options: {
+                            mimetype: 'audio/mpeg',
+                        },
+                    },
+                ],
+            },
         ],
     },
     resolve: { extensions: ['.js', '.jsx'] },
