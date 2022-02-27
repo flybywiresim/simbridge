@@ -16,11 +16,11 @@ export class PrinterService {
     private selectedPrinter = this.selectPrinter()
 
     private async selectPrinter() {
+        const printers = await print.getPrinters();
+        this.logger.debug(`Current Printers: ${printers.map((printer) => printer.name)}`);
         if (this.printerConf.enabled && this.printerConf.printerName !== null) {
             try {
-                const printers = await print.getPrinters();
                 if (printers) {
-                    this.logger.debug(`Current Printers: ${printers.map((printer) => printer.name)}`);
                     const foundPrinter = printers.find(((printer) => printer.name === this.printerConf.printerName));
                     if (foundPrinter) {
                         return foundPrinter;
