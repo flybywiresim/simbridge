@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import * as print from 'pdf-to-printer';
 import * as PDFDocument from 'pdfkit';
-import { createWriteStream } from 'fs';
+import { createWriteStream, readFileSync } from 'fs';
 import printerConfig from '../config/printer.config';
 
 @Injectable()
@@ -14,6 +14,8 @@ export class PrinterService {
     private readonly logger = new Logger(PrinterService.name);
 
     private selectedPrinter = this.selectPrinter()
+
+    private fontBuffer = readFileSync(join(__dirname, '..', 'assets/fonts/RobotoMono-Bold.ttf'))
 
     private async selectPrinter() {
         const printers = await print.getPrinters();
@@ -45,7 +47,7 @@ export class PrinterService {
             const pdfPath = join(tmpdir(), 'a32nxPrint.pdf');
 
             doc.pipe(createWriteStream(pdfPath));
-            // doc.font()
+            doc.font(this.fontBuffer);
             doc.fontSize(this.printerConf.fontSize);
             for (let i = 0; i < lines.length; i++) {
                 doc.text(lines[i], { align: 'left' });

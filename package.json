@@ -150,7 +150,8 @@
 	"pkg": {
 		"assets": [
 			"node_modules/linebreak/**/*",
-			"dist/mcdu/**/*"
+			"dist/mcdu/**/*",
+			"dist/assets/**/*"
 		]
 	}
 }
