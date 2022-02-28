@@ -1,0 +1,12 @@
+{
+	"server": {
+		"port": 8380
+	},
+	"printer": {
+		"enabled": false,
+		"printerName": null,
+		"fontSize": 19,
+		"paperSize": "A4",
+		"margin": 30
+	}
+}

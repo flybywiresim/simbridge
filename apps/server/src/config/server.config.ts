@@ -1,11 +1,10 @@
 import { registerAs } from '@nestjs/config';
 import { readFileSync } from 'fs';
-import * as yaml from 'js-yaml';
 
-const CONFIG_FILENAME = 'resources/properties.yml';
+const CONFIG_FILENAME = 'resources/properties.json';
 
 export default registerAs('server', () => {
-    const properties = yaml.load(readFileSync(`${process.cwd()}/${CONFIG_FILENAME}`, 'utf8')) as Record<string, any>;
+    const properties = JSON.parse(readFileSync(`${process.cwd()}/${CONFIG_FILENAME}`, 'utf8'));
 
     return { port: properties.server.port };
 });
