@@ -60,6 +60,7 @@
 		"rimraf": "^3.0.2",
 		"rxjs": "^7.2.0",
 		"swagger-ui-express": "^4.3.0",
+		"unix-print": "^1.1.0",
 		"winston": "^3.3.3",
 		"winston-daily-rotate-file": "^4.5.5",
 		"ws": "^8.5.0",
