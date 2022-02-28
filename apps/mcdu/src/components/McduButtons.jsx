@@ -15,7 +15,7 @@ const ButtonRow = ({ children }) => (
     </div>
 );
 
-const Button = ({ audioObject, soundEnabled, name }) => {
+const Button = ({ soundEnabled, name }) => {
     const socket = useContext(WebsocketContext);
     const timeout = useRef();
     const buttonHeldTime = 1500;
@@ -25,7 +25,7 @@ const Button = ({ audioObject, soundEnabled, name }) => {
             event.preventDefault();
         }
         if (soundEnabled) {
-            audioObject.play();
+            new Audio(soundFile).play();
         }
         socket.sendMessage(`event:${name}`);
         timeout.current = setTimeout(() => {
@@ -54,134 +54,131 @@ const Button = ({ audioObject, soundEnabled, name }) => {
     return <div className="dummy" />;
 };
 
-export const McduButtons = ({ soundEnabled }) => {
-    const audioObject = new Audio(soundFile);
-    return (
-        <div className="buttons">
-            <ButtonGrid x={0} y={216} width={1061} height={512}>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L1" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R1" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L2" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R2" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L3" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R3" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L4" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R4" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L5" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R5" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L6" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R6" />
-                </ButtonRow>
-            </ButtonGrid>
-            <ButtonGrid x={115} y={804} width={745} height={180}>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="DIR" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="PROG" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="PERF" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="INIT" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="DATA" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="FPLN" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="RAD" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="FUEL" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="SEC" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="ATC" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="MENU" />
-                </ButtonRow>
-            </ButtonGrid>
-            <ButtonGrid x={115} y={985} width={260} height={260}>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="AIRPORT" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="PREVPAGE" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="UP" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="NEXTPAGE" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="DOWN" />
-                </ButtonRow>
-            </ButtonGrid>
-            <ButtonGrid x={435} y={1013} width={522} height={616}>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="A" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="B" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="C" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="D" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="E" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="F" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="G" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="H" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="I" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="J" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="K" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="L" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="M" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="N" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="O" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="P" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="Q" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="R" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="S" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="T" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="U" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="V" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="W" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="X" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="Y" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="Z" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="DIV" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="SP" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="OVFY" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="CLR" />
-                </ButtonRow>
-            </ButtonGrid>
-            <ButtonGrid x={128} y={1250} width={300} height={375}>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="1" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="2" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="3" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="4" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="5" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="6" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="7" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="8" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="9" />
-                </ButtonRow>
-                <ButtonRow>
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="DOT" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="0" />
-                    <Button audioObject={audioObject} soundEnabled={soundEnabled} name="PLUSMINUS" />
-                </ButtonRow>
-            </ButtonGrid>
-        </div>
-    );
-};
+export const McduButtons = ({ soundEnabled }) => (
+    <div className="buttons">
+        <ButtonGrid x={0} y={216} width={1061} height={512}>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="L1" />
+                <Button soundEnabled={soundEnabled} name="R1" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="L2" />
+                <Button soundEnabled={soundEnabled} name="R2" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="L3" />
+                <Button soundEnabled={soundEnabled} name="R3" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="L4" />
+                <Button soundEnabled={soundEnabled} name="R4" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="L5" />
+                <Button soundEnabled={soundEnabled} name="R5" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="L6" />
+                <Button soundEnabled={soundEnabled} name="R6" />
+            </ButtonRow>
+        </ButtonGrid>
+        <ButtonGrid x={115} y={804} width={745} height={180}>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="DIR" />
+                <Button soundEnabled={soundEnabled} name="PROG" />
+                <Button soundEnabled={soundEnabled} name="PERF" />
+                <Button soundEnabled={soundEnabled} name="INIT" />
+                <Button soundEnabled={soundEnabled} name="DATA" />
+                <Button soundEnabled={soundEnabled} name="" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="FPLN" />
+                <Button soundEnabled={soundEnabled} name="RAD" />
+                <Button soundEnabled={soundEnabled} name="FUEL" />
+                <Button soundEnabled={soundEnabled} name="SEC" />
+                <Button soundEnabled={soundEnabled} name="ATC" />
+                <Button soundEnabled={soundEnabled} name="MENU" />
+            </ButtonRow>
+        </ButtonGrid>
+        <ButtonGrid x={115} y={985} width={260} height={260}>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="AIRPORT" />
+                <Button soundEnabled={soundEnabled} name="" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="PREVPAGE" />
+                <Button soundEnabled={soundEnabled} name="UP" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="NEXTPAGE" />
+                <Button soundEnabled={soundEnabled} name="DOWN" />
+            </ButtonRow>
+        </ButtonGrid>
+        <ButtonGrid x={435} y={1013} width={522} height={616}>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="A" />
+                <Button soundEnabled={soundEnabled} name="B" />
+                <Button soundEnabled={soundEnabled} name="C" />
+                <Button soundEnabled={soundEnabled} name="D" />
+                <Button soundEnabled={soundEnabled} name="E" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="F" />
+                <Button soundEnabled={soundEnabled} name="G" />
+                <Button soundEnabled={soundEnabled} name="H" />
+                <Button soundEnabled={soundEnabled} name="I" />
+                <Button soundEnabled={soundEnabled} name="J" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="K" />
+                <Button soundEnabled={soundEnabled} name="L" />
+                <Button soundEnabled={soundEnabled} name="M" />
+                <Button soundEnabled={soundEnabled} name="N" />
+                <Button soundEnabled={soundEnabled} name="O" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="P" />
+                <Button soundEnabled={soundEnabled} name="Q" />
+                <Button soundEnabled={soundEnabled} name="R" />
+                <Button soundEnabled={soundEnabled} name="S" />
+                <Button soundEnabled={soundEnabled} name="T" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="U" />
+                <Button soundEnabled={soundEnabled} name="V" />
+                <Button soundEnabled={soundEnabled} name="W" />
+                <Button soundEnabled={soundEnabled} name="X" />
+                <Button soundEnabled={soundEnabled} name="Y" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="Z" />
+                <Button soundEnabled={soundEnabled} name="DIV" />
+                <Button soundEnabled={soundEnabled} name="SP" />
+                <Button soundEnabled={soundEnabled} name="OVFY" />
+                <Button soundEnabled={soundEnabled} name="CLR" />
+            </ButtonRow>
+        </ButtonGrid>
+        <ButtonGrid x={128} y={1250} width={300} height={375}>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="1" />
+                <Button soundEnabled={soundEnabled} name="2" />
+                <Button soundEnabled={soundEnabled} name="3" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="4" />
+                <Button soundEnabled={soundEnabled} name="5" />
+                <Button soundEnabled={soundEnabled} name="6" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="7" />
+                <Button soundEnabled={soundEnabled} name="8" />
+                <Button soundEnabled={soundEnabled} name="9" />
+            </ButtonRow>
+            <ButtonRow>
+                <Button soundEnabled={soundEnabled} name="DOT" />
+                <Button soundEnabled={soundEnabled} name="0" />
+                <Button soundEnabled={soundEnabled} name="PLUSMINUS" />
+            </ButtonRow>
+        </ButtonGrid>
+    </div>
+);

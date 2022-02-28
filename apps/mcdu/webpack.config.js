@@ -41,7 +41,7 @@ module.exports = (_env, _argv) => ({
             // Images
             {
                 test: /\.(png|jpg|gif)$/i,
-                type: 'asset',
+                type: 'asset/resource',
                 generator: { filename: 'static/img/[name].[hash].[ext]' },
             },
             // Fonts
