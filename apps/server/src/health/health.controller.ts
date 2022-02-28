@@ -1,0 +1,39 @@
+import { Controller, Get, Inject } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+    HealthCheckService,
+    HttpHealthIndicator,
+    HealthCheck,
+} from '@nestjs/terminus';
+import serverConfig from '../config/server.config';
+
+@ApiTags('HEALTH')
+@Controller('health')
+export class HealthController {
+    constructor(
+    @Inject(serverConfig.KEY) private serverConf: ConfigType<typeof serverConfig>,
+    private health: HealthCheckService,
+    private http: HttpHealthIndicator,
+    ) {}
+
+    @Get()
+    @HealthCheck()
+    @ApiResponse({ description: 'The status of the different services' })
+    checkServices() {
+        return this.health.check([
+            () => this.http.pingCheck('mcdu', `http://localhost:${this.serverConf.port}/interfaces/mcdu`),
+            () => this.http.pingCheck('api', `http://localhost:${this.serverConf.port}/api`),
+        ]);
+    }
+
+    // Is this safe?
+    @Get('/kill')
+    @ApiResponse({
+        status: 200,
+        description: 'Kills the server',
+    })
+    killApp() {
+        process.exit();
+    }
+}

@@ -1,4 +1,3 @@
-import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
@@ -6,6 +5,7 @@ import { access, mkdirSync } from 'fs';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -19,6 +19,8 @@ const dirs = [
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
+
+    app.enableShutdownHooks();
 
     // Gateway Adapter
     app.useWebSocketAdapter(new WsAdapter(app));
@@ -42,7 +44,7 @@ async function bootstrap() {
         .setVersion('1.0')
         .build();
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('local-api', app, swaggerDocument);
+    SwaggerModule.setup('api', app, swaggerDocument);
 
     await app.listen(configService.get('server.port'));
 

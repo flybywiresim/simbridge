@@ -9,6 +9,7 @@ import { CoRouteModule } from './coRoute/coroute.module';
 import { UtilitiesModule } from './utilities/utilities.module';
 import printerConfig from './config/printer.config';
 import serverConfig from './config/server.config';
+import { HealthModule } from './health/health.module';
 
 @Module({
     imports: [
@@ -17,10 +18,11 @@ import serverConfig from './config/server.config';
             serveRoot: '/interfaces/mcdu',
         }),
         WinstonModule.forRootAsync({ useClass: WinstonConfigService }),
-        ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig], envFilePath: './resources/properties.env' }),
+        ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig] }),
         CoRouteModule,
         UtilitiesModule,
         InterfacesModule,
+        HealthModule,
     ],
 })
 export class AppModule {}
