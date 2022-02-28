@@ -3,7 +3,6 @@ import { ConfigType } from '@nestjs/config';
 import { join } from 'path';
 import { tmpdir, platform } from 'os';
 import * as print from 'pdf-to-printer';
-import * as printUnix from 'unix-print';
 import * as PDFDocument from 'pdfkit';
 import { createWriteStream, readFileSync } from 'fs';
 import printerConfig from '../config/printer.config';
@@ -18,30 +17,30 @@ export class PrinterService {
 
     private fontBuffer = readFileSync(join(__dirname, '..', 'assets/fonts/RobotoMono-Bold.ttf'))
 
-    private retrievePrinterNames() {
-        return platform() === 'win32' ? print.getPrinters() : printUnix.getPrinters();
-    }
-
     private async selectPrinter() {
-        let printers: any[];
+        if (platform() !== 'win32') {
+            this.logger.warn(`Incorrect platform for printer: ${platform}, please use win32`);
+            return null;
+        }
         try {
-            printers = await this.retrievePrinterNames();
-
-            this.logger.debug(`Current Printers: ${printers.map((printer) => printer.name)}`);
+            const printers = await print.getPrinters();
             if (!printers) {
                 this.logger.error('No printers detected');
                 return null;
             }
+            printers.map((printer) => (printer.name === this.printerConf.printerName));
+
+            this.logger.debug(`Current Printers: ${printers.map((printer) => printer.name)}`);
 
             if (this.printerConf.enabled && this.printerConf.printerName !== null) {
-                const foundPrinter = printers.find(((printer) => printer.name === this.printerConf.printerName));
+                const foundPrinter = printers.find(((printer) => (printer.name === this.printerConf.printerName)));
                 if (foundPrinter) {
                     return foundPrinter;
                 }
                 this.logger.error(`Printer selected: ${this.printerConf.printerName} does not match found printers`);
                 return null;
             }
-            this.logger.log('Printer disabled or null printerName');
+            this.logger.warn('Printer disabled or null printerName');
             return null;
         } catch (error) {
             this.logger.error('Error retrieving printers list', error);
@@ -67,7 +66,7 @@ export class PrinterService {
                 print.print(pdfPath, { printer: foundPrinter.name, sumatraPdfPath: `${process.cwd()}/resources/SumatraPDF.exe` });
             }
         } catch (error) {
-            this.logger.error('Failed to print document: ', error);
+            this.logger.error('Error printing document', error);
         }
     }
 }
