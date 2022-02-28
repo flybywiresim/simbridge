@@ -9,20 +9,19 @@
 }
 
 .normal {
-  --aspect-ratio: calc(1061/1650);
-  --top-padding: .146;
-  --screen-scale: .69;
+    --aspect-ratio: calc(1290/2000);
+    --top-padding: .146;
+    --screen-scale: .69;
 }
 
 .normal .App {
-  background-image: url("../images/mcdu-r2-c.png");
-  background-size: contain;
-  background-repeat: no-repeat;
+    background-size: contain;
+    background-repeat: no-repeat;
 }
 
 .fullscreen {
-  --aspect-ratio: 1.21234964;
-  --top-padding: 0;
-  --screen-scale: 1;
-  cursor: pointer;
+    --aspect-ratio: 1.21234964;
+    --top-padding: 0;
+    --screen-scale: 1;
+    cursor: pointer;
 }
