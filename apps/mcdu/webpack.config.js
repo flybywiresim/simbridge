@@ -53,14 +53,8 @@ module.exports = (_env, _argv) => ({
             // Audio
             {
                 test: /\.mp3$/,
-                use: [
-                    {
-                        loader: 'asset',
-                        options: {
-                            mimetype: 'audio/mpeg',
-                        },
-                    },
-                ],
+                type: 'asset',
+                generator: { filename: 'static/audio/[name].[hash].[ext]' },
             },
         ],
     },

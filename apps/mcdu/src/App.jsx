@@ -1,32 +1,35 @@
 import './assets/css/App.css';
-import React, {useEffect, useState} from 'react';
-import useWebSocket, {ReadyState} from 'react-use-websocket';
-import {McduScreen} from './components/McduScreen';
-import {McduButtons} from './components/McduButtons';
-import {WebsocketContext} from './WebsocketContext';
+import React, { useEffect, useState } from 'react';
+import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { McduScreen } from './components/McduScreen';
+import { McduButtons } from './components/McduButtons';
+import { WebsocketContext } from './WebsocketContext';
+import darkBg from './assets/images/mcdu-a32nx-dark.png';
+import bg from './assets/images/mcdu-a32nx.png';
 
 const App = () => {
-
     // The url can contain parameter to turn on certain features.
     // Parse the parameters and initialize the state accordingly.
     let fullscreenParam = false;
     let soundParam = false;
-    let params = window.location.href.split('?');
+    const params = window.location.href.split('?');
     if (params.length > 1) {
-        params[1].split('&').forEach((p ) => {
+        params[1].split('&').forEach((p) => {
             switch (p) {
-                case "fullscreen":
-                    fullscreenParam = true;
-                    break;
-                case "sound":
-                    soundParam = true;
-                    break;
+            case 'fullscreen':
+                fullscreenParam = true;
+                break;
+            case 'sound':
+                soundParam = true;
+                break;
+            default:
+                throw new Error('wrong param provided');
             }
-        })
+        });
     }
 
     const [fullscreen, setFullscreen] = useState(fullscreenParam);
-    const [sound] = useState(soundParam);
+    const [soundEnabled] = useState(soundParam);
     const [dark, setDark] = useState(false);
 
     // as http and websocket port are always the same we can read it from the URL
@@ -81,19 +84,19 @@ const App = () => {
         }
     }, [lastMessage]);
 
-    let backgroundImageUrl = 'mcdu-a32nx.png';
+    let backgroundImageUrl = bg;
     if (dark) {
-        backgroundImageUrl = 'mcdu-a32nx-dark.png';
+        backgroundImageUrl = darkBg;
     }
 
     return (
         <div className={fullscreen ? 'fullscreen' : 'normal'}>
-            <div className="App" style={{ backgroundImage: `url(/interfaces/mcdu/${backgroundImageUrl})` }}>
+            <div className="App" style={{ backgroundImage: `url(${backgroundImageUrl})` }}>
                 <WebsocketContext.Provider value={{ sendMessage, lastMessage, readyState }}>
                     {!fullscreen && (
                         <>
                             <McduScreen content={content} />
-                            <McduButtons sound={sound} />
+                            <McduButtons soundEnabled={soundEnabled} />
                             <div className="button-grid" style={{ left: `${184 / 10.61}%`, top: `${158 / 16.50}%`, width: `${706 / 10.61}%`, height: `${60 / 16.50}%` }}>
                                 <div className="button-row">
                                     <div className="button" title="Fullscreen" onClick={() => setFullscreen(!fullscreen)} />
@@ -115,6 +118,6 @@ const App = () => {
             </div>
         </div>
     );
-}
+};
 
 export default App;
