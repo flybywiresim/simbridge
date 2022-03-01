@@ -1,4 +1,4 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
@@ -17,6 +17,8 @@ export class HealthController {
     private http: HttpHealthIndicator,
     ) {}
 
+    private readonly logger = new Logger(HealthController.name);
+
     @Get()
     @HealthCheck()
     @ApiResponse({ description: 'The status of the different services' })
@@ -34,6 +36,7 @@ export class HealthController {
         description: 'Kills the server',
     })
     killApp() {
+        this.logger.log('Server shutting down via endpoint call');
         process.exit();
     }
 }
