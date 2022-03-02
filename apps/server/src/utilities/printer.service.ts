@@ -30,7 +30,7 @@ export class PrinterService {
             }
             printers.map((printer) => (printer.name === this.printerConf.printerName));
 
-            this.logger.debug(`Current Printers: ${printers.map((printer) => printer.name)}`);
+            this.logger.log(`Current Printers: ${printers.map((printer) => printer.name)}`);
 
             if (this.printerConf.enabled && this.printerConf.printerName !== null) {
                 const foundPrinter = printers.find(((printer) => (printer.name === this.printerConf.printerName)));
@@ -63,7 +63,7 @@ export class PrinterService {
                     doc.moveDown();
                 }
                 doc.end();
-                print.print(pdfPath, { printer: foundPrinter.name, sumatraPdfPath: `${process.cwd()}/resources/SumatraPDF.exe` });
+                print.print(pdfPath, { printer: foundPrinter.name });
             }
         } catch (error) {
             this.logger.error('Error printing document', error);

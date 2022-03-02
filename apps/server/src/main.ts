@@ -6,6 +6,7 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { address } from 'ip';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -27,6 +28,7 @@ async function bootstrap() {
 
     // Config
     const configService = app.get(ConfigService);
+    const port = configService.get('server.port');
 
     // Pino
     app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
@@ -46,7 +48,10 @@ async function bootstrap() {
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api', app, swaggerDocument);
 
-    await app.listen(configService.get('server.port'));
+    await app.listen(port);
+
+    const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
+    logger.log(`Local API started on: http://${address()}:${port}`);
 
     if (module.hot) {
         module.hot.accept();
