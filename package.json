@@ -15,7 +15,7 @@
 		"build:server": "nest build server",
 		"build:exec": "npm run build && npm run install:win",
 		"build:exec:mac": "npm run build && npm run install:mac",
-		"install:mac": "pkg --public-packages '*' -t node16-macos-x64 --output dist/local-server dist/main.js --config package.json",
+		"install:mac": "pkg -d --public-packages '*' -t node16-macos-x64 --output dist/local-server dist/main.js --config package.json",
 		"install:win": "pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js --config package.json",
 		"format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
 		"start": "nest start server",
@@ -152,7 +152,7 @@
 	"pkg": {
 		"assets": [
 			"node_modules/linebreak/src/classes.trie",
-			"node_modules/pdf-to-printer/dist/SumatraPDF.exe",
+			"./node_modules/pdf-to-printer/dist/SumatraPDF.exe",
 			"node_modules/pdfkit/js/data/Helvetica.afm",
 			"node_modules/pdfjs-dist/build/pdf.js",
 			"dist/mcdu/**/*",

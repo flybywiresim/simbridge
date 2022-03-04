@@ -51,7 +51,7 @@ async function bootstrap() {
     await app.listen(port);
 
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    logger.log(`Local API started on: http://${address()}:${port}`);
+    logger.log(`Local API started on: http://${address()}:${port}`, 'NestApplication');
 
     if (module.hot) {
         module.hot.accept();

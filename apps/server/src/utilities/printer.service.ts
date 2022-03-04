@@ -63,7 +63,7 @@ export class PrinterService {
                     doc.moveDown();
                 }
                 doc.end();
-                print.print(pdfPath, { printer: foundPrinter.name });
+                print.print(pdfPath, { printer: foundPrinter.name, sumatraPdfPath: join(__dirname, '../..', 'node_modules/pdf-to-printer/dist/SumatraPDF.exe') });
             }
         } catch (error) {
             this.logger.error('Error printing document', error);
