@@ -5,11 +5,16 @@ import { tmpdir, platform } from 'os';
 import * as print from 'pdf-to-printer';
 import * as PDFDocument from 'pdfkit';
 import { createWriteStream, readFileSync } from 'fs';
+import { NestjsNotificationService } from '@sinuos/nestjs-notification';
 import printerConfig from '../config/printer.config';
+import { ErrorNotification } from '../notifications/platform.notification';
 
 @Injectable()
 export class PrinterService {
-    constructor(@Inject(printerConfig.KEY) private printerConf: ConfigType<typeof printerConfig>) {}
+    constructor(
+        @Inject(printerConfig.KEY) private printerConf: ConfigType<typeof printerConfig>,
+        private readonly notifications: NestjsNotificationService,
+    ) {}
 
     private readonly logger = new Logger(PrinterService.name);
 
@@ -44,6 +49,7 @@ export class PrinterService {
             return null;
         } catch (error) {
             this.logger.error('Error retrieving printers list', error);
+            this.notifications.send(new ErrorNotification({ message: 'Error retrieving printers list' }));
             return null;
         }
     }
@@ -67,6 +73,7 @@ export class PrinterService {
             }
         } catch (error) {
             this.logger.error('Error printing document', error);
+            this.notifications.send(new ErrorNotification({ message: 'Error printing document' }));
         }
     }
 }

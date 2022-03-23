@@ -1,13 +1,17 @@
 import { readdir, readFile } from 'fs/promises';
-import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, InternalServerErrorException, Logger, NotFoundException, StreamableFile } from '@nestjs/common';
 import { existsSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
 import * as pdf from 'pdf-poppler';
+import { NestjsNotificationService } from '@sinuos/nestjs-notification';
+import { ErrorNotification } from '../notifications/platform.notification';
 
 @Injectable()
 export class FileService {
+    constructor(private readonly notifications: NestjsNotificationService) {}
+
     private readonly logger = new Logger(FileService.name);
 
     async getFileCount(directory: PathLike): Promise<number> {
@@ -17,6 +21,7 @@ export class FileService {
             return retrievedDir.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
+            this.notifications.send(new ErrorNotification({ message }));
             this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
@@ -36,6 +41,7 @@ export class FileService {
             return { fileNames, files };
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
+            this.notifications.send(new ErrorNotification({ message }));
             this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
@@ -47,6 +53,7 @@ export class FileService {
             return readdir(`${process.cwd()}/${directory}`);
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
+            this.notifications.send(new ErrorNotification({ message }));
             this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
@@ -55,18 +62,24 @@ export class FileService {
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            return readFile(`${process.cwd()}/${directory}${fileName}`);
+            return await readFile(`${process.cwd()}/${directory}${fileName}`);
         } catch (err) {
-            const message = `Error retrieving file: ${fileName} in folder:${directory}`;
+            const message = `Error retrieving file: ${fileName} in folder: ${directory}`;
+            this.notifications.send(new ErrorNotification({ message }));
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
+            throw new NotFoundException(null, message);
         }
     }
 
     async getNumberOfPdfPages(fileName: string): Promise<number> {
         const retrievedFile = await this.getFile('resources\\pdfs\\', fileName);
 
-        return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
+        return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages).catch((error) => {
+            const message = `Error retrieving pdf pages of ${fileName}`;
+            this.notifications.send(new ErrorNotification({ message }));
+            this.logger.error(message, error);
+            throw new InternalServerErrorException(null, message);
+        });
     }
 
     /**
@@ -120,7 +133,8 @@ export class FileService {
             });
         } catch (err) {
             const message = `Error converting PDF to PNG: ${fileName}`;
-            this.logger.log(message, err);
+            this.notifications.send(new ErrorNotification({ message }));
+            this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -134,6 +148,7 @@ export class FileService {
             .then((result) => JSON.stringify(result))
             .catch((err) => {
                 const message = 'Error converting XML to JSON';
+                this.notifications.send(new ErrorNotification({ message }));
                 this.logger.error(message, err);
                 throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
             });
