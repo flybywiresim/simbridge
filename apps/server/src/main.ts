@@ -7,6 +7,9 @@ import { WsAdapter } from '@nestjs/platform-ws';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { address } from 'ip';
+import SysTray, { MenuItem } from 'systray2';
+import { join } from 'path';
+import { platform } from 'os';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -53,6 +56,8 @@ async function bootstrap() {
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
     logger.log(`Local API started on: http://${address()}:${port}`, 'NestApplication');
 
+    buildSysTray(logger);
+
     if (module.hot) {
         module.hot.accept();
         module.hot.dispose(() => app.close());
@@ -65,5 +70,43 @@ function generateResourceFolders() {
         access(dir, (error) => {
             if (error) mkdirSync(dir, { recursive: true });
         });
+    });
+}
+
+// for TS
+interface MenuItemClickable extends MenuItem {
+    click?: () => void
+}
+
+function buildSysTray(logger) {
+    const exitItem : MenuItemClickable = {
+        title: 'Exit',
+        tooltip: 'Kill the server',
+        checked: false,
+        enabled: true,
+        click: () => {
+            logger.log('Exiting via Tray', 'Systems Tray');
+            sysTray.kill(true);
+        },
+    };
+
+    const sysTray = new SysTray({
+        menu: {
+            icon: platform() === 'win32' ? join(__dirname, '/assets/images/tail.ico') : join(__dirname, '/assets/images/tail.png'),
+            title: 'FBW Local API',
+            tooltip: 'Flybywire Local Api',
+            items: [
+                exitItem,
+            ],
+        },
+        copyDir: true,
+    });
+
+    sysTray.onClick((action) => {
+        // eslint-disable-next-line no-prototype-builtins
+        if (action.item.hasOwnProperty('click')) {
+            const item = action.item as MenuItemClickable;
+            item.click();
+        }
     });
 }

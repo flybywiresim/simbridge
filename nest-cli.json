@@ -14,7 +14,7 @@
 			"sourceRoot": "apps/server/src",
 			"compilerOptions": {
 				"tsConfigPath": "apps/server/tsconfig.app.json",
-				"assets": ["**/*.ttf"]
+				"assets": ["**/*"]
 			}
 		},
 		"mcdu": {
