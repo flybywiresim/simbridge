@@ -1,7 +1,6 @@
 {
 	"server": {
-		"port": 8380,
-		"hidden": true
+		"port": 8380
 	},
 	"printer": {
 		"enabled": false,
