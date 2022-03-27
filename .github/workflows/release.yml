@@ -25,5 +25,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-          ${{ env.RELEASE_ZIP_NAME }}
+          ${ env.RELEASE_ZIP_NAME }
           LICENSE
