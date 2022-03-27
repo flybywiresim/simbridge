@@ -6,36 +6,36 @@ on:
 
 jobs:
   build:
-  if: github.repository_owner == 'flybywiresim'
-  runs-on: windows-latest
-  env:
-    RELEASE_ZIP_NAME: FBW-local-api.zip
-  steps:
-    - name: Checkout source
-      uses: actions/checkout@v3
-    - name: Build Local API
-      run: |
-        npm install
-        npm run build:exec
-    - name: Build ZIP File
-      run: |
-        Compress-Archive -Path .\dist\local-server.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github}}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
-    - name: Upload release asset
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.RELEASE_ZIP_NAME }}
-        asset_name: ${{ env.RELEASE_ZIP_NAME }}
-        asset_content_type: application/zip
+    if: github.repository_owner == 'flybywiresim'
+    runs-on: windows-latest
+    env:
+      RELEASE_ZIP_NAME: FBW-local-api.zip
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+      - name: Build Local API
+        run: |
+          npm install
+          npm run build:exec
+      - name: Build ZIP File
+        run: |
+          Compress-Archive -Path .\dist\local-server.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github}}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RELEASE_ZIP_NAME }}
+          asset_name: ${{ env.RELEASE_ZIP_NAME }}
+          asset_content_type: application/zip
