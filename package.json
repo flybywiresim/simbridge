@@ -1,6 +1,6 @@
 {
 	"name": "fbw-local-api",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "The local-api server for FBW addons for various tasks the addons itself can't achieve",
 	"author": "",
 	"private": false,
