@@ -14,9 +14,18 @@ NodeJS 14 - [Homepage](https://nodejs.org/en/)
 # install all dependencies
 $ npm install
 
-# watch mode / hot-reloading
-$ npm run start:dev
+# Build all packages
+npm run build
+
+# Start Server, to use interfaces you need to build them beforehand
+$ npm run start
+
+# Wipe dist folder, build all packages and package to exe
+$ npm run build:exec
+
+# Package to exe
+$ npm run install
 ```
 
 ## Documentation
-Start the server and direct to `localhost:3838/local-api`
+Start the server and direct to `localhost:3838/api` for API documentation

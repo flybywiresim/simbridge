@@ -5,6 +5,9 @@
 	"author": "",
 	"private": false,
 	"license": "GNU",
+	"os": [
+		"win32"
+	],
 	"scripts": {
 		"prepub": "copy package.json dist && copy README.md dist && copy LICENSE dist && copy CODE_OF_CONDUCT.md dist",
 		"pub": "cd dist && npm publish",
@@ -13,10 +16,8 @@
 		"build": "npm run build:server && npm run build:mcdu",
 		"build:mcdu": "webpack --config apps/mcdu/webpack.config.js",
 		"build:server": "nest build server",
-		"build:exec": "npm run build && npm run install:win",
-		"build:exec:mac": "npm run build && npm run install:mac",
-		"install:mac": "pkg -d --public-packages '*' -t node16-macos-x64 --output dist/local-server dist/main.js --config package.json",
-		"install:win": "pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js --config package.json",
+		"build:exec": "npm run build && npm run install",
+		"install": "pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js --config package.json",
 		"format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
 		"start": "nest start server",
 		"start:dev": "webpack --config webpack.config.js --watch",
