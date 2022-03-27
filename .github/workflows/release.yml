@@ -1,8 +1,8 @@
 name: release
 on:
   push:
-    branches:
-      - "main"
+    tags:
+      - "v*"
 
 jobs:
   build:
@@ -20,17 +20,14 @@ jobs:
       - name: Build ZIP File
         run: |
           Compress-Archive -Path .\dist\local-server.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
-      - name: Get latest tag
-        id: latest_tag
-        uses: actions-ecosystem/action-get-latest-tag@v1.1.0
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.latest_tag.outputs.tag }}
-          release_name: Release ${{ steps.latest_tag.outputs.tag }}
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
       - name: Upload release asset
