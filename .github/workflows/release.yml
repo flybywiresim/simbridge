@@ -22,8 +22,23 @@ jobs:
           Compress-Archive -Path .\dist\local-server.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
       - name: Create and Publish Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: "marvinpinto/action-automatic-releases@latest"
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        title: "Flybywire "
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: |
-          ${env.RELEASE_ZIP_NAME}
-          LICENSE
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RELEASE_ZIP_NAME }}
+          asset_name: ${{ env.RELEASE_ZIP_NAME }}
+          asset_content_type: application/zip
