@@ -20,12 +20,9 @@ jobs:
       - name: Build ZIP File
         run: |
           Compress-Archive -Path .\dist\local-server.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
-      - name: Create and Publish Release
+      - name: Create Release
         id: create_release
-        uses: "marvinpinto/action-automatic-releases@latest"
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        title: "Flybywire "
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
