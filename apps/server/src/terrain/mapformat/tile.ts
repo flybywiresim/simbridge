@@ -1,4 +1,6 @@
 export class Tile {
+    private buffer: Buffer | undefined = undefined;
+
     public Southwest: number[] = [];
 
     public MinimumElevation: number = 0;
@@ -12,6 +14,8 @@ export class Tile {
     public BufferSize: number = 0;
 
     constructor(buffer: Buffer, offset: number) {
+        this.buffer = buffer;
+
         // extract the tile header
         this.Southwest = [buffer.readInt8(offset), buffer.readInt16LE(offset + 1)];
         this.MinimumElevation = buffer.readInt16LE(offset + 3);
