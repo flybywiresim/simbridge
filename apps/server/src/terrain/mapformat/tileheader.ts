@@ -1,5 +1,3 @@
-import { Logger } from '@nestjs/common';
-
 export class Tileheader {
     public Southwest: number[] = [];
 

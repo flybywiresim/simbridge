@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { Tileheader } from './tileheader';
 
 export class Terrainmap {
