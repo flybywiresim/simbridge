@@ -10,7 +10,7 @@ export class TerrainService {
 
     private terrainDirectory = 'resources/terrain/';
 
-    private terrainmap = this.readTerrainmap();
+    public Terrainmap = this.readTerrainmap();
 
     async readTerrainmap(): Promise<Terrainmap | undefined> {
         try {
@@ -29,6 +29,6 @@ export class TerrainService {
     }
 
     async terrainmapExists(): Promise<boolean> {
-        return this.terrainmap.then((map) => map !== undefined);
+        return this.Terrainmap.then((map) => map !== undefined);
     }
 }
