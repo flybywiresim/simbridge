@@ -18,7 +18,7 @@ export class TerrainService {
             );
             this.logger.log(`Read MB of terrainmap: ${Buffer.byteLength(buffer) / (1024 * 1024)}`);
 
-            return new Terrainmap(buffer, this.logger);
+            return new Terrainmap(buffer);
         }
         catch (err) {
             this.logger.warn('Did not find the terrain.map-file');

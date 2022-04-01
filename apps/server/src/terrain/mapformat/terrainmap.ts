@@ -14,7 +14,7 @@ export class Terrainmap {
 
     public Tiles: Tileheader[] = []
 
-    constructor(buffer: Buffer, logger: Logger) {
+    constructor(buffer: Buffer) {
         this.Data = buffer;
 
         // extract the file header
@@ -23,9 +23,6 @@ export class Terrainmap {
         this.AngularSteps = [buffer.readUInt8(8), buffer.readUInt8(9)];
         this.ElevationResolution = buffer.readUInt8(10);
 
-        logger.log(`Latitude: ${this.LatitudeRange[0]} - ${this.LatitudeRange[1]}; Longitude: ${this.LongitudeRange[0]} - ${this.LongitudeRange[1]}`);
-        logger.log(`Steps: ${this.AngularSteps[0]}, ${this.AngularSteps[1]}; Resolution: ${this.ElevationResolution}`);
-
         const bytes = Buffer.byteLength(buffer);
         let offset = 11;
         while (offset < bytes) {
@@ -33,7 +30,5 @@ export class Terrainmap {
             this.Tiles.push(tile);
             offset = tile.BufferOffset + tile.BufferSize;
         }
-
-        logger.log(`Parsed tiles: ${this.Tiles.length}`);
     }
 }
