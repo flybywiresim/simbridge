@@ -6,6 +6,8 @@ import { Terrainmap } from './mapformat/terrainmap';
 export class TerrainService {
     constructor(private fileService: FileService) {}
 
+    private readonly logger = new Logger(TerrainService.name);
+
     private terrainDirectory = 'resources/terrain/';
 
     private terrainmap = this.readTerrainmap();
@@ -26,5 +28,7 @@ export class TerrainService {
         }
     }
 
-    private readonly logger = new Logger(TerrainService.name);
+    async terrainmapExists(): Promise<boolean> {
+        return this.terrainmap.then((map) => map !== undefined);
+    }
 }
