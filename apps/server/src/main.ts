@@ -10,6 +10,7 @@ import { address } from 'ip';
 import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
 import { platform } from 'os';
+import { hideConsole, showConsole } from 'node-hide-console-window';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -32,6 +33,7 @@ async function bootstrap() {
     // Config
     const configService = app.get(ConfigService);
     const port = configService.get('server.port');
+    const isConsoleHidden = configService.get('server.hidden');
 
     // Pino
     app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
@@ -56,7 +58,11 @@ async function bootstrap() {
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
     logger.log(`Local API started on: http://${address()}:${port}`, 'NestApplication');
 
-    buildSysTray(logger);
+    buildSysTray(logger, isConsoleHidden);
+
+    if (platform() === 'win32' && isConsoleHidden) {
+        hideConsole();
+    }
 
     if (module.hot) {
         module.hot.accept();
@@ -78,7 +84,9 @@ interface MenuItemClickable extends MenuItem {
     click?: () => void
 }
 
-function buildSysTray(logger) {
+function buildSysTray(logger, isConsoleHidden: Boolean) {
+    let hidden = isConsoleHidden;
+
     const exitItem : MenuItemClickable = {
         title: 'Exit',
         tooltip: 'Kill the server',
@@ -90,12 +98,25 @@ function buildSysTray(logger) {
         },
     };
 
+    const consoleVisibleItem : MenuItemClickable = {
+        title: 'Show/Hide',
+        tooltip: 'Change console visibility',
+        checked: false,
+        enabled: true,
+        click: () => {
+            if (hidden) showConsole();
+            else hideConsole();
+            hidden = !hidden;
+        },
+    };
+
     const sysTray = new SysTray({
         menu: {
             icon: platform() === 'win32' ? join(__dirname, '/assets/images/tail.ico') : join(__dirname, '/assets/images/tail.png'),
             title: 'FBW Local API',
             tooltip: 'Flybywire Local Api',
             items: [
+                consoleVisibleItem,
                 exitItem,
             ],
         },
