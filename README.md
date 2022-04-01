@@ -23,8 +23,11 @@ $ npm run start
 # Wipe dist folder, build all packages and package to exe
 $ npm run build:exec
 
-# Package to exe
-$ npm run install
+# Package built dist to exe
+$ npm run install:exec
+
+# Copy default properties file to resources
+$ npm run install:prop
 ```
 
 ## Documentation
