@@ -1,8 +1,6 @@
 import { Tile } from './tile';
 
 export class Terrainmap {
-    private Data: Buffer | undefined = undefined;
-
     public LatitudeRange: number[] = [];
 
     public LongitudeRange: number[] = [];
@@ -14,8 +12,6 @@ export class Terrainmap {
     public Tiles: Tile[] = []
 
     constructor(buffer: Buffer) {
-        this.Data = buffer;
-
         // extract the file header
         this.LatitudeRange = [buffer.readInt16LE(0), buffer.readInt16LE(2)];
         this.LongitudeRange = [buffer.readInt16LE(4), buffer.readInt16LE(6)];
