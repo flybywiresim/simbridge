@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { InterfacesModule } from './interfaces/interfaces.module';
 import { WinstonConfigService } from './config/winston.service';
 import { CoRouteModule } from './coRoute/coroute.module';
+import { TerrainModule } from './terrain/terrain.module';
 import { UtilitiesModule } from './utilities/utilities.module';
 import printerConfig from './config/printer.config';
 import serverConfig from './config/server.config';
@@ -20,6 +21,7 @@ import { HealthModule } from './health/health.module';
         WinstonModule.forRootAsync({ useClass: WinstonConfigService }),
         ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig] }),
         CoRouteModule,
+        TerrainModule,
         UtilitiesModule,
         InterfacesModule,
         HealthModule,
