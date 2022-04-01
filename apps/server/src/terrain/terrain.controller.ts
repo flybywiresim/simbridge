@@ -7,7 +7,7 @@ import { TerrainService } from './terrain.service';
 export class TerrainController {
     constructor(private terrainService: TerrainService) {}
 
-    @Get('terrainmapExists')
+    @Get('exists')
     @ApiResponse({
         status: 200,
         description: 'the terrainmap data exists',
