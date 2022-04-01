@@ -1,4 +1,4 @@
-export class Tileheader {
+export class Tile {
     public Southwest: number[] = [];
 
     public MinimumElevation: number = 0;

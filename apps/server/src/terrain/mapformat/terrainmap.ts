@@ -1,4 +1,4 @@
-import { Tileheader } from './tileheader';
+import { Tile } from './tile';
 
 export class Terrainmap {
     private Data: Buffer | undefined = undefined;
@@ -11,7 +11,7 @@ export class Terrainmap {
 
     public ElevationResolution: number = 0;
 
-    public Tiles: Tileheader[] = []
+    public Tiles: Tile[] = []
 
     constructor(buffer: Buffer) {
         this.Data = buffer;
@@ -25,7 +25,7 @@ export class Terrainmap {
         const bytes = Buffer.byteLength(buffer);
         let offset = 11;
         while (offset < bytes) {
-            const tile = new Tileheader(buffer, offset);
+            const tile = new Tile(buffer, offset);
             this.Tiles.push(tile);
             offset = tile.BufferOffset + tile.BufferSize;
         }
