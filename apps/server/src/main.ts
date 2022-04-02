@@ -87,6 +87,12 @@ interface MenuItemClickable extends MenuItem {
 function buildSysTray(logger, isConsoleHidden: Boolean) {
     let hidden = isConsoleHidden;
 
+    const manageConsole = () => {
+        if (hidden) showConsole();
+        else hideConsole();
+        hidden = !hidden;
+    };
+
     const exitItem : MenuItemClickable = {
         title: 'Exit',
         tooltip: 'Kill the server',
@@ -103,18 +109,14 @@ function buildSysTray(logger, isConsoleHidden: Boolean) {
         tooltip: 'Change console visibility',
         checked: false,
         enabled: true,
-        click: () => {
-            if (hidden) showConsole();
-            else hideConsole();
-            hidden = !hidden;
-        },
+        click: () => manageConsole(),
     };
 
     const sysTray = new SysTray({
         menu: {
             icon: platform() === 'win32' ? join(__dirname, '/assets/images/tail.ico') : join(__dirname, '/assets/images/tail.png'),
-            title: 'FBW Local API',
-            tooltip: 'Flybywire Local Api',
+            title: 'FBW Dispatch',
+            tooltip: 'Flybywire Dispatch Service',
             items: [
                 consoleVisibleItem,
                 exitItem,
