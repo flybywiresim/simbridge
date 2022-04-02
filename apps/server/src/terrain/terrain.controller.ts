@@ -37,12 +37,12 @@ export class TerrainController {
         const retval = new TerrainmapInfo();
 
         if (this.terrainService.Terrainmap !== undefined) {
-            retval.mostNorth = this.terrainService.Terrainmap.LatitudeRange[1];
-            retval.mostSouth = this.terrainService.Terrainmap.LatitudeRange[0];
-            retval.mostWest = this.terrainService.Terrainmap.LongitudeRange[0];
-            retval.mostEast = this.terrainService.Terrainmap.LongitudeRange[1];
-            retval.latitudinalStep = this.terrainService.Terrainmap.AngularSteps[0];
-            retval.longitudinalStep = this.terrainService.Terrainmap.AngularSteps[1];
+            retval.mostNorth = this.terrainService.Terrainmap.LatitudeRange.max;
+            retval.mostSouth = this.terrainService.Terrainmap.LatitudeRange.min;
+            retval.mostWest = this.terrainService.Terrainmap.LongitudeRange.min;
+            retval.mostEast = this.terrainService.Terrainmap.LongitudeRange.max;
+            retval.latitudinalStep = this.terrainService.Terrainmap.AngularSteps.latitude;
+            retval.longitudinalStep = this.terrainService.Terrainmap.AngularSteps.longitude;
             retval.elevationResolution = this.terrainService.Terrainmap.ElevationResolution;
         }
 

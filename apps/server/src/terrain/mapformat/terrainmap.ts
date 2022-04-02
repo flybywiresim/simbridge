@@ -1,11 +1,11 @@
 import { Tile } from './tile';
 
 export class Terrainmap {
-    public LatitudeRange: number[] = [];
+    public LatitudeRange: { min: number, max: number } = { min: 89, max: -90 };
 
-    public LongitudeRange: number[] = [];
+    public LongitudeRange: { min: number, max: number } = { min: 179, max: -180 };
 
-    public AngularSteps: number[] = [];
+    public AngularSteps: { latitude: number, longitude: number } = { latitude: 0, longitude: 0 };
 
     public ElevationResolution: number = 0;
 
@@ -13,9 +13,12 @@ export class Terrainmap {
 
     constructor(buffer: Buffer) {
         // extract the file header
-        this.LatitudeRange = [buffer.readInt16LE(0), buffer.readInt16LE(2)];
-        this.LongitudeRange = [buffer.readInt16LE(4), buffer.readInt16LE(6)];
-        this.AngularSteps = [buffer.readUInt8(8), buffer.readUInt8(9)];
+        this.LatitudeRange.min = buffer.readInt16LE(0);
+        this.LatitudeRange.max = buffer.readInt16LE(2);
+        this.LongitudeRange.min = buffer.readInt16LE(4);
+        this.LongitudeRange.max = buffer.readInt16LE(6);
+        this.AngularSteps.latitude = buffer.readUInt8(8);
+        this.AngularSteps.longitude = buffer.readUInt8(9);
         this.ElevationResolution = buffer.readUInt8(10);
 
         const bytes = Buffer.byteLength(buffer);
