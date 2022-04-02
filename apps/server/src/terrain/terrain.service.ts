@@ -23,7 +23,7 @@ export class TerrainService {
         });
     }
 
-    async readTerrainmap(): Promise<Terrainmap | undefined> {
+    private async readTerrainmap(): Promise<Terrainmap | undefined> {
         try {
             const buffer = await this.fileService.getFile(
                 this.terrainDirectory,
@@ -38,7 +38,7 @@ export class TerrainService {
         }
     }
 
-    terrainmapExists(): boolean {
+    public terrainmapExists(): boolean {
         return this.Terrainmap !== undefined;
     }
 
