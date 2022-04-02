@@ -136,12 +136,17 @@ export class Tile {
         }
     }
 
-    public elevationGrid(): ElevationGrid {
+    public gridDimension(): { width: number, height: number} {
         const rows = Math.round(Geodesic.WGS84.Inverse(this.Southwest[0], this.Southwest[1], this.Southwest[0] + this.parent.AngularSteps[0], this.Southwest[1]).s12 / 50);
         const cols = Math.round(Geodesic.WGS84.Inverse(this.Southwest[0], this.Southwest[1], this.Southwest[0], this.Southwest[1] + this.parent.AngularSteps[1]).s12 / 50);
-        const grid = Array.from({ length: rows }, (_) => Array.from({ length: cols }, (_) => 0));
+        return { width: rows, height: cols };
+    }
 
-        const retval = new ElevationGrid(rows, cols, grid);
+    public elevationGrid(): ElevationGrid {
+        const { width, height } = this.gridDimension();
+        const grid = Array.from({ length: width }, (_) => Array.from({ length: height }, (_) => 0));
+
+        const retval = new ElevationGrid(width, height, grid);
         this.createGrid(retval);
 
         return retval;
