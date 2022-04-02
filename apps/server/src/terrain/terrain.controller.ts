@@ -1,10 +1,11 @@
 import { Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { sharp } from 'sharp';
 import { TerrainService } from './terrain.service';
 import { Configuration } from './dto/configuration.dto';
 import { Position } from './dto/position.dto';
 import { TerrainmapInfo } from './dto/terrainmapinfo.dto';
+
+const sharp = require('sharp');
 
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
