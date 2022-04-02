@@ -1,9 +1,8 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { existsSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
+import { existsSync, PathLike, rmSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf';
-import { join } from 'path';
 import * as pdf from 'pdf-poppler';
 
 @Injectable()
@@ -11,40 +10,28 @@ export class FileService {
     private readonly logger = new Logger(FileService.name);
 
     async getFileCount(directory: PathLike): Promise<number> {
-        try {
-            this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const retrievedDir = await readdir(`${process.cwd()}/${directory}`);
-            return retrievedDir.length;
-        } catch (err) {
-            const message = `Error reading directory: ${directory}`;
-            this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
-        }
+        this.logger.debug(`Retrieving number of files in folder: ${directory}`);
+        const retrievedDir = await this.getFolderFilenames(directory);
+        return retrievedDir.length;
     }
 
     async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
-        try {
-            this.logger.debug(`Reading all files in directory: ${directory}`);
+        this.logger.debug(`Reading all files in directory: ${directory}`);
 
-            const fileNames = await readdir(`${process.cwd()}/${directory}`);
+        const fileNames = await this.getFolderFilenames(directory);
 
-            const files: Buffer[] = [];
-            for (const fileName of fileNames) {
-                files.push(await this.getFile(directory, fileName));
-            }
-
-            return { fileNames, files };
-        } catch (err) {
-            const message = `Error reading directory: ${directory}`;
-            this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
+        const files: Buffer[] = [];
+        for (const fileName of fileNames) {
+            files.push(await this.getFile(directory, fileName));
         }
+
+        return { fileNames, files };
     }
 
     async getFolderFilenames(directory: PathLike): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            return readdir(`${process.cwd()}/${directory}`);
+            return await readdir(`${process.cwd()}/${directory}`);
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -55,7 +42,7 @@ export class FileService {
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            return readFile(`${process.cwd()}/${directory}${fileName}`);
+            return await readFile(`${process.cwd()}/${directory}${fileName}`);
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
             this.logger.error(message, err);
@@ -66,7 +53,13 @@ export class FileService {
     async getNumberOfPdfPages(fileName: string): Promise<number> {
         const retrievedFile = await this.getFile('resources\\pdfs\\', fileName);
 
-        return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
+        return getDocument({ data: retrievedFile }).promise
+            .then((document) => document.numPages)
+            .catch((error) => {
+                const message = 'Failed to retrieve PDF pages';
+                this.logger.error(message, error);
+                throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+            });
     }
 
     /**
@@ -84,45 +77,45 @@ export class FileService {
     }
 
     async getConvertedPdfFile(fileName: string, pageNumber: number): Promise<StreamableFile> {
+        const pdfFilePath = `${process.cwd()}/resources/pdfs/${fileName}.pdf`;
+        const imagePath = `${fileName}-${pageNumber}.png`;
+
+        if (!existsSync(pdfFilePath)) {
+            this.logger.warn(`PDF File not found: ${fileName}`);
+            throw new HttpException(`File not found: ${fileName}`, HttpStatus.NOT_FOUND);
+        }
+
         try {
-            const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+            this.checkFilePathSafety(pdfFilePath);
+        } catch (error) {
+            const message = 'File path failed sanitation';
+            this.logger.error(message, error);
+            throw new HttpException(message, HttpStatus.BAD_REQUEST);
+        }
 
-            this.checkFilePathSafety(conversionFilePath);
-
-            const outFolderPath = `${process.cwd()}\\out`;
+        try {
+            const outFolderPath = `${process.cwd()}/resources/images`;
+            const outFileName = `${fileName}`;
 
             const options = {
                 format: 'png',
                 out_dir: outFolderPath,
-                out_prefix: 'out',
-                page: pageNumber,
+                out_prefix: `${outFileName}`,
                 scale: 2048,
+                page: pageNumber,
             };
 
-            return pdf.convert(conversionFilePath, options).then(() => {
-                const fileList = readdirSync(outFolderPath, { withFileTypes: true });
-
-                if (!fileList.length) {
-                    throw new Error('No files found in the output folder');
-                }
-                const pageNumberLength = fileList[0].name.replace('out-', '').replace('.png', '').length;
-                const expectedFilePath = `${outFolderPath}\\out-${pageNumber.toString().padStart(pageNumberLength, '0')}.png`;
-
-                if (existsSync(expectedFilePath)) {
-                    const file = new StreamableFile(readFileSync(expectedFilePath));
-
-                    rmSync(expectedFilePath);
-
-                    return file;
-                }
-
-                throw new Error('No file found in the output folder');
-            });
+            await pdf.convert(pdfFilePath, options);
         } catch (err) {
             const message = `Error converting PDF to PNG: ${fileName}`;
-            this.logger.log(message, err);
+            this.logger.error('Error converting PDF to PNG', err);
             throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
         }
+
+        return this.getFile('resources/images/', imagePath).then((file) => {
+            rmSync(`resources/images/${imagePath}`);
+            return new StreamableFile(file);
+        });
     }
 
     async getFileStream(directory: PathLike, fileName: PathLike): Promise<StreamableFile> {
