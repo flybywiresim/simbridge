@@ -82,33 +82,23 @@ export class TerrainController {
     })
     @ApiProduces('image/png')
     async getTile(@Query('lat') latStr: string, @Query('lon') lonStr: string) {
-        if (this.terrainService.Terrainmap !== undefined) {
+        const map = this.terrainService.Terrainmap;
+
+        if (map !== undefined) {
             const lat = parseInt(latStr);
             const lon = parseInt(lonStr);
 
-            for (let i = 0; i < this.terrainService.Terrainmap.Tiles.length; ++i) {
-                if (this.terrainService.Terrainmap.Tiles[i].Southwest[0] === lat && this.terrainService.Terrainmap.Tiles[i].Southwest[1] === lon) {
-                    // const grid = this.terrainService.Terrainmap.Tiles[i].elevationGrid();
+            for (let i = 0; i < map.Tiles.length; ++i) {
+                if (map.Tiles[i].Southwest.latitude === lat && map.Tiles[i].Southwest.longitude === lon) {
+                    const grid = map.Tiles[i].elevationGrid();
+                    const pixelBuffer = Buffer.from([].concat(...grid.Grid));
 
-                    // const flatten = [].concat(...grid.Grid);
-                    // const { data, info } = sharp(flatten, { raw: { width: grid.Columns, height: grid.Rows, channels: 1 } })
-                    // const { data, info } = sharp(flatten);
-                    //    .toBuffer({ resolveWithObject: true });
-                    sharp('./resources/images/images.png')
-                        .resize({ width: 200 })
-                        .toBuffer()
-                        .then((data) => {
-                            console.log(data);
-                        });
-                    // return data;
-                    // const png = new PNG({
-                    //    width: grid.Columns,
-                    //    height: grid.Rows,
-                    //    filterType: -1,
-                    // });
-                    // png.data = [].concat(...grid.Grid);
+                    const pngBuffer = await sharp(pixelBuffer, { raw: { width: grid.Columns, height: grid.Rows, channels: 1 } })
+                        .toFormat('png')
+                        .toBuffer();
+                    sharp(pngBuffer).toFile('./test.png');
 
-                    // return PNG.sync.write(png, { colorType: 0 });
+                    return pngBuffer;
                 }
             }
         }
