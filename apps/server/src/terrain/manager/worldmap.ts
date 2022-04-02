@@ -1,9 +1,17 @@
 import { Terrainmap } from '../mapformat/terrainmap';
+import { Configuration } from '../dto/configuration.dto';
 
 export class Worldmap {
+    private terrainmap: Terrainmap | undefined = undefined;
+
+    private grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
+
+    private visibilityRange: number = 250;
+
     constructor(mapfile: Terrainmap) {
-        const rowCount = Math.round(179 / mapfile.AngularSteps[0]);
-        const colCount = Math.round(359 / mapfile.AngularSteps[1]);
-        console.log(`Worldgrid: ${colCount}x${rowCount}`);
+    public configure(config: Configuration) {
+        this.visibilityRange = config.visibilityRange;
+    }
+
     }
 }

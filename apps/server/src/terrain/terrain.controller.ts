@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { sharp } from 'sharp';
 import { TerrainService } from './terrain.service';
+import { Configuration } from './dto/configuration.dto';
 import { TerrainmapInfo } from './dto/terrainmapinfo.dto';
 
 @ApiTags('TERRAIN')
@@ -47,6 +48,15 @@ export class TerrainController {
         }
 
         return retval;
+    }
+
+    @Post('configure')
+    @ApiResponse({
+        status: 200,
+        description: 'Configured the system',
+    })
+    configure(@Query('config') config: Configuration) {
+        this.terrainService.configure(config);
     }
 
     @Get('tile')

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { FileService } from '../utilities/file.service';
 import { Terrainmap } from './mapformat/terrainmap';
 import { Worldmap } from './manager/worldmap';
+import { Configuration } from './dto/configuration.dto';
 
 @Injectable()
 export class TerrainService {
@@ -40,4 +41,9 @@ export class TerrainService {
     terrainmapExists(): boolean {
         return this.Terrainmap !== undefined;
     }
+
+    public configure(config: Configuration): void {
+        this.MapManager.configure(config);
+    }
+
 }
