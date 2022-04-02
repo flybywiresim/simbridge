@@ -21,7 +21,7 @@ export class Terrainmap {
         const bytes = Buffer.byteLength(buffer);
         let offset = 11;
         while (offset < bytes) {
-            const tile = new Tile(buffer, offset);
+            const tile = new Tile(this, buffer, offset);
             this.Tiles.push(tile);
             offset = tile.BufferOffset + tile.BufferSize;
         }
