@@ -3,6 +3,7 @@ import { FileService } from '../utilities/file.service';
 import { Terrainmap } from './mapformat/terrainmap';
 import { Worldmap } from './manager/worldmap';
 import { Configuration } from './dto/configuration.dto';
+import { Position } from './dto/position.dto';
 
 @Injectable()
 export class TerrainService {
@@ -46,4 +47,7 @@ export class TerrainService {
         this.MapManager.configure(config);
     }
 
+    public updatePosition(position: Position): void {
+        this.MapManager.updatePosition(position);
+    }
 }

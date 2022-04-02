@@ -2,6 +2,7 @@ import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { Configuration } from '../dto/configuration.dto';
+import { Position } from './dto/position.dto';
 
 export class Worldmap {
     private terrainmap: Terrainmap | undefined = undefined;
@@ -40,5 +41,6 @@ export class Worldmap {
         this.visibilityRange = config.visibilityRange;
     }
 
+    public updatePosition(position: Position): void {
     }
 }

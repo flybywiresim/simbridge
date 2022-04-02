@@ -3,6 +3,7 @@ import { ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { sharp } from 'sharp';
 import { TerrainService } from './terrain.service';
 import { Configuration } from './dto/configuration.dto';
+import { Position } from './dto/position.dto';
 import { TerrainmapInfo } from './dto/terrainmapinfo.dto';
 
 @ApiTags('TERRAIN')
@@ -57,6 +58,15 @@ export class TerrainController {
     })
     configure(@Query('config') config: Configuration) {
         this.terrainService.configure(config);
+    }
+
+    @Post('position')
+    @ApiResponse({
+        status: 200,
+        description: 'Current position updated',
+    })
+    positionUpdate(@Query('position') position: Position) {
+        this.terrainService.updatePosition(position);
     }
 
     @Get('tile')
