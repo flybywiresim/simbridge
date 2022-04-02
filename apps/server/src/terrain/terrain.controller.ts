@@ -67,9 +67,9 @@ export class TerrainController {
 
             for (let i = 0; i < this.terrainService.Terrainmap.Tiles.length; ++i) {
                 if (this.terrainService.Terrainmap.Tiles[i].Southwest[0] === lat && this.terrainService.Terrainmap.Tiles[i].Southwest[1] === lon) {
-                    const grid = this.terrainService.Terrainmap.Tiles[i].elevationGrid();
+                    // const grid = this.terrainService.Terrainmap.Tiles[i].elevationGrid();
 
-                    const flatten = [].concat(...grid.Grid);
+                    // const flatten = [].concat(...grid.Grid);
                     // const { data, info } = sharp(flatten, { raw: { width: grid.Columns, height: grid.Rows, channels: 1 } })
                     // const { data, info } = sharp(flatten);
                     //    .toBuffer({ resolveWithObject: true });
