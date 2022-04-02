@@ -8,7 +8,7 @@ export class Tile {
 
     private buffer: Buffer | undefined = undefined;
 
-    public Southwest: number[] = [];
+    public Southwest: { latitude: number, longitude: number } = { latitude: 0, longitude: 0 };
 
     public MinimumElevation: number = 0;
 
@@ -25,7 +25,8 @@ export class Tile {
         this.buffer = buffer;
 
         // extract the tile header
-        this.Southwest = [buffer.readInt8(offset), buffer.readInt16LE(offset + 1)];
+        this.Southwest.latitude = buffer.readInt8(offset);
+        this.Southwest.longitude = buffer.readInt16LE(offset + 1);
         this.MinimumElevation = buffer.readInt16LE(offset + 3);
         this.BigNodesUsed = buffer.readUInt8(offset + 5) !== 0;
         this.NodeCount = buffer.readUInt32LE(offset + 6);
@@ -137,8 +138,10 @@ export class Tile {
     }
 
     public gridDimension(): { width: number, height: number} {
-        const rows = Math.round(Geodesic.WGS84.Inverse(this.Southwest[0], this.Southwest[1], this.Southwest[0] + this.parent.AngularSteps[0], this.Southwest[1]).s12 / 50);
-        const cols = Math.round(Geodesic.WGS84.Inverse(this.Southwest[0], this.Southwest[1], this.Southwest[0], this.Southwest[1] + this.parent.AngularSteps[1]).s12 / 50);
+        const rows = Math.round(Geodesic.WGS84.Inverse(this.Southwest.latitude, this.Southwest.longitude,
+            this.Southwest.latitude + this.parent.AngularSteps.latitude, this.Southwest.longitude).s12 / 50);
+        const cols = Math.round(Geodesic.WGS84.Inverse(this.Southwest.latitude, this.Southwest.longitude,
+            this.Southwest.latitude, this.Southwest.longitude + this.parent.AngularSteps.longitude).s12 / 50);
         return { width: rows, height: cols };
     }
 
