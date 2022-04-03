@@ -52,7 +52,7 @@ export class Tile {
     }
 
     private calculateElevation(node: QuadtreeNode): number {
-        return (this.MinimumElevation + node.ElevationBin * this.parent.ElevationResolution) * 3.28084;
+        return Math.round((this.MinimumElevation + node.ElevationBin * this.parent.ElevationResolution) * 3.28084);
     }
 
     private fillGrid(xStart: number, yStart: number, xSize: number, ySize: number, grid: ElevationGrid, node: QuadtreeNode): void {
@@ -103,7 +103,7 @@ export class Tile {
             const newArea = this.calculatePositionAndSize(leafCount, xStart, yStart, xSize, ySize);
 
             if (index + 1 >= nodes.length) {
-                if (leafCount !== 0 || nodes[index].TreeLevel === level) {
+                if (leafCount !== 0) {
                     this.fillGrid(newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, grid, nodes[index]);
                 } else {
                     this.fillGrid(xStart, yStart, xSize, ySize, grid, nodes[index]);
@@ -111,8 +111,8 @@ export class Tile {
                 return index;
             }
 
-            if (nodes[index].TreeLevel <= level) {
-                if (leafCount !== 0 || nodes[index].TreeLevel === level) {
+            if (nodes[index + 1].TreeLevel <= level) {
+                if (leafCount !== 0 || nodes[index + 1].TreeLevel === level) {
                     this.fillGrid(newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, grid, nodes[index]);
                 } else {
                     this.fillGrid(xStart, yStart, xSize, ySize, grid, nodes[index]);
