@@ -74,14 +74,13 @@ export class TerrainController {
     @ApiResponse({
         status: 200,
         description: 'The elevation grid of a tile',
-        type: Buffer,
     })
     @ApiResponse({
         status: 404,
         description: 'Unable to find the tile',
     })
     @ApiProduces('image/png')
-    async getTile(@Query('lat') latStr: string, @Query('lon') lonStr: string) {
+    async getTile(@Query('lat') latStr: string, @Query('lon') lonStr: string): Promise<void> {
         const map = this.terrainService.Terrainmap;
 
         if (map !== undefined) {
@@ -111,13 +110,9 @@ export class TerrainController {
                             .toFormat('png')
                             .toBuffer();
                         sharp(pngBuffer).toFile('./test.png');
-
-                        return pngBuffer;
                     }
                 }
             }
         }
-
-        return undefined;
     }
 }
