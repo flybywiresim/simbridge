@@ -98,8 +98,9 @@ export class Worldmap {
         for (let row = 0; row < this.grid.length; ++row) {
             for (let col = 0; col < this.grid[row].length; ++col) {
                 const idx = whitelist.findIndex((element) => element.column === col && element.row === row);
-                if (idx !== -1) {
+                if (idx === -1) {
                     this.grid[row][col].elevationmap = undefined;
+                } else {
                     whitelist.splice(idx, 1);
                 }
             }
