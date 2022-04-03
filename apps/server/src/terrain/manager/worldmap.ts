@@ -39,6 +39,13 @@ export class Worldmap {
 
     public configure(config: Configuration) {
         this.visibilityRange = config.visibilityRange;
+        if (config.reset === true) {
+            this.grid.forEach((row) => {
+                for (let i = 0; i < row.length; ++i) {
+                    row[i].elevationmap = undefined;
+                }
+            });
+        }
     }
 
     public updatePosition(position: Position): void {
