@@ -21,10 +21,6 @@ export class TerrainController {
         description: 'the terrainmap data exists',
         type: Boolean,
     })
-    @ApiResponse({
-        status: 404,
-        description: 'unable to find the terrainmap data',
-    })
     async getTerrainmapExists(): Promise<Boolean> {
         return this.terrainService.terrainmapExists();
     }
@@ -34,10 +30,6 @@ export class TerrainController {
         status: 200,
         description: 'the terrainmap information',
         type: TerrainmapInfoDto,
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'unable to find the terrainmap information',
     })
     async getTerrainmapInfo(): Promise<TerrainmapInfoDto> {
         const retval = new TerrainmapInfoDto();
@@ -103,10 +95,6 @@ export class TerrainController {
     @ApiResponse({
         status: 200,
         description: 'The elevation grid of a tile',
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Unable to find the tile',
     })
     @ApiProduces('image/png')
     async getTile(@Query('lat') latStr: string, @Query('lon') lonStr: string): Promise<void> {
