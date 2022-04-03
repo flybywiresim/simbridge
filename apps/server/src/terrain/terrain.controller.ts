@@ -11,6 +11,8 @@ const sharp = require('sharp');
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
 export class TerrainController {
+    private presentHeading: number = 0;
+
     constructor(private terrainService: TerrainService) {}
 
     @Get('exists')
@@ -69,6 +71,7 @@ export class TerrainController {
     })
     positionUpdate(@Query('position') position: Position) {
         this.terrainService.updatePosition(position);
+        this.presentHeading = position.heading;
     }
 
     @Get('ndmap')
@@ -77,11 +80,21 @@ export class TerrainController {
         description: 'The current ND map',
         type: Buffer,
     })
+    @ApiProduces('image/png')
     async createNDMap(@Query('config') config: NDView): Promise<Buffer> {
         const { buffer, rows, columns } = this.terrainService.MapManager.createMapND(config);
-        const pngBuffer = await sharp(buffer, { raw: { width: columns, height: rows, channels: 3 } })
-            .toFormat('png')
-            .toBuffer();
+        let pngBuffer: Buffer | undefined = undefined;
+
+        if (config.rotateAroundHeading === true) {
+            pngBuffer = await sharp(buffer, { raw: { width: columns, height: rows, channels: 3 } })
+                .rotate(-1 * this.presentHeading)
+                .toFormat('png')
+                .toBuffer();
+        } else {
+            pngBuffer = await sharp(buffer, { raw: { width: columns, height: rows, channels: 3 } })
+                .toFormat('png')
+                .toBuffer();
+        }
 
         return pngBuffer;
     }
