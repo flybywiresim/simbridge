@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
-import { Configuration } from './dto/configuration.dto';
-import { Position } from './dto/position.dto';
-import { TerrainmapInfo } from './dto/terrainmapinfo.dto';
-import { NDView } from './dto/ndview.dto';
+import { ConfigurationDto } from './dto/configuration.dto';
+import { PositionDto } from './dto/position.dto';
+import { TerrainmapInfoDto } from './dto/terrainmapinfo.dto';
+import { NDViewDto } from './dto/ndview.dto';
 
 const sharp = require('sharp');
 
@@ -33,14 +33,14 @@ export class TerrainController {
     @ApiResponse({
         status: 200,
         description: 'the terrainmap information',
-        type: TerrainmapInfo,
+        type: TerrainmapInfoDto,
     })
     @ApiResponse({
         status: 404,
         description: 'unable to find the terrainmap information',
     })
-    async getTerrainmapInfo(): Promise<TerrainmapInfo> {
-        const retval = new TerrainmapInfo();
+    async getTerrainmapInfo(): Promise<TerrainmapInfoDto> {
+        const retval = new TerrainmapInfoDto();
 
         if (this.terrainService.Terrainmap !== undefined) {
             retval.mostNorth = this.terrainService.Terrainmap.LatitudeRange.max;
@@ -60,7 +60,7 @@ export class TerrainController {
         status: 200,
         description: 'Configured the system',
     })
-    configure(@Query('config') config: Configuration) {
+    configure(@Query('config') config: ConfigurationDto) {
         this.terrainService.configure(config);
     }
 
@@ -69,7 +69,7 @@ export class TerrainController {
         status: 200,
         description: 'Current position updated',
     })
-    positionUpdate(@Query('position') position: Position) {
+    positionUpdate(@Query('position') position: PositionDto) {
         this.terrainService.updatePosition(position);
         this.presentHeading = position.heading;
     }
@@ -81,7 +81,7 @@ export class TerrainController {
         type: Buffer,
     })
     @ApiProduces('image/png')
-    async createNDMap(@Query('config') config: NDView): Promise<Buffer> {
+    async createNDMap(@Query('config') config: NDViewDto): Promise<Buffer> {
         const { buffer, rows, columns } = this.terrainService.MapManager.createMapND(config);
         let pngBuffer: Buffer | undefined = undefined;
 

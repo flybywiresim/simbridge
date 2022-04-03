@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { FileService } from '../utilities/file.service';
 import { Terrainmap } from './mapformat/terrainmap';
 import { Worldmap } from './manager/worldmap';
-import { Configuration } from './dto/configuration.dto';
-import { Position } from './dto/position.dto';
+import { ConfigurationDto } from './dto/configuration.dto';
+import { PositionDto } from './dto/position.dto';
 
 @Injectable()
 export class TerrainService {
@@ -43,11 +43,11 @@ export class TerrainService {
         return this.Terrainmap !== undefined;
     }
 
-    public configure(config: Configuration): void {
+    public configure(config: ConfigurationDto): void {
         this.MapManager.configure(config);
     }
 
-    public updatePosition(position: Position): void {
+    public updatePosition(position: PositionDto): void {
         this.MapManager.updatePosition(position);
     }
 }

@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber } from 'class-validator';
 
 /* eslint-disable camelcase */
-export class Position {
+export class PositionDto {
     @ApiProperty({ description: 'The current latitudinal value [deg]', example: '42.552' })
     @IsNumber()
     latitude: number

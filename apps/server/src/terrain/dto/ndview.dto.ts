@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsNumber } from 'class-validator';
 
 /* eslint-disable camelcase */
-export class NDView {
+export class NDViewDto {
     @ApiProperty({ description: 'The current radius [NM]', example: '20' })
     @IsNumber()
     viewRadius: number

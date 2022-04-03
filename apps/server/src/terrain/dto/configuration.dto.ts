@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsNumber } from 'class-validator';
 
 /* eslint-disable camelcase */
-export class Configuration {
+export class ConfigurationDto {
     @ApiProperty({ description: 'Resets the terrain manager', example: 'false' })
     @IsBoolean()
     reset: boolean = false;

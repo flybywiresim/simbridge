@@ -1,6 +1,6 @@
 // import { parentPort, workerData } from 'worker_threads';
 import { Worldmap } from './worldmap';
-import { Position } from '../dto/position.dto';
+import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from '../utils/wgs84';
 
 function findTileIndices(world: Worldmap, latitude: number, longitude0: number, longitude1: number): { row: number, column: number }[] {
@@ -16,7 +16,7 @@ function findTileIndices(world: Worldmap, latitude: number, longitude0: number, 
     return indices;
 }
 
-export function loadTiles(world: Worldmap, position: Position) {
+export function loadTiles(world: Worldmap, position: PositionDto) {
     const southwest = WGS84.project(position.latitude, position.longitude, world.VisibilityRange * 1852, 225);
     const northeast = WGS84.project(position.latitude, position.longitude, world.VisibilityRange * 1852, 45);
 

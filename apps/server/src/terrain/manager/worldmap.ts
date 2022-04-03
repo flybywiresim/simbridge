@@ -2,10 +2,11 @@ import { Worker } from 'worker_threads';
 import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { ElevationGrid } from '../mapformat/elevationgrid';
-import { Configuration } from '../dto/configuration.dto';
-import { Position } from '../dto/position.dto';
-import { NDView } from '../dto/ndview.dto';
+import { ConfigurationDto } from '../dto/configuration.dto';
+import { PositionDto } from '../dto/position.dto';
+import { NDViewDto } from '../dto/ndview.dto';
 import { loadTiles } from './maploader';
+import { WGS84 } from '../utils/wgs84';
 
 export class Worldmap {
     private tileloader: Worker | undefined = undefined;
@@ -13,6 +14,8 @@ export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
     private grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
+
+    private presentPosition: PositionDto | undefined = undefined;
 
     public VisibilityRange: number = 250;
 
@@ -42,7 +45,7 @@ export class Worldmap {
         }
     }
 
-    public configure(config: Configuration) {
+    public configure(config: ConfigurationDto) {
         this.VisibilityRange = config.visibilityRange;
 
         if (config.reset === true) {
@@ -51,8 +54,9 @@ export class Worldmap {
         }
     }
 
-    public updatePosition(position: Position): void {
+    public updatePosition(position: PositionDto): void {
         if (this.tileloader === undefined) {
+            this.presentPosition = position;
             loadTiles(this, position);
             // this.tileloader = new Worker('./apps/server/src/terrain/manager/maploader.ts', {
             //    workerData: {
@@ -116,7 +120,6 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.grid[index.row][index.column].tileIndex];
     }
 
-    public createMapND(config: NDView): { buffer: Uint8ClampedArray, rows: number, columns: number } {
-        return { buffer: new Uint8ClampedArray(), rows: 0, columns: 0 };
+    public createMapND(config: NDViewDto): { buffer: Uint8ClampedArray, rows: number, columns: number } {
     }
 }

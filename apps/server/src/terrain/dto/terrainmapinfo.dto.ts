@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber } from 'class-validator';
 
 /* eslint-disable camelcase */
-export class TerrainmapInfo {
+export class TerrainmapInfoDto {
     @ApiProperty({ description: 'The most north latitudinal angle', example: '90' })
     @IsNumber()
     mostNorth: number
