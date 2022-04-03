@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Query } from '@nestjs/common';
-import { ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Query, Body } from '@nestjs/common';
+import { ApiProduces, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
 import { PositionDto } from './dto/position.dto';
@@ -48,32 +48,44 @@ export class TerrainController {
     }
 
     @Post('configure')
+    @ApiBody({
+        description: 'The configuration entry',
+        type: ConfigurationDto,
+    })
     @ApiResponse({
         status: 200,
         description: 'Configured the system',
     })
-    configure(@Query('config') config: ConfigurationDto) {
+    configure(@Body() config: ConfigurationDto) {
         this.terrainService.configure(config);
     }
 
     @Post('position')
+    @ApiBody({
+        description: 'The current position',
+        type: PositionDto,
+    })
     @ApiResponse({
         status: 200,
         description: 'Current position updated',
     })
-    positionUpdate(@Query('position') position: PositionDto) {
+    positionUpdate(@Body() position: PositionDto) {
         this.terrainService.updatePosition(position);
         this.presentHeading = position.heading;
     }
 
     @Get('ndmap')
+    @ApiBody({
+        description: 'The new connection containing the flight number and current location',
+        type: NDViewDto,
+    })
     @ApiResponse({
         status: 200,
         description: 'The current ND map',
         type: Buffer,
     })
     @ApiProduces('image/png')
-    async createNDMap(@Query('config') config: NDViewDto): Promise<Buffer> {
+    async createNDMap(@Body() config: NDViewDto): Promise<Buffer> {
         const { buffer, rows, columns } = this.terrainService.MapManager.createMapND(config);
         let pngBuffer: Buffer | undefined = undefined;
 
