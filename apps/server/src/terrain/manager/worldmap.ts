@@ -46,12 +46,7 @@ export class Worldmap {
 
         if (config.reset === true) {
             this.tileloader = undefined;
-
-            this.grid.forEach((row) => {
-                for (let i = 0; i < row.length; ++i) {
-                    row[i].elevationmap = undefined;
-                }
-            });
+            this.cleanupElevationCache([]);
         }
     }
 
