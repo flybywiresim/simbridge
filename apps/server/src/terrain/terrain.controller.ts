@@ -4,6 +4,7 @@ import { TerrainService } from './terrain.service';
 import { Configuration } from './dto/configuration.dto';
 import { Position } from './dto/position.dto';
 import { TerrainmapInfo } from './dto/terrainmapinfo.dto';
+import { NDView } from './dto/ndview.dto';
 
 const sharp = require('sharp');
 
@@ -68,6 +69,16 @@ export class TerrainController {
     })
     positionUpdate(@Query('position') position: Position) {
         this.terrainService.updatePosition(position);
+    }
+
+    @Get('ndmap')
+    @ApiResponse({
+        status: 200,
+        description: 'The current ND map',
+        type: Buffer,
+    })
+    createNDMap(@Query('config') config: NDView) {
+
     }
 
     @Get('tile')
