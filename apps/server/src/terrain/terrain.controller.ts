@@ -77,8 +77,13 @@ export class TerrainController {
         description: 'The current ND map',
         type: Buffer,
     })
-    createNDMap(@Query('config') config: NDView) {
+    async createNDMap(@Query('config') config: NDView): Promise<Buffer> {
+        const { buffer, rows, columns } = this.terrainService.MapManager.createMapND(config);
+        const pngBuffer = await sharp(buffer, { raw: { width: columns, height: rows, channels: 3 } })
+            .toFormat('png')
+            .toBuffer();
 
+        return pngBuffer;
     }
 
     @Get('tile')

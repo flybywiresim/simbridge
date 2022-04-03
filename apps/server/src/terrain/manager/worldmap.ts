@@ -4,6 +4,7 @@ import { Tile } from '../mapformat/tile';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { Configuration } from '../dto/configuration.dto';
 import { Position } from '../dto/position.dto';
+import { NDView } from '../dto/ndview.dto';
 import { loadTiles } from './maploader';
 
 export class Worldmap {
@@ -113,5 +114,9 @@ export class Worldmap {
         }
 
         return this.Terraindata.Tiles[this.grid[index.row][index.column].tileIndex];
+    }
+
+    public createMapND(config: NDView): { buffer: Uint8ClampedArray, rows: number, columns: number } {
+        return { buffer: new Uint8ClampedArray(), rows: 0, columns: 0 };
     }
 }
