@@ -91,14 +91,29 @@ export class TerrainController {
             for (let i = 0; i < map.Tiles.length; ++i) {
                 if (map.Tiles[i].Southwest.latitude === lat && map.Tiles[i].Southwest.longitude === lon) {
                     const grid = map.Tiles[i].elevationGrid();
-                    const pixelBuffer = Buffer.from([].concat(...grid.Grid));
 
-                    const pngBuffer = await sharp(pixelBuffer, { raw: { width: grid.Columns, height: grid.Rows, channels: 1 } })
-                        .toFormat('png')
-                        .toBuffer();
-                    sharp(pngBuffer).toFile('./test.png');
+                    if (grid.Columns !== 0 && grid.Rows !== 0) {
+                        let maxElev = 0;
+                        grid.Grid.forEach((row) => {
+                            row.forEach((cell) => {
+                                if (maxElev < cell) {
+                                    maxElev = cell;
+                                }
+                            });
+                        });
+                        const pixels = [].concat(...grid.Grid);
+                        for (let i = 0; i < pixels.length; ++i) {
+                            pixels[i] = Math.round((pixels[i] / maxElev) * 255);
+                        }
 
-                    return pngBuffer;
+                        const pixelBuffer = new Uint8ClampedArray(pixels);
+                        const pngBuffer = await sharp(pixelBuffer, { raw: { width: grid.Columns, height: grid.Rows, channels: 1 } })
+                            .toFormat('png')
+                            .toBuffer();
+                        sharp(pngBuffer).toFile('./test.png');
+
+                        return pngBuffer;
+                    }
                 }
             }
         }
