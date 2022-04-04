@@ -1,9 +1,8 @@
-import { Controller, Get, Post, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
 import { PositionDto } from './dto/position.dto';
-import { TerrainmapInfoDto } from './dto/terrainmapinfo.dto';
 import { NDViewDto } from './dto/ndview.dto';
 
 const sharp = require('sharp');
@@ -15,36 +14,19 @@ export class TerrainController {
 
     constructor(private terrainService: TerrainService) {}
 
-    @Get('exists')
+    @Get('available')
     @ApiResponse({
         status: 200,
-        description: 'the terrainmap data exists',
-        type: Boolean,
+        description: 'The terrainmap is available',
     })
-    async getTerrainmapExists(): Promise<Boolean> {
-        return this.terrainService.terrainmapExists();
-    }
-
-    @Get('mapinfo')
     @ApiResponse({
-        status: 200,
-        description: 'the terrainmap information',
-        type: TerrainmapInfoDto,
+        status: 404,
+        description: 'The terrainmap is not loaded',
     })
-    async getTerrainmapInfo(): Promise<TerrainmapInfoDto> {
-        const retval = new TerrainmapInfoDto();
-
-        if (this.terrainService.Terrainmap !== undefined) {
-            retval.mostNorth = this.terrainService.Terrainmap.LatitudeRange.max;
-            retval.mostSouth = this.terrainService.Terrainmap.LatitudeRange.min;
-            retval.mostWest = this.terrainService.Terrainmap.LongitudeRange.min;
-            retval.mostEast = this.terrainService.Terrainmap.LongitudeRange.max;
-            retval.latitudinalStep = this.terrainService.Terrainmap.AngularSteps.latitude;
-            retval.longitudinalStep = this.terrainService.Terrainmap.AngularSteps.longitude;
-            retval.elevationResolution = this.terrainService.Terrainmap.ElevationResolution;
+    mapAvailable() {
+        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+            throw new NotFoundException('Terrainmap not loaded');
         }
-
-        return retval;
     }
 
     @Post('configure')
@@ -56,8 +38,14 @@ export class TerrainController {
         status: 200,
         description: 'Configured the system',
     })
+    @ApiResponse({
+        status: 400,
+        description: 'Unable to configure the system',
+    })
     configure(@Body() config: ConfigurationDto) {
-        this.terrainService.configure(config);
+        if (this.terrainService.configure(config) === false) {
+            throw new BadRequestException('Unable to configure the terrain service');
+        }
     }
 
     @Post('position')
@@ -69,8 +57,14 @@ export class TerrainController {
         status: 200,
         description: 'Current position updated',
     })
+    @ApiResponse({
+        status: 400,
+        description: 'Unable to update the current position',
+    })
     positionUpdate(@Body() position: PositionDto) {
-        this.terrainService.updatePosition(position);
+        if (this.terrainService.updatePosition(position) === false) {
+            throw new BadRequestException('Unable to update the present position');
+        }
         this.presentHeading = position.heading;
     }
 
