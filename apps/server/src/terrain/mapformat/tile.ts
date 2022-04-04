@@ -149,7 +149,8 @@ export class Tile {
         const { width, height } = this.gridDimension();
         const grid = Array.from({ length: width }, (_) => Array.from({ length: height }, (_) => 0));
 
-        const retval = new ElevationGrid(width, height, grid);
+        const northeast = { latitude: this.Southwest.latitude + this.parent.AngularSteps.latitude, longitude: this.Southwest.longitude + this.parent.AngularSteps.longitude };
+        const retval = new ElevationGrid(this.Southwest, northeast, width, height, grid);
         this.createGrid(retval);
 
         return retval;
