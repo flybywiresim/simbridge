@@ -122,6 +122,72 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.grid[index.row][index.column].tileIndex];
     }
 
-    public createMapND(config: NDViewDto): { buffer: Uint8ClampedArray, rows: number, columns: number } {
+    private colorize(elevation: number): { r: number, g: number, b: number } {
+        const delta = elevation - this.presentPosition.altitude;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+
+        // console.log(`${delta} ${this.presentPosition.altitude} ${elevation}`);
+        if (elevation === 0 || delta < -2000) {
+            r = 0; g = 0; b = 0;
+        } else if (delta < -1000) {
+            r = 119; g = 221; b = 119;
+        } else if (delta < 500) {
+            r = 0; g = 77; b = 0;
+        } else if (delta < 1000) {
+            r = 255; g = 255; b = 223;
+        } else if (delta < 2000) {
+            r = 255; g = 228; b = 80;
+        } else {
+            r = 254; g = 57; b = 57;
+        }
+
+        return { r, g, b };
+    }
+
+    public createMapND(config: NDViewDto): { buffer: number[], rows: number, columns: number } {
+        if (this.presentPosition === undefined || this.Terraindata === undefined) {
+            return { buffer: [], rows: 0, columns: 0 };
+        }
+
+        const start = new Date().getTime();
+
+        const size = Math.round((config.viewRadius * 1852) / config.meterPerPixel + 0.5) * 2;
+        const buffer = new Array(size * size * 3);
+
+        const viewSouthwest = WGS84.project(this.presentPosition.latitude, this.presentPosition.longitude, config.viewRadius * 1852, 225);
+        const viewNortheast = WGS84.project(this.presentPosition.latitude, this.presentPosition.longitude, config.viewRadius * 1852, 45);
+        const latitudeStep = (viewNortheast.latitude - viewSouthwest.latitude) / size;
+        const longitudeStep = (viewNortheast.longitude - viewSouthwest.longitude) / size;
+
+        let color: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
+        const coordinate = { latitude: viewNortheast.latitude, longitude: viewSouthwest.longitude };
+        for (let y = 0; y < size; ++y) {
+            for (let x = 0; x < size; ++x) {
+                const worldIndex = this.worldMapIndices(coordinate.latitude, coordinate.longitude);
+
+                if (this.grid[worldIndex.row][worldIndex.column].tileIndex === -1 || this.grid[worldIndex.row][worldIndex.column].elevationmap === undefined) {
+                    color = this.colorize(0);
+                } else {
+                    const { row, column } = this.grid[worldIndex.row][worldIndex.column].elevationmap.worldToGridIndices(coordinate);
+                    color = this.colorize(this.grid[worldIndex.row][worldIndex.column].elevationmap.Grid[row][column]);
+                }
+
+                buffer[(y * size + x) * 3 + 0] = color.r;
+                buffer[(y * size + x) * 3 + 1] = color.g;
+                buffer[(y * size + x) * 3 + 2] = color.b;
+
+                coordinate.longitude += longitudeStep;
+            }
+
+            coordinate.longitude = viewSouthwest.longitude;
+            coordinate.latitude += latitudeStep;
+        }
+
+        const delta = new Date().getTime() - start;
+        console.log(`Created ND map in ${delta / 1000} seconds`);
+
+        return { buffer, rows: size, columns: size };
     }
 }
