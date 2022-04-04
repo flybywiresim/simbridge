@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
