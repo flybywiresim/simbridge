@@ -1,8 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber } from 'class-validator';
+import { IsBoolean, IsNumber, IsString } from 'class-validator';
 
 /* eslint-disable camelcase */
 export class NDViewDto {
+    @ApiProperty({ description: 'The ND index', example: 'L' })
+    @IsString()
+    display: string
+
+    @ApiProperty({ description: 'Indicates if the ND map needs to be rendered', example: 'true' })
+    @IsBoolean()
+    active: boolean
+
     @ApiProperty({ description: 'The current radius [NM]', example: '20' })
     @IsNumber()
     viewRadius: number
