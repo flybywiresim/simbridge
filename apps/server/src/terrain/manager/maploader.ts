@@ -1,4 +1,3 @@
-// import { parentPort, workerData } from 'worker_threads';
 import { Worldmap } from './worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from '../utils/wgs84';
@@ -41,5 +40,3 @@ export function loadTiles(world: Worldmap, position: PositionDto) {
 
     world.cleanupElevationCache(tileIndices);
 }
-
-// parentPort.postMessage(loadTiles(workerData.worldmap, workerData.position));

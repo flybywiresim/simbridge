@@ -1,4 +1,3 @@
-import { Worker } from 'worker_threads';
 import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { ElevationGrid } from '../mapformat/elevationgrid';
@@ -9,8 +8,6 @@ import { loadTiles } from './maploader';
 import { WGS84 } from '../utils/wgs84';
 
 export class Worldmap {
-    private tileloader: Worker | undefined = undefined;
-
     public Terraindata: Terrainmap | undefined = undefined;
 
     private grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
@@ -49,26 +46,14 @@ export class Worldmap {
         this.VisibilityRange = config.visibilityRange;
 
         if (config.reset === true) {
-            this.tileloader = undefined;
             this.cleanupElevationCache([]);
         }
     }
 
     public updatePosition(position: PositionDto): boolean {
-        if (this.tileloader === undefined) {
-            this.presentPosition = position;
-            loadTiles(this, position);
-            return true;
-            // this.tileloader = new Worker('./apps/server/src/terrain/manager/maploader.ts', {
-            //    workerData: {
-            //        worldmap: this,
-            //        position,
-            //    },
-            // });
-            //
-            // this.tileloader = this.tileloader.on('message', (_) => undefined);
-        }
-        return false;
+        this.presentPosition = position;
+        loadTiles(this, position);
+        return true;
     }
 
     public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
