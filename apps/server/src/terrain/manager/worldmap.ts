@@ -45,7 +45,7 @@ export class Worldmap {
         }
     }
 
-    public configure(config: ConfigurationDto) {
+    public configure(config: ConfigurationDto): void {
         this.VisibilityRange = config.visibilityRange;
 
         if (config.reset === true) {
