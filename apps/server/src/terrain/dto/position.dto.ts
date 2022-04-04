@@ -14,4 +14,8 @@ export class PositionDto {
     @ApiProperty({ description: 'The current heading [deg]', example: '260' })
     @IsNumber()
     heading: number
+
+    @ApiProperty({ description: 'The current altitude [feet]', example: '26000' })
+    @IsNumber()
+    altitude: number
 }
