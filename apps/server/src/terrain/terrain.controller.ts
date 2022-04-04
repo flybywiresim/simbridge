@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Query, Patch, Body, BadRequestException, NotFoundException, Put } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
@@ -28,6 +28,26 @@ export class TerrainController {
         if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
             throw new NotFoundException('Terrainmap not loaded');
         }
+    }
+
+    @Put('configureDisplay')
+    @ApiBody({
+        description: 'The new connection containing the flight number and current location',
+        type: NDViewDto,
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Updated the ND display configuration',
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Unable to update the display configuration',
+    })
+    configureDisplay(@Body() config: NDViewDto): void {
+        if (this.terrainService.MapManager === undefined) {
+            throw new BadRequestException('Unable to configure the ND display');
+        }
+        this.terrainService.MapManager.configureNd(config);
     }
 
     @Patch('configure')
@@ -69,11 +89,7 @@ export class TerrainController {
         this.presentHeading = position.heading;
     }
 
-    @Post('ndmap')
-    @ApiBody({
-        description: 'The new connection containing the flight number and current location',
-        type: NDViewDto,
-    })
+    @Get('ndmap')
     @ApiResponse({
         status: 200,
         description: 'The current ND map',
@@ -84,8 +100,8 @@ export class TerrainController {
         description: 'No ND map available',
     })
     @ApiProduces('image/png')
-    async createNDMap(@Body() config: NDViewDto): Promise<NDMapDto> {
-        const { buffer, rows, columns } = this.terrainService.MapManager.createMapND(config);
+    async getNDMap(@Query('ndIndex') ndIndex: string): Promise<NDMapDto> {
+        const { buffer, rows, columns, rotate } = this.terrainService.MapManager.ndMap(ndIndex);
         if (rows === 0 || columns === 0) {
             throw new BadRequestException('Unable to create the ND map');
         }
@@ -94,7 +110,7 @@ export class TerrainController {
         response.width = columns;
         response.height = rows;
 
-        if (config.rotateAroundHeading === true) {
+        if (rotate === true) {
             const { data, _ } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
                 .rotate(-1 * this.presentHeading)
                 .raw()

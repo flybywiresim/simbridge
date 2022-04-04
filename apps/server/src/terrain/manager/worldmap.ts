@@ -5,12 +5,14 @@ import { ConfigurationDto } from '../dto/configuration.dto';
 import { PositionDto } from '../dto/position.dto';
 import { NDViewDto } from '../dto/ndview.dto';
 import { loadTiles } from './maploader';
-import { WGS84 } from '../utils/wgs84';
+import { NDRenderer } from '../utils/ndrenderer';
 
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
-    private grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
+    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: number[], rows: number, columns: number, rotate: boolean } } } = {};
+
+    public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
     private presentPosition: PositionDto | undefined = undefined;
 
@@ -30,10 +32,10 @@ export class Worldmap {
         this.Terraindata = mapfile;
 
         for (let lat = -90; lat < 90; lat += mapfile.AngularSteps.latitude) {
-            this.grid.push([]);
+            this.Grid.push([]);
 
             for (let lon = -180; lon < 180; lon += mapfile.AngularSteps.longitude) {
-                this.grid[this.grid.length - 1].push({
+                this.Grid[this.Grid.length - 1].push({
                     southwest: { latitude: lat, longitude: lon },
                     tileIndex: Worldmap.findTileIndex(mapfile.Tiles, lat, lon),
                     elevationmap: undefined,
@@ -50,9 +52,31 @@ export class Worldmap {
         }
     }
 
+    public configureNd(config: NDViewDto) {
+        if (!(config.display in this.displays)) {
+            this.displays[config.display] = {
+                renderer: new NDRenderer(this),
+                map: { buffer: [], rows: 0, columns: 0, rotate: false },
+            };
+        }
+        this.displays[config.display].renderer.configureView(config);
+    }
+
     public updatePosition(position: PositionDto): boolean {
         this.presentPosition = position;
+
+        // TODO put this in a worker thread
         loadTiles(this, position);
+
+        // TODO put this in a worker thread (per render-call)
+        for (const id in this.displays) {
+            if (this.displays[id].renderer.ViewConfig.active === true) {
+                this.displays[id].map = this.displays[id].renderer.render(position);
+            } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
+                this.displays[id].map = { buffer: [], rows: 0, columns: 0, rotate: false };
+            }
+        }
+
         return true;
     }
 
@@ -60,7 +84,7 @@ export class Worldmap {
         const row = Math.floor((latitude + 90) / this.Terraindata.AngularSteps.latitude);
         const column = Math.floor((longitude + 180) / this.Terraindata.AngularSteps.longitude);
 
-        if (row < 0 || row >= this.grid.length || column < 0 || column >= this.grid[row].length) {
+        if (row < 0 || row >= this.Grid.length || column < 0 || column >= this.Grid[row].length) {
             return undefined;
         }
 
@@ -68,25 +92,25 @@ export class Worldmap {
     }
 
     public validTile(index: { row: number, column: number }): boolean {
-        if (this.grid.length <= index.row || index.row < 0 || this.grid[index.row].length <= index.column || index.column < 0) {
+        if (this.Grid.length <= index.row || index.row < 0 || this.Grid[index.row].length <= index.column || index.column < 0) {
             return false;
         }
 
-        return this.grid[index.row][index.column].tileIndex >= 0 && this.grid[index.row][index.column].tileIndex < this.Terraindata.Tiles.length;
+        return this.Grid[index.row][index.column].tileIndex >= 0 && this.Grid[index.row][index.column].tileIndex < this.Terraindata.Tiles.length;
     }
 
     public loadElevationMap(index: { row: number, column: number }): void {
-        if (this.validTile(index) === true && this.grid[index.row][index.column].elevationmap === undefined) {
-            this.grid[index.row][index.column].elevationmap = this.Terraindata.Tiles[this.grid[index.row][index.column].tileIndex].elevationGrid();
+        if (this.validTile(index) === true && this.Grid[index.row][index.column].elevationmap === undefined) {
+            this.Grid[index.row][index.column].elevationmap = this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex].elevationGrid();
         }
     }
 
     public cleanupElevationCache(whitelist: { row: number, column: number }[]): void {
-        for (let row = 0; row < this.grid.length; ++row) {
-            for (let col = 0; col < this.grid[row].length; ++col) {
+        for (let row = 0; row < this.Grid.length; ++row) {
+            for (let col = 0; col < this.Grid[row].length; ++col) {
                 const idx = whitelist.findIndex((element) => element.column === col && element.row === row);
                 if (idx === -1) {
-                    this.grid[row][col].elevationmap = undefined;
+                    this.Grid[row][col].elevationmap = undefined;
                 } else {
                     whitelist.splice(idx, 1);
                 }
@@ -100,79 +124,17 @@ export class Worldmap {
             return undefined;
         }
 
-        if (this.grid[index.row][index.column].tileIndex < 0 || this.grid[index.row][index.column].tileIndex >= this.Terraindata.Tiles.length) {
+        if (this.Grid[index.row][index.column].tileIndex < 0 || this.Grid[index.row][index.column].tileIndex >= this.Terraindata.Tiles.length) {
             return undefined;
         }
 
-        return this.Terraindata.Tiles[this.grid[index.row][index.column].tileIndex];
+        return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    private colorize(elevation: number): { r: number, g: number, b: number } {
-        const delta = elevation - this.presentPosition.altitude;
-        let r = 0;
-        let g = 0;
-        let b = 0;
-
-        // console.log(`${delta} ${this.presentPosition.altitude} ${elevation}`);
-        if (elevation === 0 || delta < -2000) {
-            r = 0; g = 0; b = 0;
-        } else if (delta < -1000) {
-            r = 119; g = 221; b = 119;
-        } else if (delta < 500) {
-            r = 0; g = 77; b = 0;
-        } else if (delta < 1000) {
-            r = 255; g = 255; b = 223;
-        } else if (delta < 2000) {
-            r = 255; g = 228; b = 80;
-        } else {
-            r = 254; g = 57; b = 57;
+    public ndMap(id: string): { buffer: number[], rows: number, columns: number, rotate: boolean } {
+        if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
+            return { buffer: [], rows: 0, columns: 0, rotate: false };
         }
-
-        return { r, g, b };
-    }
-
-    public createMapND(config: NDViewDto): { buffer: number[], rows: number, columns: number } {
-        if (this.presentPosition === undefined || this.Terraindata === undefined) {
-            return { buffer: [], rows: 0, columns: 0 };
-        }
-
-        const start = new Date().getTime();
-
-        const size = Math.round((config.viewRadius * 1852) / config.meterPerPixel + 0.5) * 2;
-        const buffer = new Array(size * size * 3);
-
-        const viewSouthwest = WGS84.project(this.presentPosition.latitude, this.presentPosition.longitude, config.viewRadius * 1852, 225);
-        const viewNortheast = WGS84.project(this.presentPosition.latitude, this.presentPosition.longitude, config.viewRadius * 1852, 45);
-        const latitudeStep = (viewNortheast.latitude - viewSouthwest.latitude) / size;
-        const longitudeStep = (viewNortheast.longitude - viewSouthwest.longitude) / size;
-
-        let color: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
-        const coordinate = { latitude: viewNortheast.latitude, longitude: viewSouthwest.longitude };
-        for (let y = 0; y < size; ++y) {
-            for (let x = 0; x < size; ++x) {
-                const worldIndex = this.worldMapIndices(coordinate.latitude, coordinate.longitude);
-
-                if (this.grid[worldIndex.row][worldIndex.column].tileIndex === -1 || this.grid[worldIndex.row][worldIndex.column].elevationmap === undefined) {
-                    color = this.colorize(0);
-                } else {
-                    const { row, column } = this.grid[worldIndex.row][worldIndex.column].elevationmap.worldToGridIndices(coordinate);
-                    color = this.colorize(this.grid[worldIndex.row][worldIndex.column].elevationmap.Grid[row][column]);
-                }
-
-                buffer[(y * size + x) * 3 + 0] = color.r;
-                buffer[(y * size + x) * 3 + 1] = color.g;
-                buffer[(y * size + x) * 3 + 2] = color.b;
-
-                coordinate.longitude += longitudeStep;
-            }
-
-            coordinate.longitude = viewSouthwest.longitude;
-            coordinate.latitude += latitudeStep;
-        }
-
-        const delta = new Date().getTime() - start;
-        console.log(`Created ND map in ${delta / 1000} seconds`);
-
-        return { buffer, rows: size, columns: size };
+        return this.displays[id].map;
     }
 }
