@@ -39,15 +39,18 @@ export class TerrainService {
         }
     }
 
-    public terrainmapExists(): boolean {
-        return this.Terrainmap !== undefined;
+    public configure(config: ConfigurationDto): boolean {
+        if (this.MapManager !== undefined) {
+            this.MapManager.configure(config);
+            return true;
+        }
+        return false;
     }
 
-    public configure(config: ConfigurationDto): void {
-        this.MapManager.configure(config);
-    }
-
-    public updatePosition(position: PositionDto): void {
-        this.MapManager.updatePosition(position);
+    public updatePosition(position: PositionDto): boolean {
+        if (this.MapManager !== undefined) {
+            return this.MapManager.updatePosition(position);
+        }
+        return false;
     }
 }
