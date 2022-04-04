@@ -54,10 +54,11 @@ export class Worldmap {
         }
     }
 
-    public updatePosition(position: PositionDto): void {
+    public updatePosition(position: PositionDto): boolean {
         if (this.tileloader === undefined) {
             this.presentPosition = position;
             loadTiles(this, position);
+            return true;
             // this.tileloader = new Worker('./apps/server/src/terrain/manager/maploader.ts', {
             //    workerData: {
             //        worldmap: this,
@@ -67,6 +68,7 @@ export class Worldmap {
             //
             // this.tileloader = this.tileloader.on('message', (_) => undefined);
         }
+        return false;
     }
 
     public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
