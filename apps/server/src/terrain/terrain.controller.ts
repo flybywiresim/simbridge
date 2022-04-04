@@ -29,7 +29,7 @@ export class TerrainController {
         }
     }
 
-    @Post('configure')
+    @Patch('configure')
     @ApiBody({
         description: 'The configuration entry',
         type: ConfigurationDto,
@@ -48,7 +48,7 @@ export class TerrainController {
         }
     }
 
-    @Post('position')
+    @Patch('position')
     @ApiBody({
         description: 'The current position',
         type: PositionDto,
