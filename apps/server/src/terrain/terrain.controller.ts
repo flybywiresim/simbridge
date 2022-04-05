@@ -111,12 +111,15 @@ export class TerrainController {
         response.height = rows;
 
         if (rotate === true) {
-            const { data, _ } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
+            const { data, info } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
                 .rotate(-1 * this.presentHeading)
                 .raw()
                 .toBuffer({ resolveWithObject: true });
 
-            await sharp(new Uint8ClampedArray(data.buffer))
+            response.width = info.width;
+            response.height = info.height;
+
+            await sharp(new Uint8ClampedArray(data.buffer), { raw: { width: info.width, height: info.height, channels: 3 } })
                 .toFile('ndtest_rot.png');
 
             response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
