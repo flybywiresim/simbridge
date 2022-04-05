@@ -107,8 +107,6 @@ export class TerrainController {
         }
 
         const response = new NDMapDto();
-        response.width = columns;
-        response.height = rows;
 
         if (rotate === true) {
             const { data, info } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
@@ -116,17 +114,19 @@ export class TerrainController {
                 .raw()
                 .toBuffer({ resolveWithObject: true });
 
-            response.width = info.width;
-            response.height = info.height;
-
             await sharp(new Uint8ClampedArray(data.buffer), { raw: { width: info.width, height: info.height, channels: 3 } })
                 .toFile('ndtest_rot.png');
 
             response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
+            response.width = info.width;
+            response.height = info.height;
         } else {
             await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
                 .toFile('ndtest.png');
+
             response.pixels = Buffer.from(buffer).toString('base64');
+            response.width = columns;
+            response.height = rows;
         }
 
         return response;
