@@ -115,8 +115,14 @@ export class TerrainController {
                 .rotate(-1 * this.presentHeading)
                 .raw()
                 .toBuffer({ resolveWithObject: true });
+
+            await sharp(new Uint8ClampedArray(data.buffer))
+                .toFile('ndtest_rot.png');
+
             response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
         } else {
+            await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
+                .toFile('ndtest.png');
             response.pixels = Buffer.from(buffer).toString('base64');
         }
 
