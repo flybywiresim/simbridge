@@ -6,7 +6,7 @@ import { QuadtreeNode } from './quadtreenode';
 export class Tile {
     private parent: Terrainmap | undefined = undefined;
 
-    private buffer: Buffer | undefined = undefined;
+    private buffer: SharedArrayBuffer | undefined = undefined;
 
     public Southwest: { latitude: number, longitude: number } = { latitude: 0, longitude: 0 };
 
@@ -20,30 +20,33 @@ export class Tile {
 
     public BufferSize: number = 0;
 
-    constructor(parent: Terrainmap, buffer: Buffer, offset: number) {
+    constructor(parent: Terrainmap, buffer: SharedArrayBuffer, offset: number) {
+        const arrBuffer = Buffer.from(buffer);
+
         this.parent = parent;
         this.buffer = buffer;
 
         // extract the tile header
-        this.Southwest.latitude = buffer.readInt8(offset);
-        this.Southwest.longitude = buffer.readInt16LE(offset + 1);
-        this.MinimumElevation = buffer.readInt16LE(offset + 3);
-        this.BigNodesUsed = buffer.readUInt8(offset + 5) !== 0;
-        this.NodeCount = buffer.readUInt32LE(offset + 6);
+        this.Southwest.latitude = arrBuffer.readInt8(offset);
+        this.Southwest.longitude = arrBuffer.readInt16LE(offset + 1);
+        this.MinimumElevation = arrBuffer.readInt16LE(offset + 3);
+        this.BigNodesUsed = arrBuffer.readUInt8(offset + 5) !== 0;
+        this.NodeCount = arrBuffer.readUInt32LE(offset + 6);
 
         this.BufferOffset = offset + 10;
         this.BufferSize = this.NodeCount * (this.BigNodesUsed ? 3 : 2);
     }
 
     private readNodes(): QuadtreeNode[] {
+        const arrBuffer = Buffer.from(this.buffer);
         const nodes: QuadtreeNode[] = [];
 
         for (let bufferOffset = 0; bufferOffset < this.BufferSize; bufferOffset += (this.BigNodesUsed ? 3 : 2)) {
             let address = this.BufferOffset + bufferOffset;
-            const level = this.buffer.readUInt8(address);
+            const level = arrBuffer.readUInt8(address);
 
             address += 1;
-            const bin = this.BigNodesUsed ? this.buffer.readUInt16LE(address) : this.buffer.readUInt8(address);
+            const bin = this.BigNodesUsed ? arrBuffer.readUInt16LE(address) : arrBuffer.readUInt8(address);
 
             nodes.push(new QuadtreeNode(level, bin));
         }
