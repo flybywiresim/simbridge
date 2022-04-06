@@ -7,14 +7,14 @@ export class ElevationGrid {
 
     public Columns: number = 0;
 
-    public Grid: number[][] | undefined = undefined;
+    public Grid: SharedArrayBuffer | undefined = undefined;
 
-    constructor(southwest: { latitude: number, longitude: number }, northeast: { latitude: number, longitude: number }, rows: number, columns: number, grid: number[][]) {
+    constructor(southwest: { latitude: number, longitude: number }, northeast: { latitude: number, longitude: number }, rows: number, columns: number) {
         this.southwest = southwest;
         this.northeast = northeast;
         this.Rows = rows;
         this.Columns = columns;
-        this.Grid = grid;
+        this.Grid = new SharedArrayBuffer(rows * columns * 4);
     }
 
     public worldToGridIndices(coordinate: { latitude: number, longitude: number }): { row: number, column: number } {

@@ -64,7 +64,8 @@ export class NDRenderer {
                     color = NDRenderer.colorize(0, 0);
                 } else {
                     const { row, column } = this.worldmap.Grid[worldIndex.row][worldIndex.column].elevationmap.worldToGridIndices(coordinate);
-                    color = NDRenderer.colorize(this.worldmap.Grid[worldIndex.row][worldIndex.column].elevationmap.Grid[row][column], position.altitude);
+                    const gridBuffer = new Int32Array(this.worldmap.Grid[worldIndex.row][worldIndex.column].elevationmap.Grid);
+                    color = NDRenderer.colorize(gridBuffer[this.worldmap.Grid[worldIndex.row][worldIndex.column].elevationmap.Columns * row + column], position.altitude);
                 }
 
                 buffer[(y * size + x) * 3 + 0] = color.r;

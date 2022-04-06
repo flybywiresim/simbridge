@@ -58,7 +58,7 @@ export class Tile {
         return Math.round((this.MinimumElevation + node.ElevationBin * this.parent.ElevationResolution) * 3.28084);
     }
 
-    private fillGrid(xStart: number, yStart: number, xSize: number, ySize: number, grid: ElevationGrid, node: QuadtreeNode): void {
+    private fillGrid(xStart: number, yStart: number, xSize: number, ySize: number, grid: ElevationGrid, array: Int32Array, node: QuadtreeNode): void {
         if (xStart + xSize >= grid.Columns) {
             xSize -= (xStart + xSize) - grid.Columns;
         }
@@ -69,7 +69,7 @@ export class Tile {
         const elevation = this.calculateElevation(node);
         for (let y = 0; y < ySize; ++y) {
             for (let x = 0; x < xSize; ++x) {
-                grid.Grid[y + yStart][x + xStart] = elevation;
+                array[(y + yStart) * grid.Columns + x + xStart] = elevation;
             }
         }
     }
@@ -99,7 +99,8 @@ export class Tile {
         return retval;
     }
 
-    private processQuadtreeNode(nodes: QuadtreeNode[], index: number, xStart: number, yStart: number, xSize: number, ySize: number, level: number, grid: ElevationGrid): number {
+    private processQuadtreeNode(nodes: QuadtreeNode[], index: number, xStart: number, yStart: number, xSize: number, ySize: number, level: number, grid: ElevationGrid,
+        array: Int32Array): number {
         let leafCount = 0;
 
         while (leafCount !== 4) {
@@ -107,23 +108,23 @@ export class Tile {
 
             if (index + 1 >= nodes.length) {
                 if (leafCount !== 0) {
-                    this.fillGrid(newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, grid, nodes[index]);
+                    this.fillGrid(newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, grid, array, nodes[index]);
                 } else {
-                    this.fillGrid(xStart, yStart, xSize, ySize, grid, nodes[index]);
+                    this.fillGrid(xStart, yStart, xSize, ySize, grid, array, nodes[index]);
                 }
                 return index;
             }
 
             if (nodes[index + 1].TreeLevel <= level) {
                 if (leafCount !== 0 || nodes[index + 1].TreeLevel === level) {
-                    this.fillGrid(newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, grid, nodes[index]);
+                    this.fillGrid(newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, grid, array, nodes[index]);
                 } else {
-                    this.fillGrid(xStart, yStart, xSize, ySize, grid, nodes[index]);
+                    this.fillGrid(xStart, yStart, xSize, ySize, grid, array, nodes[index]);
                 }
                 leafCount += 1;
                 index += 1;
             } else {
-                index = this.processQuadtreeNode(nodes, index + 1, newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, level + 1, grid);
+                index = this.processQuadtreeNode(nodes, index + 1, newArea.xStart, newArea.yStart, newArea.xSize, newArea.ySize, level + 1, grid, array);
                 leafCount += 1;
             }
         }
@@ -132,11 +133,13 @@ export class Tile {
     }
 
     private createGrid(grid: ElevationGrid): void {
+        const array = new Int32Array(grid.Grid);
         const nodes = this.readNodes();
+
         if (nodes.length === 1) {
-            this.fillGrid(0, 0, grid.Columns, grid.Rows, grid, nodes[0]);
+            this.fillGrid(0, 0, grid.Columns, grid.Rows, grid, array, nodes[0]);
         } else {
-            this.processQuadtreeNode(nodes, 1, 0, 0, grid.Columns, grid.Rows, 1, grid);
+            this.processQuadtreeNode(nodes, 1, 0, 0, grid.Columns, grid.Rows, 1, grid, array);
         }
     }
 
@@ -150,10 +153,9 @@ export class Tile {
 
     public elevationGrid(): ElevationGrid {
         const { width, height } = this.gridDimension();
-        const grid = Array.from({ length: width }, (_) => Array.from({ length: height }, (_) => 0));
 
         const northeast = { latitude: this.Southwest.latitude + this.parent.AngularSteps.latitude, longitude: this.Southwest.longitude + this.parent.AngularSteps.longitude };
-        const retval = new ElevationGrid(this.Southwest, northeast, width, height, grid);
+        const retval = new ElevationGrid(this.Southwest, northeast, width, height);
         this.createGrid(retval);
 
         return retval;
