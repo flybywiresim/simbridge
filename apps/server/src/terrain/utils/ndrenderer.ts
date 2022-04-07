@@ -61,6 +61,12 @@ export class NDRenderer {
         const coordinate = { latitude: viewNortheast.latitude, longitude: viewSouthwest.longitude };
         for (let y = 0; y < size; ++y) {
             for (let x = 0; x < size; ++x) {
+                const distance = Math.sqrt((x - radius) ** 2 + (y - radius) ** 2);
+                if (distance - 1 > radius) {
+                    coordinate.longitude += longitudeStep;
+                    continue;
+                }
+
                 const worldIndex = this.worldmap.worldMapIndices(coordinate.latitude, coordinate.longitude);
 
                 if (this.worldmap.Grid[worldIndex.row][worldIndex.column].tileIndex === -1 || this.worldmap.Grid[worldIndex.row][worldIndex.column].elevationmap === undefined) {
