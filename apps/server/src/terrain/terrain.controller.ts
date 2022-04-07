@@ -78,14 +78,8 @@ export class TerrainController {
         status: 200,
         description: 'Current position updated',
     })
-    @ApiResponse({
-        status: 400,
-        description: 'Unable to update the current position',
-    })
     positionUpdate(@Body() position: PositionDto) {
-        if (this.terrainService.updatePosition(position) === false) {
-            throw new BadRequestException('Unable to update the present position');
-        }
+        this.terrainService.updatePosition(position);
         this.presentHeading = position.heading;
     }
 
