@@ -101,40 +101,20 @@ export class TerrainController {
     })
     @ApiProduces('image/png')
     async getNDMap(@Query('ndIndex') ndIndex: string): Promise<NDMapDto> {
-        const { buffer, rows, columns, rotate } = this.terrainService.MapManager.ndMap(ndIndex);
+        const { buffer, rows, columns } = this.terrainService.MapManager.ndMap(ndIndex);
         if (rows === 0 || columns === 0) {
             throw new BadRequestException('Unable to create the ND map');
         }
 
         const response = new NDMapDto();
+        const { data, _ } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
+            .toFormat('png')
+            .toBuffer({ resolveWithObject: true });
 
-        if (rotate === true) {
-            const { data, info } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
-                .rotate(-1 * this.presentHeading)
-                .toFormat('png')
-                .toBuffer({ resolveWithObject: true });
+        await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
+            .toFile('ndtest.png');
 
-            await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
-                .rotate(-1 * this.presentHeading)
-                .toFile('ndtest_rot.png');
-
-            response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
-            response.width = info.width;
-            response.height = info.height;
-        } else {
-            const { data, info } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
-                .rotate(-1 * this.presentHeading)
-                .toFormat('png')
-                .toBuffer({ resolveWithObject: true });
-
-            await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
-                .toFile('ndtest.png');
-
-            response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
-            response.width = info.width;
-            response.height = info.height;
-        }
-
+        response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
         return response;
     }
 }

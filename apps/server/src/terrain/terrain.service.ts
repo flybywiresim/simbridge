@@ -47,10 +47,9 @@ export class TerrainService {
         return false;
     }
 
-    public updatePosition(position: PositionDto): boolean {
+    public updatePosition(position: PositionDto): void {
         if (this.MapManager !== undefined) {
-            return this.MapManager.updatePosition(position);
+            this.MapManager.updatePosition(position);
         }
-        return false;
     }
 }

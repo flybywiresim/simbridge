@@ -10,7 +10,7 @@ import { NDRenderer } from '../utils/ndrenderer';
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
-    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: SharedArrayBuffer, rows: number, columns: number, rotate: boolean } } } = {};
+    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: SharedArrayBuffer, rows: number, columns: number } } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -56,13 +56,13 @@ export class Worldmap {
         if (!(config.display in this.displays)) {
             this.displays[config.display] = {
                 renderer: new NDRenderer(this),
-                map: { buffer: undefined, rows: 0, columns: 0, rotate: false },
+                map: { buffer: undefined, rows: 0, columns: 0 },
             };
         }
         this.displays[config.display].renderer.configureView(config);
     }
 
-    public updatePosition(position: PositionDto): boolean {
+    public async updatePosition(position: PositionDto): Promise<void> {
         this.presentPosition = position;
 
         // TODO put this in a worker thread
@@ -71,13 +71,11 @@ export class Worldmap {
         // TODO put this in a worker thread (per render-call)
         for (const id in this.displays) {
             if (this.displays[id].renderer.ViewConfig.active === true) {
-                this.displays[id].map = this.displays[id].renderer.render(position);
+                this.displays[id].map = await this.displays[id].renderer.render(position);
             } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
-                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0, rotate: false };
+                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0 };
             }
         }
-
-        return true;
     }
 
     public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
@@ -131,9 +129,9 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    public ndMap(id: string): { buffer: SharedArrayBuffer, rows: number, columns: number, rotate: boolean } {
+    public ndMap(id: string): { buffer: SharedArrayBuffer, rows: number, columns: number } {
         if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
-            return { buffer: undefined, rows: 0, columns: 0, rotate: false };
+            return { buffer: undefined, rows: 0, columns: 0 };
         }
         return this.displays[id].map;
     }

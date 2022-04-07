@@ -3,6 +3,8 @@ import { Worldmap } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
 
+const sharp = require('sharp');
+
 export class NDRenderer {
     private worldmap: Worldmap | undefined = undefined;
 
@@ -39,18 +41,17 @@ export class NDRenderer {
         return { r, g, b };
     }
 
-    public render(position: PositionDto): { buffer: SharedArrayBuffer, rows: number, columns: number, rotate: boolean } {
+    public async render(position: PositionDto): Promise<{ buffer: SharedArrayBuffer, rows: number, columns: number }> {
         if (this.worldmap.Terraindata === undefined) {
-            return { buffer: undefined, rows: 0, columns: 0, rotate: false };
+            return { buffer: undefined, rows: 0, columns: 0 };
         }
 
         const start = new Date().getTime();
 
         const radius = Math.round((this.ViewConfig.viewRadius * 1852) / this.ViewConfig.meterPerPixel + 0.5);
         const size = radius * 2;
-        const retval = new SharedArrayBuffer(size * size * 3);
-        const buffer = new Uint8ClampedArray(retval);
-        buffer.fill(0, 0, buffer.byteLength);
+        const buffer = new Uint8ClampedArray(size * size * 3);
+        buffer.fill(0, 0, size * size * 3);
 
         const viewSouthwest = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852, 225);
         const viewNortheast = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852, 45);
@@ -88,9 +89,24 @@ export class NDRenderer {
             coordinate.latitude += latitudeStep;
         }
 
+        const rotatedRaw = await sharp(new Uint8ClampedArray(buffer), { raw: { width: size, height: size, channels: 3 } })
+            .rotate(this.ViewConfig.rotateAroundHeading === true ? -1 * position.heading : 0)
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+        const offset = (rotatedRaw.info.width - size) / 2;
+
+        const { data, info } = await sharp(new Uint8ClampedArray(rotatedRaw.data.buffer), { raw: { width: rotatedRaw.info.width, height: rotatedRaw.info.height, channels: 3 } })
+            .extract({ width: size, height: this.ViewConfig.semicircleRequired === true ? size / 2 : size, left: offset, top: offset })
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+
+        const retval = new SharedArrayBuffer(info.width * info.height * 3);
+        const dest = new Uint8ClampedArray(retval);
+        dest.set(new Uint8ClampedArray(data.buffer), 0);
+
         const delta = new Date().getTime() - start;
         console.log(`Created ND map in ${delta / 1000} seconds`);
 
-        return { buffer: retval, rows: size, columns: size, rotate: this.ViewConfig.rotateAroundHeading };
+        return { buffer: retval, rows: info.height, columns: info.width };
     }
 }
