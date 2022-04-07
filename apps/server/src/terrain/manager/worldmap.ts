@@ -10,7 +10,7 @@ import { NDRenderer } from '../utils/ndrenderer';
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
-    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: number[], rows: number, columns: number, rotate: boolean } } } = {};
+    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: SharedArrayBuffer, rows: number, columns: number, rotate: boolean } } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -56,7 +56,7 @@ export class Worldmap {
         if (!(config.display in this.displays)) {
             this.displays[config.display] = {
                 renderer: new NDRenderer(this),
-                map: { buffer: [], rows: 0, columns: 0, rotate: false },
+                map: { buffer: undefined, rows: 0, columns: 0, rotate: false },
             };
         }
         this.displays[config.display].renderer.configureView(config);
@@ -73,7 +73,7 @@ export class Worldmap {
             if (this.displays[id].renderer.ViewConfig.active === true) {
                 this.displays[id].map = this.displays[id].renderer.render(position);
             } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
-                this.displays[id].map = { buffer: [], rows: 0, columns: 0, rotate: false };
+                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0, rotate: false };
             }
         }
 
@@ -131,9 +131,9 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    public ndMap(id: string): { buffer: number[], rows: number, columns: number, rotate: boolean } {
+    public ndMap(id: string): { buffer: SharedArrayBuffer, rows: number, columns: number, rotate: boolean } {
         if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
-            return { buffer: [], rows: 0, columns: 0, rotate: false };
+            return { buffer: undefined, rows: 0, columns: 0, rotate: false };
         }
         return this.displays[id].map;
     }

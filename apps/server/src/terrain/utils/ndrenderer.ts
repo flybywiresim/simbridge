@@ -39,15 +39,18 @@ export class NDRenderer {
         return { r, g, b };
     }
 
-    public render(position: PositionDto): { buffer: number[], rows: number, columns: number, rotate: boolean } {
+    public render(position: PositionDto): { buffer: SharedArrayBuffer, rows: number, columns: number, rotate: boolean } {
         if (this.worldmap.Terraindata === undefined) {
-            return { buffer: [], rows: 0, columns: 0, rotate: false };
+            return { buffer: undefined, rows: 0, columns: 0, rotate: false };
         }
 
         const start = new Date().getTime();
 
-        const size = Math.round((this.ViewConfig.viewRadius * 1852) / this.ViewConfig.meterPerPixel + 0.5) * 2;
-        const buffer = new Array(size * size * 3);
+        const radius = Math.round((this.ViewConfig.viewRadius * 1852) / this.ViewConfig.meterPerPixel + 0.5);
+        const size = radius * 2;
+        const retval = new SharedArrayBuffer(size * size * 3);
+        const buffer = new Uint8ClampedArray(retval);
+        buffer.fill(0, 0, buffer.byteLength);
 
         const viewSouthwest = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852, 225);
         const viewNortheast = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852, 45);
@@ -82,6 +85,6 @@ export class NDRenderer {
         const delta = new Date().getTime() - start;
         console.log(`Created ND map in ${delta / 1000} seconds`);
 
-        return { buffer, rows: size, columns: size, rotate: this.ViewConfig.rotateAroundHeading };
+        return { buffer: retval, rows: size, columns: size, rotate: this.ViewConfig.rotateAroundHeading };
     }
 }
