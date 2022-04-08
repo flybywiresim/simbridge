@@ -32,11 +32,8 @@ export function loadTiles(world: Worldmap, position: PositionDto) {
         }
     }
 
-    const start = new Date().getTime();
     // load all missing tiles
     tileIndices.forEach((index) => world.loadElevationMap(index));
-    const delta = new Date().getTime() - start;
-    console.log(`Processed: ${delta / 1000}`);
 
     world.cleanupElevationCache(tileIndices);
 }
