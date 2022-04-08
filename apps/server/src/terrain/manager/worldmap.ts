@@ -52,6 +52,19 @@ export class Worldmap {
         }
     }
 
+    private renderNdMaps(): void {
+        // TODO put this in a worker thread (per render-call)
+        for (const id in this.displays) {
+            if (this.displays[id].renderer.ViewConfig.active === true) {
+                this.displays[id].renderer.render(this.presentPosition).then((map) => {
+                    this.displays[id].map = map;
+                });
+            } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
+                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0 };
+            }
+        }
+    }
+
     public configureNd(config: NDViewDto) {
         if (!(config.display in this.displays)) {
             this.displays[config.display] = {
@@ -60,6 +73,8 @@ export class Worldmap {
             };
         }
         this.displays[config.display].renderer.configureView(config);
+
+        this.renderNdMaps();
     }
 
     public async updatePosition(position: PositionDto): Promise<void> {
@@ -67,15 +82,7 @@ export class Worldmap {
 
         // TODO put this in a worker thread
         loadTiles(this, position);
-
-        // TODO put this in a worker thread (per render-call)
-        for (const id in this.displays) {
-            if (this.displays[id].renderer.ViewConfig.active === true) {
-                this.displays[id].map = await this.displays[id].renderer.render(position);
-            } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
-                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0 };
-            }
-        }
+        this.renderNdMaps();
     }
 
     public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
