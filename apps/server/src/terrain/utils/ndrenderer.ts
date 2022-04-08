@@ -42,7 +42,7 @@ export class NDRenderer {
     }
 
     public async render(position: PositionDto): Promise<{ buffer: SharedArrayBuffer, rows: number, columns: number }> {
-        if (this.worldmap.Terraindata === undefined) {
+        if (this.worldmap.Terraindata === undefined || position === undefined) {
             return { buffer: undefined, rows: 0, columns: 0 };
         }
 
