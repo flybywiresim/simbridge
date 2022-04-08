@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Patch, Body, BadRequestException, NotFoundException, Put } from '@nestjs/common';
+import { Controller, Get, Query, Patch, Body, BadRequestException, NotFoundException, Put, Res } from '@nestjs/common';
 import { ApiProduces, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
@@ -83,32 +83,34 @@ export class TerrainController {
         this.presentHeading = position.heading;
     }
 
-    @Get('ndmap')
-    @ApiResponse({
-        status: 200,
-        description: 'The current ND map',
-        type: NDMapDto,
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'No ND map available',
-    })
-    @ApiProduces('image/png')
-    async getNDMap(@Query('ndIndex') ndIndex: string): Promise<NDMapDto> {
-        const { buffer, rows, columns } = this.terrainService.MapManager.ndMap(ndIndex);
+    private async streamNdMap(display: string, response): Promise<void> {
+        let { buffer, rows, columns } = this.terrainService.MapManager.ndMap(display);
         if (rows === 0 || columns === 0) {
-            throw new BadRequestException('Unable to create the ND map');
+            console.log('EMPTY IMAGE');
+
+            buffer = new SharedArrayBuffer(3);
+            const destination = new Uint8ClampedArray(buffer);
+            destination.fill(0, 0);
+            columns = 1;
+            rows = 1;
         }
 
-        const response = new NDMapDto();
         const { data, _ } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
             .toFormat('png')
             .toBuffer({ resolveWithObject: true });
 
-        await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
-            .toFile('ndtest.png');
+        response.set({ 'Content-Type': 'image/png' });
 
-        response.pixels = Buffer.from(data.buffer, 'binary').toString('base64');
-        return response;
+        response.end(new Uint8Array(data.buffer));
+    }
+
+    @Get('left.png')
+    async getLeftNdMap(@Res({ passthrough: true }) response) {
+        return this.streamNdMap('L', response);
+    }
+
+    @Get('right.png')
+    async getRightNdMap(@Res({ passthrough: true }) response) {
+        return this.streamNdMap('R', response);
     }
 }
