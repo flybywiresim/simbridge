@@ -1,4 +1,4 @@
-import { Controller, Get, Query, StreamableFile, Response, ParseIntPipe, ParseFloatPipe } from '@nestjs/common';
+import { Controller, Get, Query, StreamableFile, Response, ParseIntPipe } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { contentType } from 'mime-types';
 import { FileService } from './file.service';
