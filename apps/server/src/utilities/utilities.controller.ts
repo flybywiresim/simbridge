@@ -23,7 +23,7 @@ export class UtiliyController {
 
         res.set({
             'Content-Type': 'image/png',
-            'Content-Disposition': `attachment; filename=out-${pagenumber}.png}`,
+            'Content-Disposition': `attachment; filename=out-${pagenumber}.png`,
         });
 
         return convertedPdfFile;
