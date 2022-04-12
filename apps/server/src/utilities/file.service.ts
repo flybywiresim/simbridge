@@ -6,6 +6,10 @@ import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
 import { pdfToPng } from './pdfConversion';
 
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = join(process.cwd(), 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js');
+
 @Injectable()
 export class FileService {
     private readonly logger = new Logger(FileService.name);
