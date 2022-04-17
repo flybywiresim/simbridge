@@ -17,7 +17,7 @@
 		"build:mcdu": "webpack --config apps/mcdu/webpack.config.js",
 		"build:server": "nest build server",
 		"build:exec": "npm run build && npm run install:exec",
-		"install:exec": "pkg --public-packages '*' -t node16-win-x64 --output dist/local-server.exe dist/main.js --config package.json",
+		"install:exec": "pkg --public-packages '*' -t node16-win-x64 --output dist/fbw-dispatch.exe dist/main.js --config package.json",
 		"install:prop": "copyfiles -s -f apps/server/src/config/properties.json resources",
 		"format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
 		"start": "nest start server",
