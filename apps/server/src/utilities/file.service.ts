@@ -1,14 +1,22 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { existsSync, PathLike, readdirSync, rmSync, readFileSync } from 'fs';
+import { PathLike, readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf';
+import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
-import * as pdf from 'pdf-poppler';
+import { pdfToPng } from './pdfConversion';
+
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = join(process.cwd(), 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js');
 
 @Injectable()
 export class FileService {
     private readonly logger = new Logger(FileService.name);
+
+    private pdfCache = new Map<string, PDFDocumentProxy>();
+
+    private pngCache = new Map<string, Buffer>();
 
     async getFileCount(directory: PathLike): Promise<number> {
         try {
@@ -83,41 +91,48 @@ export class FileService {
         }
     }
 
-    async getConvertedPdfFile(fileName: string, pageNumber: number): Promise<StreamableFile> {
+    async getConvertedPdfFile(fileName: string, pageNumber: number, scale: number = 4): Promise<StreamableFile> {
+        // Some PDFs need external cmaps.
+        const CMAP_URL = '../../../node_modules/pdfjs-dist/cmaps/';
+        const CMAP_PACKED = true;
+
+        // Where the standard fonts are located.
+        const STANDARD_FONT_DATA_URL = '../../../node_modules/pdfjs-dist/standard_fonts/';
+
         try {
             const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
 
             this.checkFilePathSafety(conversionFilePath);
 
-            const outFolderPath = `${process.cwd()}\\out`;
+            const pngKey = `${conversionFilePath};;${pageNumber};;${scale}`;
+            if (this.pngCache.has(pngKey)) {
+                return new StreamableFile(this.pngCache.get(`${conversionFilePath};;${pageNumber};;${scale}`));
+            }
 
-            const options = {
-                format: 'png',
-                out_dir: outFolderPath,
-                out_prefix: 'out',
-                page: pageNumber,
-                scale: 2048,
-            };
+            if (!this.pdfCache.has(conversionFilePath)) {
+                const file = readFileSync(conversionFilePath);
+                const data = new Uint8Array(file);
 
-            return pdf.convert(conversionFilePath, options).then(() => {
-                const fileList = readdirSync(outFolderPath, { withFileTypes: true });
+                // Load the PDF file.
+                const pdfDocument = await getDocument({
+                    data,
+                    cMapUrl: CMAP_URL,
+                    cMapPacked: CMAP_PACKED,
+                    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+                }).promise;
 
-                if (!fileList.length) {
-                    throw new Error('No files found in the output folder');
-                }
-                const pageNumberLength = fileList[0].name.replace('out-', '').replace('.png', '').length;
-                const expectedFilePath = `${outFolderPath}\\out-${pageNumber.toString().padStart(pageNumberLength, '0')}.png`;
+                this.pdfCache.set(conversionFilePath, pdfDocument);
+            }
 
-                if (existsSync(expectedFilePath)) {
-                    const file = new StreamableFile(readFileSync(expectedFilePath));
+            const file = this.pdfCache.get(conversionFilePath);
 
-                    rmSync(expectedFilePath);
+            const pngBuffer = await pdfToPng(file, pageNumber, scale);
 
-                    return file;
-                }
+            if (!this.pngCache.has(pngKey)) {
+                this.pngCache.set(pngKey, pngBuffer);
+            }
 
-                throw new Error('No file found in the output folder');
-            });
+            return new StreamableFile(pngBuffer);
         } catch (err) {
             const message = `Error converting PDF to PNG: ${fileName}`;
             this.logger.log(message, err);

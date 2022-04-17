@@ -1,4 +1,4 @@
-import { Controller, Get, Query, StreamableFile, Response } from '@nestjs/common';
+import { Controller, Get, Query, StreamableFile, Response, ParseIntPipe } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { contentType } from 'mime-types';
 import { FileService } from './file.service';
@@ -14,14 +14,19 @@ export class UtiliyController {
         description: 'A streamed converted png image',
         type: StreamableFile,
     })
-    async getPdf(@Query('filename') filename: string, @Query('pagenumber') pagenumber: number, @Response({ passthrough: true }) res): Promise<StreamableFile> {
-        return this.fileService.getConvertedPdfFile(filename, pagenumber).then((file) => {
-            res.set({
-                'Content-Type': 'image/png',
-                'Content-Disposition': `attachment; filename=out-${pagenumber}.png}`,
-            });
-            return file;
+    async getPdf(
+        @Query('filename') filename: string,
+        @Query('pagenumber', ParseIntPipe) pagenumber: number,
+        @Response({ passthrough: true }) res,
+    ): Promise<StreamableFile> {
+        const convertedPdfFile = await this.fileService.getConvertedPdfFile(filename, pagenumber);
+
+        res.set({
+            'Content-Type': 'image/png',
+            'Content-Disposition': `attachment; filename=out-${pagenumber}.png`,
         });
+
+        return convertedPdfFile;
     }
 
     @Get('pdf/list')
