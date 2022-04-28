@@ -9,7 +9,7 @@ jobs:
     if: github.repository_owner == 'flybywiresim'
     runs-on: windows-latest
     env:
-      RELEASE_ZIP_NAME: FBW-Dispatch.zip
+      RELEASE_ZIP_NAME: fbw-simbridge.zip
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
@@ -19,7 +19,7 @@ jobs:
           npm run build:exec
       - name: Build ZIP File
         run: |
-          Compress-Archive -Path .\dist\fbw-dispatch.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
+          Compress-Archive -Path .\dist\fbw-simbridge.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1

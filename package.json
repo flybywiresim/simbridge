@@ -1,7 +1,7 @@
 {
-	"name": "fbw-local-api",
+	"name": "fbw-simbridge",
 	"version": "0.2.4",
-	"description": "The local-api server for FBW addons for various tasks the addons itself can't achieve",
+	"description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
 	"author": "",
 	"private": false,
 	"license": "GNU",
@@ -17,7 +17,7 @@
 		"build:mcdu": "webpack --config apps/mcdu/webpack.config.js",
 		"build:server": "nest build server",
 		"build:exec": "npm run build && npm run install:exec",
-		"install:exec": "pkg --public-packages '*' -t node16-win-x64 --output dist/fbw-dispatch.exe dist/main.js --config package.json",
+		"install:exec": "pkg --public-packages '*' -t node16-win-x64 --output dist/fbw-simbridge.exe dist/main.js --config package.json",
 		"install:prop": "copyfiles -s -f apps/server/src/config/properties.json resources",
 		"format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
 		"start": "nest start server",

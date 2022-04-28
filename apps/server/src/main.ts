@@ -46,8 +46,8 @@ async function bootstrap() {
 
     // Swagger
     const swaggerConfig = new DocumentBuilder()
-        .setTitle('FlyByWire Simulations Dispatch')
-        .setDescription('API Documentation for the Restful Endpoints of the FBW Dispatch application')
+        .setTitle('FlyByWire Simulations SimBridge')
+        .setDescription('API Documentation for the Restful Endpoints of the FBW SimBridge application')
         .setVersion('1.0')
         .build();
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
@@ -56,7 +56,7 @@ async function bootstrap() {
     await app.listen(port);
 
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    logger.log(`FBW Dispatch started on: http://${address()}:${port}`, 'NestApplication');
+    logger.log(`FBW SimBridge started on: http://${address()}:${port}`, 'NestApplication');
 
     buildSysTray(logger, isConsoleHidden);
 
@@ -115,8 +115,8 @@ function buildSysTray(logger, isConsoleHidden: Boolean) {
     const sysTray = new SysTray({
         menu: {
             icon: join(__dirname, '/assets/images/tail.ico'),
-            title: 'FBW Dispatch',
-            tooltip: 'Flybywire Dispatch Service',
+            title: 'FBW SimBridge',
+            tooltip: 'Flybywire SimBridge Service',
             items: [
                 consoleVisibleItem,
                 exitItem,
