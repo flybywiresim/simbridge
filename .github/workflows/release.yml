@@ -10,6 +10,7 @@ jobs:
     runs-on: windows-latest
     env:
       RELEASE_ZIP_NAME: fbw-simbridge.zip
+      BUILD_DIR_NAME: release
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
@@ -19,7 +20,8 @@ jobs:
           npm run build:exec
       - name: Build ZIP File
         run: |
-          Compress-Archive -Path .\dist\fbw-simbridge.exe, .\apps\server\src\config\properties.json, .\node_modules\pdf-to-printer\dist\SumatraPDF.exe -DestinationPath ${{ env.RELEASE_ZIP_NAME }}
+          node scripts\cdn.js
+          Compress-Archive -Path .\build\fbw-simbridge.exe, .\build\resources\properties.json, .\build\resources\SumatraPDF.exe -DestinationPath ${{env.BUILD_DIRNAME }}\${{ env.RELEASE_ZIP_NAME }}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -36,6 +38,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.RELEASE_ZIP_NAME }}
+          asset_path: ${{env.BUILD_DIRNAME }}\${{ env.RELEASE_ZIP_NAME }}
           asset_name: ${{ env.RELEASE_ZIP_NAME }}
           asset_content_type: application/zip
+      - name: Upload to Bunny CDN
+        env:
+          BUNNY_BUCKET_PASSWORD: ${{ secrets.BUNNY_BUCKET_PASSWORD }}
+          BUNNY_SECRET_TOKEN: ${{ secrets.BUNNY_SECRET_TOKEN }}
+          BUNNY_BUCKET_DESTINATION: addons/simbridge/release
+        run: |
+          node scripts\cdn.js $BUNNY_BUCKET_DESTINATION build-modules
+          node scripts\cdn.js $BUNNY_BUCKET_DESTINATION ${{ env.BUILD_DIR_NAME }}
