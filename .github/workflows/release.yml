@@ -48,4 +48,4 @@ jobs:
           BUNNY_BUCKET_DESTINATION: addons/simbridge/release
         run: |
           node scripts\cdn.js $BUNNY_BUCKET_DESTINATION .\build-modules
-          node scripts\cdn.js $BUNNY_BUCKET_DESTINATION ${{ env.BUILD_DIR_NAME }}
+          node scripts\cdn.js $BUNNY_BUCKET_DESTINATION .\${{ env.BUILD_DIR_NAME }}
