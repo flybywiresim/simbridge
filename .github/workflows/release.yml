@@ -38,7 +38,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{env.BUILD_DIRNAME }}\${{ env.RELEASE_ZIP_NAME }}
+          asset_path: .\${{env.BUILD_DIRNAME }}\${{ env.RELEASE_ZIP_NAME }}
           asset_name: ${{ env.RELEASE_ZIP_NAME }}
           asset_content_type: application/zip
       - name: Upload to Bunny CDN
