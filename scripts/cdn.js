@@ -8,7 +8,7 @@ const CDN_PURGE_LINK = 'https://bunnycdn.com/api/purge?url=http://flybywiresim.b
 const BUCKET_DESTINATION = process.argv[2];
 const DIRECTORY = process.argv[3];
 const CDN_DIR = BUCKET_DESTINATION ?? 'addons/simbridge/test';
-const LOCAL_DIR = DIRECTORY ?? 'build-modules/';
+const LOCAL_DIR = DIRECTORY ?? './build-modules/';
 
 const PASSWORD = process.env.BUNNY_BUCKET_PASSWORD;
 const TOKEN = process.env.BUNNY_SECRET_TOKEN;
