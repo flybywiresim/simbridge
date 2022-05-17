@@ -21,7 +21,7 @@ jobs:
       - name: Build ZIP File
         run: |
           node scripts\cdn.js
-          Compress-Archive -Path .\build\fbw-simbridge.exe, .\build\resources\properties.json, .\build\resources\SumatraPDF.exe -DestinationPath ${{env.BUILD_DIRNAME }}\${{ env.RELEASE_ZIP_NAME }}
+          Compress-Archive -Path .\build\fbw-simbridge.exe, .\build\resources\properties.json, .\build\resources\SumatraPDF.exe -DestinationPath .\${{env.BUILD_DIRNAME }}\${{ env.RELEASE_ZIP_NAME }}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
