@@ -49,7 +49,7 @@ export class NDRenderer {
         const start = new Date().getTime();
 
         const radius = Math.round((this.ViewConfig.viewRadius * 1852) / this.ViewConfig.meterPerPixel + 0.5);
-        const size = radius * 2;
+        let size = radius * 2;
         const buffer = new Uint8ClampedArray(size * size * 3);
         buffer.fill(0, 0, size * size * 3);
 
@@ -93,10 +93,17 @@ export class NDRenderer {
             .rotate(this.ViewConfig.rotateAroundHeading === true ? -1 * position.heading : 0)
             .raw()
             .toBuffer({ resolveWithObject: true });
+
+        const targetHeight = this.ViewConfig.semicircleRequired === true ? Math.round(size / 2) : size;
+        const sizeRatio = this.ViewConfig.screenHeight !== targetHeight ? targetHeight / this.ViewConfig.screenHeight : 1;
+        if (size !== this.ViewConfig.screenWidth) {
+            size = Math.round(this.ViewConfig.screenWidth * sizeRatio + 0.5);
+        }
         const offset = Math.round((rotatedRaw.info.width - size) / 2);
 
         const { data, info } = await sharp(new Uint8ClampedArray(rotatedRaw.data.buffer), { raw: { width: rotatedRaw.info.width, height: rotatedRaw.info.height, channels: 3 } })
-            .extract({ width: size, height: this.ViewConfig.semicircleRequired === true ? Math.round(size / 2) : size, left: offset, top: offset })
+            .extract({ width: size, height: targetHeight, left: offset, top: 0 })
+            .resize({ fit: sharp.fit.contain, height: this.ViewConfig.screenHeight })
             .raw()
             .toBuffer({ resolveWithObject: true });
 
