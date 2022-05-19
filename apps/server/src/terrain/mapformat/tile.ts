@@ -12,6 +12,8 @@ export class Tile {
 
     public MinimumElevation: number = 0;
 
+    public Resolution: number = 0;
+
     public BigNodesUsed: boolean = false;
 
     public NodeCount: number = 0;
