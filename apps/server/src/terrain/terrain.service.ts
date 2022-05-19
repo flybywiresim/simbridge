@@ -35,6 +35,7 @@ export class TerrainService {
             return new Terrainmap(buffer);
         } catch (err) {
             this.logger.warn('Did not find the terrain.map-file');
+            this.logger.warn(err);
             return undefined;
         }
     }
