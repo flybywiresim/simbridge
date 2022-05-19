@@ -1,11 +1,9 @@
-import { Controller, Get, Query, Patch, Body, BadRequestException, NotFoundException, Put, Res } from '@nestjs/common';
-import { ApiProduces, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
-import { get } from 'http';
+import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, Put, Res } from '@nestjs/common';
+import { ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
 import { PositionDto } from './dto/position.dto';
 import { NDViewDto } from './dto/ndview.dto';
-import { NDMapDto } from './dto/ndmap.dto';
 
 const sharp = require('sharp');
 
