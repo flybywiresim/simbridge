@@ -20,14 +20,12 @@ npm run build
 # Start Server, to use interfaces you need to build them beforehand
 $ npm run start
 
-# Wipe dist folder, build all packages and package to exe
+# Wipe dist folder, build all packages, package to exe and copy dependencies/resources to build folder
 $ npm run build:exec
 
 # Package built dist to exe
 $ npm run install:exec
 
-# Copy default properties file to resources
-$ npm run install:prop
 ```
 
 ## Documentation
