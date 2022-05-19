@@ -53,15 +53,17 @@ export class NDRenderer {
         const buffer = new Uint8ClampedArray(size * size * 3);
         buffer.fill(0, 0, size * size * 3);
 
-        const viewSouthwest = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852, 225);
-        const viewNortheast = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852, 45);
+        const viewSouthwest = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852 * 2, 225);
+        const viewNortheast = WGS84.project(position.latitude, position.longitude, this.ViewConfig.viewRadius * 1852 * 2, 45);
         const latitudeStep = (viewNortheast.latitude - viewSouthwest.latitude) / size;
         const longitudeStep = (viewNortheast.longitude - viewSouthwest.longitude) / size;
 
+        let even = false;
         let color: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
         const coordinate = { latitude: viewNortheast.latitude, longitude: viewSouthwest.longitude };
-        for (let y = 0; y < size; ++y) {
-            for (let x = 0; x < size; ++x) {
+        for (let y = 0; y < size; y += 2) {
+            even = !even;
+            for (let x = even ? 1 : 0; x < size; x += 2) {
                 const distance = Math.sqrt((x - radius) ** 2 + (y - radius) ** 2);
                 if (distance - 1 > radius) {
                     coordinate.longitude += longitudeStep;
