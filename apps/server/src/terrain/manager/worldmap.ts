@@ -56,20 +56,16 @@ export class Worldmap {
         // TODO put this in a worker thread (per render-call)
         for (const id in this.displays) {
             if (this.displays[id].renderer.ViewConfig.active === true) {
-                console.log(`RENDER: ${id}`);
                 this.displays[id].renderer.render(this.presentPosition).then((map) => {
-                    console.log(`RENDERED: ${id} ${map.columns} ${map.rows}`);
                     this.displays[id].map = map;
                 });
             } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
-                console.log(`RESET: ${id}`);
                 this.displays[id].map = { buffer: undefined, rows: 0, columns: 0 };
             }
         }
     }
 
     public configureNd(config: NDViewDto) {
-        console.log(`CONFIG: ${config.active} ${config.display} ${config.meterPerPixel} ${config.rotateAroundHeading} ${config.semicircleRequired} ${config.viewRadius}`);
         if (!(config.display in this.displays)) {
             this.displays[config.display] = {
                 renderer: new NDRenderer(this),
@@ -82,7 +78,6 @@ export class Worldmap {
     }
 
     public async updatePosition(position: PositionDto): Promise<void> {
-        console.log(`POSITION: ${position.altitude} ${position.heading} ${position.latitude} ${position.longitude}`);
         this.presentPosition = position;
 
         // TODO put this in a worker thread
