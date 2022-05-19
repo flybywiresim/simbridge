@@ -23,10 +23,10 @@ export class Terrainmap {
         this.LongitudeRange.max = buffer.readInt16LE(6);
         this.AngularSteps.latitude = buffer.readUInt8(8);
         this.AngularSteps.longitude = buffer.readUInt8(9);
-        this.ElevationResolution = buffer.readUInt8(10);
+        this.ElevationResolution = buffer.readUInt16LE(10);
 
         const bytes = Buffer.byteLength(buffer);
-        let offset = 11;
+        let offset = 12;
         while (offset < bytes) {
             const tile = new Tile(this, sharedMemory, offset);
             this.Tiles.push(tile);
