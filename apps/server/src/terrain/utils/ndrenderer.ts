@@ -104,7 +104,7 @@ export class NDRenderer {
         const offset = Math.round((rotatedRaw.info.width - size) / 2);
 
         const { data, info } = await sharp(new Uint8ClampedArray(rotatedRaw.data.buffer), { raw: { width: rotatedRaw.info.width, height: rotatedRaw.info.height, channels: 3 } })
-            .extract({ width: size, height: targetHeight, left: offset, top: 0 })
+            .extract({ width: Math.min(size, rotatedRaw.info.width), height: Math.min(targetHeight, rotatedRaw.info.height), left: offset, top: 0 })
             .resize({ fit: sharp.fit.contain, height: this.ViewConfig.screenHeight })
             .raw()
             .toBuffer({ resolveWithObject: true });
