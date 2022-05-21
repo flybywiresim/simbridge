@@ -24,7 +24,9 @@ export class NDRenderer {
         let g = 0;
         let b = 0;
 
-        if (elevation === 0 || delta < -2000) {
+        if (elevation === -1) {
+            r = 0; g = 0; b = 200;
+        } else if (elevation === 0 || delta < -2000) {
             r = 0; g = 0; b = 0;
         } else if (delta < -1000) {
             r = 119; g = 221; b = 119;
