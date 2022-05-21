@@ -11,17 +11,13 @@ export class NDViewDto {
     @IsBoolean()
     active: boolean
 
-    @ApiProperty({ description: 'Defines the maximum width of the ND map [px]', example: '400' })
-    @IsNumber()
-    screenWidth: number
-
-    @ApiProperty({ description: 'Defines the maximum height of the ND map [px]', example: '400' })
-    @IsNumber()
-    screenHeight: number
-
     @ApiProperty({ description: 'The current radius [NM]', example: '20' })
     @IsNumber()
     viewRadius: number
+
+    @ApiProperty({ description: 'The maximum width [px]', example: '396' })
+    @IsNumber()
+    maxWidth: number
 
     @ApiProperty({ description: 'The current meter per pixel ratio', example: '20' })
     @IsNumber()
