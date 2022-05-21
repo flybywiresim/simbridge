@@ -14,7 +14,7 @@ export class ElevationGrid {
         this.northeast = northeast;
         this.Rows = rows;
         this.Columns = columns;
-        this.Grid = new SharedArrayBuffer(rows * columns * 4);
+        this.Grid = new SharedArrayBuffer(rows * columns * 2);
     }
 
     public worldToGridIndices(coordinate: { latitude: number, longitude: number }): { row: number, column: number } {
