@@ -106,7 +106,7 @@ export class Worldmap {
 
     public loadElevationMap(index: { row: number, column: number }): void {
         if (this.validTile(index) === true && this.Grid[index.row][index.column].elevationmap === undefined) {
-            this.Grid[index.row][index.column].elevationmap = this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex].elevationGrid();
+            this.Grid[index.row][index.column].elevationmap = this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex].loadElevationGrid();
         }
     }
 
