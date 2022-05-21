@@ -1,6 +1,6 @@
+import { ElevationGrid } from '../mapformat/elevationgrid';
 import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
-import { ElevationGrid } from '../mapformat/elevationgrid';
 import { ConfigurationDto } from '../dto/configuration.dto';
 import { PositionDto } from '../dto/position.dto';
 import { NDViewDto } from '../dto/ndview.dto';
