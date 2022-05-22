@@ -18,4 +18,8 @@ export class PositionDto {
     @ApiProperty({ description: 'The current altitude [feet]', example: '26000' })
     @IsNumber()
     altitude: number
+
+    @ApiProperty({ description: 'Vertical speed [feet/minute]', example: '-2000' })
+    @IsNumber()
+    verticalSpeed: number
 }
