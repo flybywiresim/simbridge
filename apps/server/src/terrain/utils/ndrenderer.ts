@@ -2,6 +2,7 @@ import { NDViewDto } from '../dto/ndview.dto';
 import { Worldmap } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
+import { LocalMap } from './localmap';
 
 const sharp = require('sharp');
 
@@ -38,8 +39,7 @@ export class NDRenderer {
     }
 
     private createLocalElevationMap(mapSize: number, reference: { latitude: number, longitude: number }, southwest: { latitude: number, longitude: number },
-        northeast: { latitude: number, longitude: number }, step: { latitude: number, longitude: number }, radiusPixels: number):
-        { elevationMap: Int16Array, referenceElevation: number, maxElevation: number } {
+        northeast: { latitude: number, longitude: number }, step: { latitude: number, longitude: number }, radiusPixels: number): LocalMap {
         // estimate the reference elevation
         let referenceElevation = 0;
         const worldIdx = this.worldmap.worldMapIndices(reference.latitude, reference.longitude);
@@ -51,6 +51,7 @@ export class NDRenderer {
 
         // initialize the local map
         const elevationMap = new Int16Array(mapSize * mapSize);
+        const validElevations: number[] = [];
         elevationMap.fill(0, 0);
 
         // create the local map and find the highest obstacle
@@ -86,11 +87,19 @@ export class NDRenderer {
             latitude -= step.latitude;
         }
 
-        return {
-            elevationMap,
-            referenceElevation,
-            maxElevation,
-        };
+        // calculate the peak-mode percentils
+        validElevations.sort((a, b) => a - b);
+
+        const retval = new LocalMap();
+        retval.ElevationMap = elevationMap;
+        retval.ReferenceElevation = referenceElevation;
+        retval.MaximumElevation = maxElevation;
+        retval.ElevationPercentile85th = NDRenderer.percentile(validElevations, 0.85);
+        retval.ElevationPercentile95th = NDRenderer.percentile(validElevations, 0.95);
+        retval.ElevationUpperHalf = referenceElevation + (maxElevation - referenceElevation) * 0.5;
+        retval.ElevationUpper35Percent = referenceElevation + (maxElevation - referenceElevation) * 0.65;
+
+        return retval;
     }
 
     private static colorize(elevation: number, altitude: number): { r: number, g: number, b: number } {
@@ -165,9 +174,9 @@ export class NDRenderer {
         // get the correct visualization mode
         let peakMode = true;
         if (this.ViewConfig.gearDown) {
-            peakMode = localMapData.maxElevation + 250 < referenceAltitude;
+            peakMode = localMapData.MaximumElevation + 250 < referenceAltitude;
         } else {
-            peakMode = localMapData.maxElevation + 500 < referenceAltitude;
+            peakMode = localMapData.MaximumElevation + 500 < referenceAltitude;
         }
 
         const even = true;
