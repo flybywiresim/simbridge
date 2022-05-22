@@ -18,6 +18,25 @@ export class NDRenderer {
         this.ViewConfig = config;
     }
 
+    private static percentile(values: number[], border: number): number {
+        if (values.length === 0) {
+            return 0;
+        }
+
+        let index = values.length * border;
+        if (Number.isInteger(index)) {
+            if (index + 1 >= values.length) {
+                return values[index];
+            }
+            return 0.5 * (values[index] + values[index + 1]);
+        }
+        index = Math.ceil(index);
+        if (index >= values.length) {
+            return values[index - 1];
+        }
+        return values[index];
+    }
+
     private createLocalElevationMap(mapSize: number, reference: { latitude: number, longitude: number }, southwest: { latitude: number, longitude: number },
         northeast: { latitude: number, longitude: number }, step: { latitude: number, longitude: number }, radiusPixels: number):
         { elevationMap: Int16Array, referenceElevation: number, maxElevation: number } {
