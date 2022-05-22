@@ -76,6 +76,7 @@ export class NDRenderer {
                 } else if (tile.elevationmap !== undefined) {
                     const mapIdx = tile.elevationmap.worldToGridIndices({ latitude, longitude });
                     elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+                    validElevations.push(elevation);
                 }
 
                 maxElevation = Math.max(elevation, maxElevation);
@@ -125,6 +126,43 @@ export class NDRenderer {
         }
 
         return { r, g, b };
+    }
+
+    private renderNonPeakMode(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number): void {
+        const even = true;
+        for (let y = 0; y < mapSize; y += 2) {
+            for (let x = even ? 1 : 0; x < mapSize; x += 2) {
+                const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
+                if (distance > radiusPixels) {
+                    continue;
+                }
+
+                const color = NDRenderer.colorize(localMapData.ElevationMap[y * mapSize + x], referenceAltitude);
+                image[(y * mapSize + x) * 3 + 0] = color.r;
+                image[(y * mapSize + x) * 3 + 1] = color.g;
+                image[(y * mapSize + x) * 3 + 2] = color.b;
+            }
+        }
+    }
+
+    private renderPeakMode(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number): void {
+        const lowerDensityThreshold = { min: localMapData.ElevationUpperHalf - 2000, max: localMapData.ElevationPercentile85th };
+        const higherDensityThreshold = { min: localMapData.ElevationUpper35Percent - 1000, max: localMapData.ElevationPercentile95th };
+
+        const even = true;
+        for (let y = 0; y < mapSize; y += 2) {
+            for (let x = even ? 1 : 0; x < mapSize; x += 2) {
+                const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
+                if (distance > radiusPixels) {
+                    continue;
+                }
+
+                const color = NDRenderer.colorize(localMapData.ElevationMap[y * mapSize + x], referenceAltitude);
+                image[(y * mapSize + x) * 3 + 0] = color.r;
+                image[(y * mapSize + x) * 3 + 1] = color.g;
+                image[(y * mapSize + x) * 3 + 2] = color.b;
+            }
+        }
     }
 
     public async render(position: PositionDto): Promise<{ buffer: SharedArrayBuffer, rows: number, columns: number }> {
@@ -179,19 +217,10 @@ export class NDRenderer {
             peakMode = localMapData.MaximumElevation + 500 < referenceAltitude;
         }
 
-        const even = true;
-        for (let y = 0; y < mapSize; y += 2) {
-            for (let x = even ? 1 : 0; x < mapSize; x += 2) {
-                const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
-                if (distance > radiusPixels) {
-                    continue;
-                }
-
-                const color = NDRenderer.colorize(localMapData.elevationMap[y * mapSize + x], referenceAltitude);
-                sourceBuffer[(y * mapSize + x) * 3 + 0] = color.r;
-                sourceBuffer[(y * mapSize + x) * 3 + 1] = color.g;
-                sourceBuffer[(y * mapSize + x) * 3 + 2] = color.b;
-            }
+        if (peakMode) {
+            this.renderPeakMode(sourceBuffer, radiusPixels, mapSize, localMapData, referenceAltitude);
+        } else {
+            this.renderNonPeakMode(sourceBuffer, radiusPixels, mapSize, localMapData, referenceAltitude);
         }
 
         if (this.ViewConfig.rotateAroundHeading) {
