@@ -30,4 +30,8 @@ export class NDViewDto {
     @ApiProperty({ description: 'Indicates if the semi circle is required', example: 'true' })
     @IsBoolean()
     semicircleRequired: boolean
+
+    @ApiProperty({ description: 'Indicates if the gear is down', example: 'true' })
+    @IsBoolean()
+    gearDown: boolean
 }
