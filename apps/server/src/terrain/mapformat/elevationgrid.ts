@@ -9,12 +9,16 @@ export class ElevationGrid {
 
     public Grid: SharedArrayBuffer | undefined = undefined;
 
+    public ElevationMap: Int16Array | undefined = undefined;
+
     constructor(southwest: { latitude: number, longitude: number }, northeast: { latitude: number, longitude: number }, rows: number, columns: number) {
         this.southwest = southwest;
         this.northeast = northeast;
         this.Rows = rows;
         this.Columns = columns;
+
         this.Grid = new SharedArrayBuffer(rows * columns * 2);
+        this.ElevationMap = new Int16Array(this.Grid);
     }
 
     public worldToGridIndices(coordinate: { latitude: number, longitude: number }): { row: number, column: number } {
