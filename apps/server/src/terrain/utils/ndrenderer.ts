@@ -18,6 +18,62 @@ export class NDRenderer {
         this.ViewConfig = config;
     }
 
+    private createLocalElevationMap(mapSize: number, reference: { latitude: number, longitude: number }, southwest: { latitude: number, longitude: number },
+        northeast: { latitude: number, longitude: number }, step: { latitude: number, longitude: number }, radiusPixels: number):
+        { elevationMap: Int16Array, referenceElevation: number, maxElevation: number } {
+        // estimate the reference elevation
+        let referenceElevation = 0;
+        const worldIdx = this.worldmap.worldMapIndices(reference.latitude, reference.longitude);
+        const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
+        if (tile.tileIndex !== -1 && tile.elevationmap !== undefined) {
+            const mapIdx = tile.elevationmap.worldToGridIndices({ latitude: reference.latitude, longitude: reference.longitude });
+            referenceElevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+        }
+
+        // initialize the local map
+        const elevationMap = new Int16Array(mapSize * mapSize);
+        elevationMap.fill(0, 0);
+
+        // create the local map and find the highest obstacle
+        let maxElevation = -10000;
+        let { latitude } = northeast;
+        for (let y = 0; y < mapSize; ++y) {
+            let { longitude } = southwest;
+
+            for (let x = 0; x < mapSize; ++x) {
+                const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
+                if (distance > radiusPixels) {
+                    longitude += step.longitude;
+                    continue;
+                }
+
+                const worldIdx = this.worldmap.worldMapIndices(latitude, longitude);
+                const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
+                let elevation = 0;
+
+                if (tile.tileIndex === -1) {
+                    elevation = -1;
+                } else if (tile.elevationmap !== undefined) {
+                    const mapIdx = tile.elevationmap.worldToGridIndices({ latitude, longitude });
+                    elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+                }
+
+                maxElevation = Math.max(elevation, maxElevation);
+                elevationMap[y * mapSize + x] = elevation;
+
+                longitude += step.longitude;
+            }
+
+            latitude -= step.latitude;
+        }
+
+        return {
+            elevationMap,
+            referenceElevation,
+            maxElevation,
+        };
+    }
+
     private static colorize(elevation: number, altitude: number): { r: number, g: number, b: number } {
         const delta = elevation - altitude;
         let r = 0;
@@ -77,37 +133,37 @@ export class NDRenderer {
         viewNortheast.latitude += offsetLat;
         viewNortheast.longitude += offsetLon;
 
-        let { latitude } = viewNortheast;
-        for (let y = 0; y < mapSize; ++y) {
-            let { longitude } = viewSouthwest;
+        const localMapData = this.createLocalElevationMap(mapSize, { latitude: position.latitude, longitude: position.longitude }, viewSouthwest, viewNortheast,
+            { latitude: latitudeStep, longitude: longitudeStep }, radiusPixels);
 
-            for (let x = 0; x < mapSize; ++x) {
+        // predict the reference altitude
+        let referenceAltitude = position.altitude;
+        if (position.verticalSpeed <= -1000) {
+            // predict 30 seconds -> half of the vertical speed (feet per minute)
+            referenceAltitude += position.verticalSpeed / 2;
+        }
+
+        // get the correct visualization mode
+        let peakMode = true;
+        if (this.ViewConfig.gearDown) {
+            peakMode = localMapData.maxElevation + 250 < referenceAltitude;
+        } else {
+            peakMode = localMapData.maxElevation + 500 < referenceAltitude;
+        }
+
+        const even = true;
+        for (let y = 0; y < mapSize; y += 2) {
+            for (let x = even ? 1 : 0; x < mapSize; x += 2) {
                 const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
                 if (distance > radiusPixels) {
-                    longitude += longitudeStep;
                     continue;
                 }
 
-                const worldIdx = this.worldmap.worldMapIndices(latitude, longitude);
-                const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
-
-                let color = { r: 0, g: 0, b: 0 };
-                if (tile.tileIndex === -1) {
-                    color = NDRenderer.colorize(-1, 0);
-                } else if (tile.elevationmap !== undefined) {
-                    const gridBuffer = new Int16Array(tile.elevationmap.Grid);
-                    const mapIdx = tile.elevationmap.worldToGridIndices({ latitude, longitude });
-                    color = NDRenderer.colorize(gridBuffer[mapIdx.row * tile.elevationmap.Columns + mapIdx.column], position.altitude);
-                }
-
+                const color = NDRenderer.colorize(localMapData.elevationMap[y * mapSize + x], referenceAltitude);
                 sourceBuffer[(y * mapSize + x) * 3 + 0] = color.r;
                 sourceBuffer[(y * mapSize + x) * 3 + 1] = color.g;
                 sourceBuffer[(y * mapSize + x) * 3 + 2] = color.b;
-
-                longitude += longitudeStep;
             }
-
-            latitude -= latitudeStep;
         }
 
         if (this.ViewConfig.rotateAroundHeading) {
