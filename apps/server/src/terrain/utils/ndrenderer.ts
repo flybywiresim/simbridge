@@ -137,16 +137,14 @@ export class NDRenderer {
         retval.ElevationPercentile85th = NDRenderer.percentile(validElevations, 0.85);
         retval.ElevationPercentile95th = NDRenderer.percentile(validElevations, 0.95);
         retval.ElevationPercentile50th = NDRenderer.percentile(validElevations, 0.5);
-        retval.ElevationPercentile65th = NDRenderer.percentile(validElevations, 0.65);
-        retval.LowerDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.5 - 2000;
-        retval.HigherDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.65 - 1000;
+        retval.LowerDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.5;
+        retval.HigherDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.65;
         retval.SolidDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.95;
 
         console.log(`Min elev: ${retval.MinimumElevation}`);
         console.log(`Max elev: ${retval.MaximumElevation}`);
         console.log(`Ref elev: ${retval.ReferenceElevation}`);
         console.log(`50th perc: ${retval.ElevationPercentile50th}`);
-        console.log(`65th perc: ${retval.ElevationPercentile65th}`);
         console.log(`85th perc: ${retval.ElevationPercentile85th}`);
         console.log(`95th perc: ${retval.ElevationPercentile95th}`);
         console.log(`Lower thr: ${retval.LowerDensityRangeThreshold}`);
@@ -193,7 +191,7 @@ export class NDRenderer {
             const delta = elevation - altitude;
             if (delta >= 2000) {
                 return {
-                    density: 2,
+                    density: 1,
                     color: { r: 255, g: 0, b: 0 },
                 };
             }
@@ -249,8 +247,9 @@ export class NDRenderer {
     }
 
     private renderPeakMode(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number): void {
-        for (let y = 0; y < mapSize; y++) {
-            for (let x = 0; x < mapSize;) {
+        let startSkip = false;
+        for (let y = 0; y < mapSize; ++y) {
+            for (let x = startSkip ? 0 : 3; x < mapSize;) {
                 const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
                 if (distance > radiusPixels) {
                     x += 1;
@@ -265,6 +264,8 @@ export class NDRenderer {
                     x += 1;
                 }
             }
+
+            startSkip = !startSkip;
         }
     }
 
@@ -330,7 +331,7 @@ export class NDRenderer {
                 }
 
                 result = await sharp(new Uint8ClampedArray(data.buffer), { raw: { width: info.width, height: info.height, channels: 3 } })
-                //    .extract({ width: Math.min(this.ViewConfig.maxWidth, mapSize), height: radiusPixels, left: leftOffset, top: topOffset })
+                    .extract({ width: Math.min(this.ViewConfig.maxWidth, mapSize), height: radiusPixels, left: leftOffset, top: topOffset })
                     .raw()
                     .toBuffer({ resolveWithObject: true });
             } else {

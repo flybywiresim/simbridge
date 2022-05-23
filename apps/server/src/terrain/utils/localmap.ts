@@ -13,8 +13,6 @@ export class LocalMap {
 
     public ElevationPercentile50th: number = 0;
 
-    public ElevationPercentile65th: number = 0;
-
     public LowerDensityRangeThreshold: number = 0;
 
     public HigherDensityRangeThreshold: number = 0;
