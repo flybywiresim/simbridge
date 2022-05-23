@@ -122,142 +122,160 @@ export class NDRenderer {
 
         const retval = new LocalMap();
         retval.ElevationMap = elevationMap;
-        retval.ReferenceElevation = referenceElevation;
-        retval.MinimumElevation = minElevation;
         retval.MaximumElevation = maxElevation;
         retval.ElevationPercentile85th = NDRenderer.percentile(validElevations, 0.85);
         retval.ElevationPercentile95th = NDRenderer.percentile(validElevations, 0.95);
-        retval.ElevationPercentile50th = NDRenderer.percentile(validElevations, 0.5);
-        retval.LowerDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.5;
-        retval.HigherDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.65;
-        retval.SolidDensityRangeThreshold = (retval.MaximumElevation - retval.MinimumElevation) * 0.95;
-
-        console.log(`Min elev: ${retval.MinimumElevation}`);
-        console.log(`Max elev: ${retval.MaximumElevation}`);
-        console.log(`Ref elev: ${retval.ReferenceElevation}`);
-        console.log(`50th perc: ${retval.ElevationPercentile50th}`);
-        console.log(`85th perc: ${retval.ElevationPercentile85th}`);
-        console.log(`95th perc: ${retval.ElevationPercentile95th}`);
-        console.log(`Lower thr: ${retval.LowerDensityRangeThreshold}`);
-        console.log(`Higher thr: ${retval.HigherDensityRangeThreshold}`);
-        console.log(`Solid thr: ${retval.SolidDensityRangeThreshold}`);
+        retval.LowerDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.5;
+        retval.HigherDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.65;
+        retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
 
         return retval;
     }
 
-    private static estimatePeakVisualization(localMap: LocalMap, elevation: number, altitude: number, gearDown: boolean):
-    { density: number, color: { r: number, g: number, b: number }} {
-        // check if the entry is out of range
-        if (!elevation) {
-            return {
-                density: 2,
-                color: { r: 0, g: 0, b: 0 },
-            };
-        }
-
-        // check if the map is unavailble
-        if (!Number.isFinite(elevation)) {
-            return {
-                density: 2,
-                color: { r: 255, g: 148, b: 255 },
-            };
-        }
-
-        if (elevation === WaterElevation) {
-            return {
-                density: 2,
-                color: { r: 0, g: 255, b: 255 },
-            };
-        }
-
-        const thresholdAltitude = altitude - (gearDown ? 250 : 500);
-        if (localMap.MaximumElevation < thresholdAltitude) {
-            if (localMap.SolidDensityRangeThreshold <= elevation) {
-                return {
-                    density: 1,
-                    color: { r: 0, g: 255, b: 0 },
-                };
-            }
-        } else {
-            const delta = elevation - altitude;
-            if (delta >= 2000) {
-                return {
-                    density: 1,
-                    color: { r: 255, g: 0, b: 0 },
-                };
-            }
-            if (delta >= 1000) {
-                return {
-                    density: 2,
-                    color: { r: 255, g: 255, b: 0 },
-                };
-            }
-            if ((gearDown && delta >= -250) || (!gearDown && delta >= -500)) {
-                return {
-                    density: 3,
-                    color: { r: 255, g: 255, b: 0 },
-                };
+    private static fillPixel(image:Uint8ClampedArray, x: number, y: number, mapSize: number, start: number, size: number, color: { r: number, g: number, b: number }) {
+        for (let dy = start; dy < start + size; ++dy) {
+            for (let dx = start; dx < start + size; ++dx) {
+                image[((y + dy) * mapSize + x + dx) * 3 + 0] = color.r;
+                image[((y + dy) * mapSize + x + dx) * 3 + 1] = color.g;
+                image[((y + dy) * mapSize + x + dx) * 3 + 2] = color.b;
             }
         }
-
-        if (localMap.HigherDensityRangeThreshold <= elevation || localMap.ElevationPercentile95th <= elevation) {
-            return {
-                density: 2,
-                color: { r: 0, g: 255, b: 0 },
-            };
-        }
-        if (localMap.LowerDensityRangeThreshold <= elevation || localMap.ElevationPercentile85th <= elevation) {
-            return {
-                density: 3,
-                color: { r: 0, g: 255, b: 0 },
-            };
-        }
-
-        return {
-            density: Infinity,
-            color: { r: 0, g: 0, b: 0 },
-        };
     }
 
-    private static fillPixel(image:Uint8ClampedArray, x: number, y: number, mapSize: number, color: { r: number, g: number, b: number }) {
-        image[(y * mapSize + x) * 3 + 0] = color.r;
-        image[(y * mapSize + x) * 3 + 1] = color.g;
-        image[(y * mapSize + x) * 3 + 2] = color.b;
+    private getElevation(localMapData: LocalMap, heading: number, mapSize: number, imageX: number, imageY: number) {
+        if (!this.ViewConfig.rotateAroundHeading || heading % 360 === 0) {
+            return localMapData.ElevationMap[imageY * mapSize + imageX];
+        }
 
-        // image[(y * mapSize + x + 1) * 3 + 0] = color.r;
-        // image[(y * mapSize + x + 1) * 3 + 1] = color.g;
-        // image[(y * mapSize + x + 1) * 3 + 2] = color.b;
+        const radians = heading * (Math.PI / 180);
+        const c1 = Math.cos(radians);
+        const s1 = Math.sin(radians);
+        const offset = mapSize / 2;
 
-        // image[((y + 1) * mapSize + x) * 3 + 0] = color.r;
-        // image[((y + 1) * mapSize + x) * 3 + 1] = color.g;
-        // image[((y + 1) * mapSize + x) * 3 + 2] = color.b;
+        const x = Math.max(0, Math.min(mapSize - 1, Math.round(c1 * (imageX - offset) - s1 * (imageY - offset) + offset)));
+        const y = Math.max(0, Math.min(mapSize - 1, Math.round(s1 * (imageX - offset) + c1 * (imageY - offset) + offset)));
 
-        // image[((y + 1) * mapSize + x + 1) * 3 + 0] = color.r;
-        // image[((y + 1) * mapSize + x + 1) * 3 + 1] = color.g;
-        // image[((y + 1) * mapSize + x + 1) * 3 + 2] = color.b;
+        const elevation = localMapData.ElevationMap[y * mapSize + x];
+        return elevation;
     }
 
-    private renderPeakMode(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number): void {
-        let startSkip = false;
-        for (let y = 0; y < mapSize; ++y) {
-            for (let x = startSkip ? 0 : 3; x < mapSize;) {
+    private fillLowDensityLayer(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number,
+        lowRelativeAltitudeMode: boolean, heading: number): void {
+        // define the low density pattern
+        const lowDensityPattern = [
+            { start: 0, pattern: [[9, 0, 3], [10, 1, 2], [8, 0, 3]] },
+            { start: 3, pattern: [[6, 1, 2], [8, 0, 3], [8, 0, 3]] },
+            { start: 5, pattern: [[5, 0, 3], [6, 0, 3], [8, 1, 2]] },
+        ];
+
+        let rowCounter = 0;
+        for (let y = 0; y < mapSize; y += 6) {
+            const rowPattern = lowDensityPattern[rowCounter++];
+
+            let column = 0;
+            for (let x = rowPattern.start; x < mapSize;) {
+                const cell = rowPattern.pattern[column++];
+                column %= 3;
+
                 const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
                 if (distance > radiusPixels) {
                     x += 1;
                     continue;
                 }
 
-                const type = NDRenderer.estimatePeakVisualization(localMapData, localMapData.ElevationMap[y * mapSize + x], referenceAltitude, this.ViewConfig.gearDown);
-                if (Number.isFinite(type.density)) {
-                    NDRenderer.fillPixel(image, x, y, mapSize, type.color);
-                    x += type.density;
-                } else {
-                    x += 1;
+                const elevation = this.getElevation(localMapData, heading, mapSize, x, y);
+                if (lowRelativeAltitudeMode) {
+                    const delta = elevation - referenceAltitude;
+                    if (delta >= (this.ViewConfig.gearDown ? -250 : -500) && delta < 1000) {
+                        NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 255, g: 255, b: 0 });
+                    } else if (delta >= -2000 && delta < -1000) {
+                        NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                    }
+                } else if (localMapData.LowerDensityRangeThreshold <= elevation || localMapData.ElevationPercentile85th <= elevation) {
+                    NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                 }
+
+                x += cell[0];
             }
 
-            startSkip = !startSkip;
+            rowCounter %= 3;
         }
+    }
+
+    private fillHighDensityLayer(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number,
+        lowRelativeAltitudeMode: boolean, heading: number): void {
+        // define the high density pattern
+        const highDensityPattern = [
+            { start: 5, pattern: [[4, 0, 3], [5, 0, 3], [5, 0, 3]] },
+            { start: 2, pattern: [[5, 0, 3], [7, 0, 3], [5, 0, 3]] },
+            { start: 0, pattern: [[6, 0, 3], [7, 0, 3], [5, 0, 3]] },
+        ];
+
+        let rowCounter = 0;
+        for (let y = 3; y < mapSize; y += 6) {
+            const rowPattern = highDensityPattern[rowCounter++];
+
+            let column = 0;
+            for (let x = rowPattern.start; x < mapSize;) {
+                const cell = rowPattern.pattern[column++];
+                column %= 3;
+
+                const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
+                if (distance > radiusPixels) {
+                    x += 1;
+                    continue;
+                }
+
+                const elevation = this.getElevation(localMapData, heading, mapSize, x, y);
+                if (!Number.isFinite(elevation)) {
+                    NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 255, g: 148, b: 255 });
+                } else if (elevation === WaterElevation) {
+                    NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 0, g: 255, b: 255 });
+                } else if (lowRelativeAltitudeMode) {
+                    const delta = elevation - referenceAltitude;
+                    if (delta >= 2000) {
+                        NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 255, g: 0, b: 0 });
+                    } else if (delta >= 1000 && delta < 2000) {
+                        NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 255, g: 255, b: 0 });
+                    } else if (delta >= -1000 && delta < (this.ViewConfig.gearDown ? -250 : -500)) {
+                        NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                    }
+                } else if (localMapData.HigherDensityRangeThreshold <= elevation || localMapData.ElevationPercentile95th <= elevation) {
+                    NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                }
+
+                x += cell[0];
+            }
+
+            rowCounter %= 3;
+        }
+    }
+
+    private fillSolidLayer(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number,
+        lowRelativeAltitudeMode: boolean, heading: number): void {
+        for (let y = 0; y < mapSize; y += 2) {
+            for (let x = 0; x < mapSize; x += 2) {
+                const distance = Math.sqrt((x - radiusPixels) ** 2 + (y - radiusPixels) ** 2);
+                if (distance > radiusPixels) {
+                    x += 1;
+                    continue;
+                }
+
+                const elevation = this.getElevation(localMapData, heading, mapSize, x, y);
+                if (!lowRelativeAltitudeMode && localMapData.SolidDensityRangeThreshold <= elevation) {
+                    NDRenderer.fillPixel(image, x, y, mapSize, 0, 2, { r: 0, g: 255, b: 0 });
+                }
+            }
+        }
+    }
+
+    private renderPeakMode(image: Uint8ClampedArray, radiusPixels: number, mapSize: number, localMapData: LocalMap, referenceAltitude: number, heading: number): void {
+        const thresholdAltitude = referenceAltitude - (this.ViewConfig.gearDown ? 250 : 500);
+        const lowRelativeAltitudeMode = localMapData.MaximumElevation >= thresholdAltitude;
+
+        this.fillLowDensityLayer(image, radiusPixels, mapSize, localMapData, referenceAltitude, lowRelativeAltitudeMode, heading);
+        this.fillHighDensityLayer(image, radiusPixels, mapSize, localMapData, referenceAltitude, lowRelativeAltitudeMode, heading);
+        this.fillSolidLayer(image, radiusPixels, mapSize, localMapData, referenceAltitude, lowRelativeAltitudeMode, heading);
     }
 
     public async render(position: PositionDto): Promise<{ buffer: SharedArrayBuffer, rows: number, columns: number }> {
@@ -304,33 +322,18 @@ export class NDRenderer {
             referenceAltitude += position.verticalSpeed / 2;
         }
 
-        this.renderPeakMode(sourceBuffer, radiusPixels, mapSize, localMapData, referenceAltitude);
+        this.renderPeakMode(sourceBuffer, radiusPixels, mapSize, localMapData, referenceAltitude, position.heading);
 
-        if (this.ViewConfig.rotateAroundHeading) {
-            const { data, info } = await sharp(new Uint8ClampedArray(sourceBuffer), { raw: { width: mapSize, height: mapSize, channels: 3 } })
-                .rotate(-1 * position.heading)
+        if (this.ViewConfig.semicircleRequired) {
+            let leftOffset = 0;
+            if (this.ViewConfig.maxWidth < mapSize) {
+                leftOffset += (mapSize - this.ViewConfig.maxWidth) / 2;
+            }
+
+            const result = await sharp(new Uint8ClampedArray(sourceBuffer), { raw: { width: mapSize, height: mapSize, channels: 3 } })
+                .extract({ width: Math.min(this.ViewConfig.maxWidth, mapSize), height: radiusPixels, left: leftOffset, top: 0 })
                 .raw()
                 .toBuffer({ resolveWithObject: true });
-
-            const topOffset = Math.round((info.height - mapSize) / 2 + 0.5);
-            let leftOffset = Math.round((info.width - mapSize) / 2 + 0.5);
-
-            let result = null;
-            if (this.ViewConfig.semicircleRequired) {
-                if (this.ViewConfig.maxWidth < mapSize) {
-                    leftOffset += (mapSize - this.ViewConfig.maxWidth) / 2;
-                }
-
-                result = await sharp(new Uint8ClampedArray(data.buffer), { raw: { width: info.width, height: info.height, channels: 3 } })
-                    .extract({ width: Math.min(this.ViewConfig.maxWidth, mapSize), height: radiusPixels, left: leftOffset, top: topOffset })
-                    .raw()
-                    .toBuffer({ resolveWithObject: true });
-            } else {
-                result = await sharp(new Uint8ClampedArray(data.buffer), { raw: { width: info.width, height: info.height, channels: 3 } })
-                    .extract({ width: mapSize, height: mapSize, left: leftOffset, top: topOffset })
-                    .raw()
-                    .toBuffer({ resolveWithObject: true });
-            }
 
             const retval = new SharedArrayBuffer(result.info.width * result.info.height * 3);
             const dest = new Uint8ClampedArray(retval);
