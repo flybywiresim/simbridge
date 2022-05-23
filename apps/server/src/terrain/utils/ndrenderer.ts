@@ -42,17 +42,8 @@ export class NDRenderer {
 
     private createLocalElevationMap(mapSize: number, position: PositionDto, reference: { latitude: number, longitude: number }, southwest: { latitude: number, longitude: number },
         northeast: { latitude: number, longitude: number }, step: { latitude: number, longitude: number }, radiusPixels: number): LocalMap {
-        // estimate the reference elevation
-        let referenceElevation = 0;
-        const worldIdx = this.worldmap.worldMapIndices(reference.latitude, reference.longitude);
-        const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
-        if (tile.tileIndex !== -1 && tile.elevationmap !== undefined) {
-            const mapIdx = tile.elevationmap.worldToGridIndices({ latitude: reference.latitude, longitude: reference.longitude });
-            referenceElevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
-        }
-
         // initialize the local map
-        const elevationMap = new Int16Array(mapSize * mapSize);
+        const elevationMap: Int16Array = new Int16Array(mapSize * mapSize);
         const validElevations: number[] = [];
         elevationMap.fill(0, 0);
 
