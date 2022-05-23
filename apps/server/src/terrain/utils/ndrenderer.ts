@@ -182,7 +182,7 @@ export class NDRenderer {
         }
 
         const thresholdAltitude = altitude - (gearDown ? 250 : 500);
-        if (localMap.MaximumElevation >= thresholdAltitude) {
+        if (localMap.MaximumElevation < thresholdAltitude) {
             if (localMap.SolidDensityRangeThreshold <= elevation) {
                 return {
                     density: 1,
