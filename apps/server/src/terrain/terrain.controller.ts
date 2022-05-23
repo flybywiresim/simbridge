@@ -83,7 +83,7 @@ export class TerrainController {
     }
 
     private async streamNdMap(display: string, response): Promise<void> {
-        let { buffer, rows, columns } = this.terrainService.MapManager.ndMap(display);
+        let { buffer, rows, columns, minElevation, maxElevation } = this.terrainService.MapManager.ndMap(display);
         if (rows === 0 || columns === 0) {
             console.log('EMPTY IMAGE');
 
@@ -99,6 +99,8 @@ export class TerrainController {
             .toBuffer({ resolveWithObject: true });
 
         response.set({ 'Content-Type': 'image/png' });
+        response.set({ minElevation });
+        response.set({ maxElevation });
 
         response.end(new Uint8Array(data.buffer));
     }

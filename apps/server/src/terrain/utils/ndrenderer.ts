@@ -278,9 +278,9 @@ export class NDRenderer {
         this.fillSolidLayer(image, radiusPixels, mapSize, localMapData, referenceAltitude, lowRelativeAltitudeMode, heading);
     }
 
-    public async render(position: PositionDto): Promise<{ buffer: SharedArrayBuffer, rows: number, columns: number }> {
+    public async render(position: PositionDto): Promise<{ buffer: SharedArrayBuffer, rows: number, columns: number, minElevation: number, maxElevation: number }> {
         if (this.worldmap.Terraindata === undefined || position === undefined) {
-            return { buffer: undefined, rows: 0, columns: 0 };
+            return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
         }
 
         const start = new Date().getTime();
@@ -342,7 +342,7 @@ export class NDRenderer {
             const delta = new Date().getTime() - start;
             console.log(`Created ND map in ${delta / 1000} seconds`);
 
-            return { buffer: retval, rows: result.info.height, columns: result.info.width };
+            return { buffer: retval, rows: result.info.height, columns: result.info.width, minElevation: localMapData.LowerDensityRangeThreshold, maxElevation: localMapData.MaximumElevation };
         }
 
         const retval = new SharedArrayBuffer(mapSize * mapSize * 3);
@@ -352,6 +352,6 @@ export class NDRenderer {
         const delta = new Date().getTime() - start;
         console.log(`Created ND map in ${delta / 1000} seconds`);
 
-        return { buffer: retval, rows: mapSize, columns: mapSize };
+        return { buffer: retval, rows: mapSize, columns: mapSize, minElevation: localMapData.LowerDensityRangeThreshold, maxElevation: localMapData.MaximumElevation };
     }
 }

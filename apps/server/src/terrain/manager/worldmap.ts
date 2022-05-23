@@ -10,7 +10,7 @@ import { NDRenderer } from '../utils/ndrenderer';
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
-    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: SharedArrayBuffer, rows: number, columns: number } } } = {};
+    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: SharedArrayBuffer, rows: number, columns: number, minElevation: number, maxElevation: number } } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -69,7 +69,7 @@ export class Worldmap {
                     this.displays[id].map = map;
                 });
             } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
-                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0 };
+                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0, minElevation: 0, maxElevation: 0 };
             }
         }
     }
@@ -78,7 +78,7 @@ export class Worldmap {
         if (!(config.display in this.displays)) {
             this.displays[config.display] = {
                 renderer: new NDRenderer(this),
-                map: { buffer: undefined, rows: 0, columns: 0 },
+                map: { buffer: undefined, rows: 0, columns: 0, minElevation: 0, maxElevation: 0 },
             };
         }
         this.displays[config.display].renderer.configureView(config);
@@ -142,9 +142,9 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    public ndMap(id: string): { buffer: SharedArrayBuffer, rows: number, columns: number } {
+    public ndMap(id: string): { buffer: SharedArrayBuffer, rows: number, columns: number, minElevation: number, maxElevation: number } {
         if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
-            return { buffer: undefined, rows: 0, columns: 0 };
+            return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
         }
         return this.displays[id].map;
     }
