@@ -10,4 +10,8 @@ export class ConfigurationDto {
     @ApiProperty({ description: 'The maximum visibility range [nm]', example: '400' })
     @IsNumber()
     visibilityRange: number
+
+    @ApiProperty({ description: 'ND map update interval [s]', example: '1' })
+    @IsNumber()
+    ndMapUpdateInterval: number
 }

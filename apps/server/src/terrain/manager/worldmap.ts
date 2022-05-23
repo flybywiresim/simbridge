@@ -16,6 +16,8 @@ export class Worldmap {
 
     private presentPosition: PositionDto | undefined = undefined;
 
+    private ndRenderInterval: NodeJS.Timer | undefined = undefined;
+
     public VisibilityRange: number = 250;
 
     private static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
@@ -42,10 +44,17 @@ export class Worldmap {
                 });
             }
         }
+
+        this.ndRenderInterval = setInterval(() => this.renderNdMaps(), 1000);
     }
 
     public configure(config: ConfigurationDto): void {
         this.VisibilityRange = config.visibilityRange;
+
+        if (this.ndRenderInterval !== undefined) {
+            clearInterval(this.ndRenderInterval);
+        }
+        this.ndRenderInterval = setInterval(() => this.renderNdMaps(), config.ndMapUpdateInterval * 1000);
 
         if (config.reset === true) {
             this.cleanupElevationCache([]);
@@ -73,8 +82,6 @@ export class Worldmap {
             };
         }
         this.displays[config.display].renderer.configureView(config);
-
-        this.renderNdMaps();
     }
 
     public async updatePosition(position: PositionDto): Promise<void> {
@@ -82,7 +89,6 @@ export class Worldmap {
 
         // TODO put this in a worker thread
         loadTiles(this, position);
-        this.renderNdMaps();
     }
 
     public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
