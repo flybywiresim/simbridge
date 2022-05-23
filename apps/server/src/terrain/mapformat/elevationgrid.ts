@@ -11,6 +11,8 @@ export class ElevationGrid {
 
     public ElevationMap: Int16Array | undefined = undefined;
 
+    public MapLoaded: boolean = false;
+
     constructor(southwest: { latitude: number, longitude: number }, northeast: { latitude: number, longitude: number }, rows: number, columns: number) {
         this.southwest = southwest;
         this.northeast = northeast;
