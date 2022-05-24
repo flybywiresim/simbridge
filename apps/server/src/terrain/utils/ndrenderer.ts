@@ -327,13 +327,8 @@ export class NDRenderer {
         this.renderPeakMode(sourceBuffer, radiusPixels, mapSize, localMapData, referenceAltitude, position.heading);
 
         if (this.ViewConfig.semicircleRequired) {
-            let leftOffset = 0;
-            if (this.ViewConfig.maxWidth < mapSize) {
-                leftOffset += (mapSize - this.ViewConfig.maxWidth) / 2;
-            }
-
             const result = await sharp(new Uint8ClampedArray(sourceBuffer), { raw: { width: mapSize, height: mapSize, channels: 3 } })
-                .extract({ width: Math.min(this.ViewConfig.maxWidth, mapSize), height: radiusPixels, left: leftOffset, top: 0 })
+                .extract({ width: mapSize, height: radiusPixels, left: 0, top: 0 })
                 .raw()
                 .toBuffer({ resolveWithObject: true });
 
