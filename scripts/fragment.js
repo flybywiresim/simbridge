@@ -11,6 +11,10 @@ const execute = async () => {
                     name: 'resources',
                     sourceDir: './resources',
                 },
+                {
+                    name: 'modules',
+                    sourceDir: './node_modules',
+                },
             ],
         });
         console.log(result);
