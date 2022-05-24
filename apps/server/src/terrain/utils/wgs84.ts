@@ -1,6 +1,6 @@
 export class WGS84 {
     public static project(latitude: number, longitude: number, distance: number, bearing: number): { latitude: number, longitude: number } {
-        const earthRadius = 6371000;
+        const earthRadius = 6371010;
         const lat1 = latitude * (Math.PI / 180);
         const lon1 = longitude * (Math.PI / 180);
         const brg = bearing * (Math.PI / 180);
