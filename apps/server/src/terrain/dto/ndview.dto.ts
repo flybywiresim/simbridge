@@ -11,21 +11,21 @@ export class NDViewDto {
     @IsBoolean()
     active: boolean
 
-    @ApiProperty({ description: 'The current radius [NM]', example: '20' })
+    @ApiProperty({ description: 'The current map width [px]', example: '900' })
     @IsNumber()
-    viewRadius: number
+    mapWidth: number
+
+    @ApiProperty({ description: 'The current map width [px]', example: '450' })
+    @IsNumber()
+    mapHeight: number
 
     @ApiProperty({ description: 'The current meter per pixel ratio', example: '20' })
     @IsNumber()
     meterPerPixel: number
 
-    @ApiProperty({ description: 'Indicates if the view needs to be rotated', example: 'true' })
+    @ApiProperty({ description: 'Indicates if the ARC mode is active', example: 'true' })
     @IsBoolean()
-    rotateAroundHeading: boolean
-
-    @ApiProperty({ description: 'Indicates if the semi circle is required', example: 'true' })
-    @IsBoolean()
-    semicircleRequired: boolean
+    arcMode: boolean
 
     @ApiProperty({ description: 'Indicates if the gear is down', example: 'true' })
     @IsBoolean()

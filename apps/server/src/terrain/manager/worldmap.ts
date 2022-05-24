@@ -65,9 +65,7 @@ export class Worldmap {
         // TODO put this in a worker thread (per render-call)
         for (const id in this.displays) {
             if (this.displays[id].renderer.ViewConfig.active === true) {
-                this.displays[id].renderer.render(this.presentPosition).then((map) => {
-                    this.displays[id].map = map;
-                });
+                this.displays[id].map = this.displays[id].renderer.render(this.presentPosition);
             } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
                 this.displays[id].map = { buffer: undefined, rows: 0, columns: 0, minElevation: 0, maxElevation: 0 };
             }
