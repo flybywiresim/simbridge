@@ -285,8 +285,6 @@ export class NDRenderer {
             return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
         }
 
-        const start = new Date().getTime();
-
         // calculate the source dimensions to create the initial map
         const radiusPixels = Math.round((this.ViewConfig.viewRadius * 1852) / this.ViewConfig.meterPerPixel + 0.5);
         const mapSize = radiusPixels * 2;
@@ -336,18 +334,12 @@ export class NDRenderer {
             const dest = new Uint8ClampedArray(retval);
             dest.set(new Uint8ClampedArray(result.data.buffer), 0);
 
-            const delta = new Date().getTime() - start;
-            console.log(`Created ND map in ${delta / 1000} seconds`);
-
             return { buffer: retval, rows: result.info.height, columns: result.info.width, minElevation: localMapData.LowerDensityRangeThreshold, maxElevation: localMapData.MaximumElevation };
         }
 
         const retval = new SharedArrayBuffer(mapSize * mapSize * 3);
         const dest = new Uint8ClampedArray(retval);
         dest.set(sourceBuffer, 0);
-
-        const delta = new Date().getTime() - start;
-        console.log(`Created ND map in ${delta / 1000} seconds`);
 
         return { buffer: retval, rows: mapSize, columns: mapSize, minElevation: localMapData.LowerDensityRangeThreshold, maxElevation: localMapData.MaximumElevation };
     }
