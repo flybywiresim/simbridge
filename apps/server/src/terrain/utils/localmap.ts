@@ -1,6 +1,8 @@
 export class LocalMap {
     public ElevationMap: Int16Array = null;
 
+    public MinimumElevation: number = 0;
+
     public MaximumElevation: number = 0;
 
     public ElevationPercentile85th: number = 0;
@@ -12,4 +14,8 @@ export class LocalMap {
     public HigherDensityRangeThreshold: number = 0;
 
     public SolidDensityRangeThreshold: number = 0;
+
+    public TerrainMapMinElevation: number = Infinity;
+
+    public TerrainMapMaxElevation: number = Infinity;
 }
