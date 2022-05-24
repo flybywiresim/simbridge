@@ -181,7 +181,11 @@ export class NDRenderer {
                 }
 
                 const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
-                if (lowRelativeAltitudeMode) {
+                if (!Number.isFinite(elevation)) {
+                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 148, b: 255 });
+                } else if (elevation === WaterElevation) {
+                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 255 });
+                } else if (lowRelativeAltitudeMode) {
                     const delta = elevation - referenceAltitude;
                     if (delta >= 2000) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 0, b: 0 });
