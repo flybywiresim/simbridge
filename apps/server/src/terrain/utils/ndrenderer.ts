@@ -109,14 +109,14 @@ export class NDRenderer {
                 } else if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
                     const mapIdx = tile.elevationmap.worldToGridIndices({ latitude: projected.latitude, longitude: projected.longitude });
                     elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
-                    validElevations.push(elevation);
                 } else {
                     elevation = Infinity;
                 }
 
-                if (Number.isFinite(elevation)) {
+                if (Number.isFinite(elevation) && elevation !== WaterElevation) {
                     maxElevation = Math.max(elevation, maxElevation);
                     minElevation = Math.min(elevation, minElevation);
+                    validElevations.push(elevation);
                 }
 
                 elevationMap[y * this.ViewConfig.mapWidth + x] = elevation;
