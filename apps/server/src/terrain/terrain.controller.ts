@@ -1,9 +1,10 @@
-import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, Put, Res } from '@nestjs/common';
+import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, Put, Res, Query, HttpStatus, HttpException } from '@nestjs/common';
 import { ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { ConfigurationDto } from './dto/configuration.dto';
 import { PositionDto } from './dto/position.dto';
 import { NDViewDto } from './dto/ndview.dto';
+import { NDTerrainDataDto } from './dto/ndterraindata.dto';
 
 const sharp = require('sharp');
 
@@ -109,5 +110,28 @@ export class TerrainController {
     @Get('right.png')
     async getRightNdMap(@Res({ passthrough: true }) response) {
         return this.streamNdMap('R', response);
+    }
+
+    @Get('terrainRange')
+    @ApiResponse({
+        status: 200,
+        description: 'The ND terrain data information',
+        type: NDTerrainDataDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid display settings set',
+    })
+    getTerrainRange(@Query() query) {
+        if (!('display' in query) || (query.display !== 'L' && query.display !== 'R')) {
+            throw new HttpException('Invalid display setting', HttpStatus.BAD_REQUEST);
+        }
+
+        const ndMap = this.terrainService.MapManager.ndMap(query.display);
+        const retval = new NDTerrainDataDto();
+        retval.minElevation = Math.round(ndMap.minElevation);
+        retval.maxElevation = Math.round(ndMap.maxElevation);
+
+        return retval;
     }
 }
