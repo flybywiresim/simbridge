@@ -15,10 +15,6 @@ export class NDViewDto {
     @IsNumber()
     viewRadius: number
 
-    @ApiProperty({ description: 'The maximum width [px]', example: '396' })
-    @IsNumber()
-    maxWidth: number
-
     @ApiProperty({ description: 'The current meter per pixel ratio', example: '20' })
     @IsNumber()
     meterPerPixel: number
