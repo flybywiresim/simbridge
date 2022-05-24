@@ -186,9 +186,11 @@ export class NDRenderer {
                 const elevation = this.getElevation(localMapData, heading, mapSize, x, y);
                 if (lowRelativeAltitudeMode) {
                     const delta = elevation - referenceAltitude;
-                    if (delta >= (this.ViewConfig.gearDown ? -250 : -500) && delta < 1000) {
+                    if (delta >= 2000) {
+                        NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 255, g: 0, b: 0 });
+                    } else if ((delta >= 1000 && delta < 2000) || (delta >= (this.ViewConfig.gearDown ? -250 : -500) && delta < 1000)) {
                         NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 255, g: 255, b: 0 });
-                    } else if (delta >= -2000 && delta < -1000) {
+                    } else if ((delta >= -1000 && delta < (this.ViewConfig.gearDown ? -250 : -500)) || (delta >= -2000 && delta < -1000)) {
                         NDRenderer.fillPixel(image, x, y, mapSize, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                     }
                 } else if (localMapData.LowerDensityRangeThreshold <= elevation || localMapData.ElevationPercentile85th <= elevation) {
