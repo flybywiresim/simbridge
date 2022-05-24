@@ -48,24 +48,42 @@ export class NDRenderer {
 
         const offsetX = this.ViewConfig.mapWidth / 2;
 
-        // calculate the three corners of the ROI rectangle
-        const topLeftWgs84 = WGS84.project(position.latitude, position.longitude, Math.sqrt(offsetX ** 2 + this.ViewConfig.mapHeight ** 2) * this.ViewConfig.meterPerPixel,
-            position.heading - 45);
-        const bottomLeftWgs84 = WGS84.project(topLeftWgs84.latitude, topLeftWgs84.longitude, this.ViewConfig.mapHeight * this.ViewConfig.meterPerPixel, position.heading - 180);
-        const topRightWgs84 = WGS84.project(topLeftWgs84.latitude, topLeftWgs84.longitude, this.ViewConfig.mapWidth * this.ViewConfig.meterPerPixel, position.heading + 90);
+        // calculate the look-up-table for movements in the y-direction (compensate errors due to long range linearizations)
+        const lutDeltaY: { latitude: number, longitude: number }[] = [];
+        let lastPosition = { latitude: position.latitude, longitude: position.longitude };
+        const deltaY = { latitude: 0, longitude: 0 };
+        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
+            const projection = WGS84.project(lastPosition.latitude, lastPosition.longitude, this.ViewConfig.meterPerPixel, position.heading);
 
-        // calculate the angular movements for elevation map movements in X- and Y-direction
-        const angularDeltaX = {
-            latitude: (topRightWgs84.latitude - topLeftWgs84.latitude) / this.ViewConfig.mapWidth,
-            longitude: (topRightWgs84.longitude - topLeftWgs84.longitude) / this.ViewConfig.mapWidth,
-        };
-        const angularDeltaY = {
-            latitude: (bottomLeftWgs84.latitude - topLeftWgs84.latitude) / this.ViewConfig.mapHeight,
-            longitude: (bottomLeftWgs84.longitude - topLeftWgs84.longitude) / this.ViewConfig.mapHeight,
-        };
+            lutDeltaY.unshift({ latitude: lastPosition.latitude - projection.latitude, longitude: lastPosition.longitude - projection.longitude });
+            lastPosition = projection;
+
+            deltaY.latitude -= lutDeltaY[0].latitude;
+            deltaY.longitude -= lutDeltaY[0].longitude;
+        }
+
+        // calculate the look-up-table for movements in the x-direction (compensate errors due to long range linearizations)
+        const lutDeltaX: { latitude: number, longitude: number }[] = [];
+        let lastPositionRight = { latitude: position.latitude, longitude: position.longitude };
+        let lastPositionLeft = { latitude: position.latitude, longitude: position.longitude };
+        const deltaXStart = { latitude: 0, longitude: 0 };
+        for (let x = 0; x < offsetX; ++x) {
+            const projectLeft = WGS84.project(lastPositionLeft.latitude, lastPositionLeft.longitude, this.ViewConfig.meterPerPixel, position.heading - 90);
+            const projectRight = WGS84.project(lastPositionRight.latitude, lastPositionRight.longitude, this.ViewConfig.meterPerPixel, position.heading + 90);
+            lutDeltaX.unshift({ latitude: lastPositionLeft.latitude - projectLeft.latitude, longitude: lastPositionLeft.longitude - projectLeft.longitude });
+            lutDeltaX.push({ latitude: projectRight.latitude - lastPositionRight.latitude, longitude: projectRight.longitude - lastPositionRight.longitude });
+
+            lastPositionRight = projectRight;
+            lastPositionLeft = projectLeft;
+
+            deltaXStart.latitude -= lutDeltaX[0].latitude;
+            deltaXStart.longitude -= lutDeltaX[0].longitude;
+        }
 
         // create the local map and find the highest obstacle
         for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
+            const deltaX = { latitude: deltaXStart.latitude, longitude: deltaXStart.longitude };
+
             for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
                     const distance = Math.sqrt((x - offsetX) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
@@ -77,10 +95,11 @@ export class NDRenderer {
 
                 // Calculate the resulting world coordinate based on the angular offsets per step
                 const projected = {
-                    latitude: topLeftWgs84.latitude + x * angularDeltaX.latitude + y * angularDeltaY.latitude,
-                    longitude: topLeftWgs84.longitude + x * angularDeltaX.longitude + y * angularDeltaY.longitude,
+                    latitude: position.latitude + deltaX.latitude + deltaY.latitude,
+                    longitude: position.longitude + deltaX.longitude + deltaY.longitude,
                 };
 
+                // console.log(projected);
                 const worldIdx = this.worldmap.worldMapIndices(projected.latitude, projected.longitude);
                 const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
                 let elevation = 0;
@@ -101,7 +120,13 @@ export class NDRenderer {
                 }
 
                 elevationMap[y * this.ViewConfig.mapWidth + x] = elevation;
+
+                deltaX.latitude += lutDeltaX[x].latitude;
+                deltaX.longitude += lutDeltaX[x].longitude;
             }
+
+            deltaY.latitude += lutDeltaY[y].latitude;
+            deltaY.longitude += lutDeltaY[y].longitude;
         }
 
         // calculate the peak-mode percentils
