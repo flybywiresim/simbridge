@@ -76,7 +76,7 @@ export class Worldmap {
         if (!(config.display in this.displays)) {
             this.displays[config.display] = {
                 renderer: new NDRenderer(this),
-                map: { buffer: undefined, rows: 0, columns: 0, minElevation: 0, maxElevation: 0 },
+                map: { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity },
             };
         }
         this.displays[config.display].renderer.configureView(config);
