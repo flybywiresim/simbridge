@@ -284,7 +284,7 @@ export class NDRenderer {
             this.fillSolidLayer(image, localMapData);
             localMapData.TerrainMapMinElevation = localMapData.LowerDensityRangeThreshold;
         } else {
-            localMapData.TerrainMapMinElevation = localMapData.MinimumElevation;
+            localMapData.TerrainMapMinElevation = Math.max(referenceAltitude - 2000, localMapData.MinimumElevation);
         }
 
         localMapData.TerrainMapMaxElevation = localMapData.MaximumElevation;
