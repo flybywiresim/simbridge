@@ -4,10 +4,14 @@
 	"description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
 	"author": "",
 	"private": false,
-	"license": "GNU",
+	"license": "GPL-3.0-only",
 	"os": [
 		"win32"
 	],
+	"engines": {
+		"node": "16.x.x",
+		"npm": "7.x.x"
+	},
 	"scripts": {
 		"prepub": "copy package.json dist && copy README.md dist && copy LICENSE dist && copy CODE_OF_CONDUCT.md dist",
 		"pub": "cd dist && npm publish",
@@ -17,7 +21,7 @@
 		"build:mcdu": "webpack --config apps/mcdu/webpack.config.js",
 		"build:server": "nest build server",
 		"build:exec": "npm run build && npm run install:exec && npm run copy:deps",
-		"copy:deps": "npm run copy:resources && npm run copy:modules",
+		"copy:deps": "npm run copy:resources && npm run copy:modules && copyfiles -s -f LICENSE build",
 		"copy:resources": "copyfiles -s -f apps/server/src/config/properties.json ./node_modules/pdf-to-printer/dist/SumatraPDF.exe build/resources",
 		"copy:modules": "npm run copy:traybin && npm run copy:pdfjs && npm run copy:nodehide",
 		"copy:traybin": "copyfiles -s -f ./node_modules/systray2/traybin/tray_windows_release.exe build/node_modules/traybin",
