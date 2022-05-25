@@ -14,10 +14,11 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
-      - name: Build Local API
+      - name: set Node version
         uses: actions/setup-node@v3
         with:
           node-version: 16
+      - name: Build Local API
         run: |
           npm install
           npm run build:exec
