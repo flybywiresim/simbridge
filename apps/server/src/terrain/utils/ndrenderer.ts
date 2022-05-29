@@ -4,6 +4,8 @@ import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
 import { LocalMap } from './localmap';
 
+const sharp = require('sharp');
+
 const WaterElevation = -1;
 
 export class NDRenderer {
@@ -312,15 +314,15 @@ export class NDRenderer {
 
         this.renderPeakMode(sourceBuffer, localMapData, referenceAltitude);
 
-        const retval = new SharedArrayBuffer(this.ViewConfig.mapWidth * this.ViewConfig.mapHeight * 3);
-        const dest = new Uint8ClampedArray(retval);
-        dest.set(new Uint8ClampedArray(sourceBuffer), 0);
+        const { data, _ } = await sharp(new Uint8ClampedArray(sourceBuffer), { raw: { width: this.ViewConfig.mapWidth, height: this.ViewConfig.mapHeight, channels: 3 } })
+            .toFormat('png')
+            .toBuffer({ resolveWithObject: true });
 
         const deltaTime = new Date().getTime() - start;
         console.log(`Rendering duration: ${deltaTime}`);
 
         return {
-            buffer: retval,
+            buffer: new Uint8Array(data.buffer),
             rows: this.ViewConfig.mapHeight,
             columns: this.ViewConfig.mapWidth,
             minElevation: localMapData.TerrainMapMinElevation,

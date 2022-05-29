@@ -6,8 +6,6 @@ import { PositionDto } from './dto/position.dto';
 import { NDViewDto } from './dto/ndview.dto';
 import { NDTerrainDataDto } from './dto/ndterraindata.dto';
 
-const sharp = require('sharp');
-
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
 export class TerrainController {
@@ -83,23 +81,12 @@ export class TerrainController {
         this.presentHeading = position.heading;
     }
 
-    private async streamNdMap(display: string, response): Promise<void> {
-        let { buffer, rows, columns } = this.terrainService.MapManager.ndMap(display);
-        if (rows === 0 || columns === 0) {
-            buffer = new SharedArrayBuffer(3);
-            const destination = new Uint8ClampedArray(buffer);
-            destination.fill(0, 0);
-            columns = 1;
-            rows = 1;
+    private streamNdMap(display: string, response): void {
+        const { buffer, rows, columns } = this.terrainService.MapManager.ndMap(display);
+        if (rows !== 0 && columns !== 0) {
+            response.set({ 'Content-Type': 'image/png' });
+            response.end(buffer);
         }
-
-        const { data, _ } = await sharp(new Uint8ClampedArray(buffer), { raw: { width: columns, height: rows, channels: 3 } })
-            .toFormat('png')
-            .toBuffer({ resolveWithObject: true });
-
-        response.set({ 'Content-Type': 'image/png' });
-
-        response.end(new Uint8Array(data.buffer));
     }
 
     @Get('left.png')

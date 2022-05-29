@@ -10,7 +10,7 @@ import { NDRenderer } from '../utils/ndrenderer';
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
-    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: SharedArrayBuffer, rows: number, columns: number, minElevation: number, maxElevation: number } } } = {};
+    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number } } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -140,7 +140,7 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    public ndMap(id: string): { buffer: SharedArrayBuffer, rows: number, columns: number, minElevation: number, maxElevation: number } {
+    public ndMap(id: string): { buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number } {
         if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
             return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
         }
