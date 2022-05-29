@@ -75,6 +75,7 @@ export class TerrainController {
         description: 'Current position updated',
     })
     positionUpdate(@Body() position: PositionDto) {
+        position.heading = Math.round(position.heading);
         this.terrainService.updatePosition(position);
     }
 
