@@ -13,11 +13,56 @@ export class NDRenderer {
 
     public ViewConfig: NDViewDto | undefined = undefined;
 
+    private position: PositionDto | undefined = undefined;
+
+    private distanceHeadingLut: Array<{ distance: number, heading: number }> = [];
+
     constructor(map: Worldmap) {
         this.worldmap = map;
     }
 
+    private calculateDistances(config: NDViewDto): void {
+        const offsetX = config.mapWidth / 2;
+        for (let y = 0; y < config.mapHeight; ++y) {
+            for (let x = 0; x < config.mapWidth / 2; ++x) {
+                const distance = Math.sqrt((x - offsetX) ** 2 + (config.mapHeight - y) ** 2) * config.meterPerPixel;
+                this.distanceHeadingLut[y * config.mapWidth + x].distance = distance;
+                this.distanceHeadingLut[y * config.mapWidth + config.mapWidth - x - 1].distance = distance;
+            }
+        }
+    }
+
+    private static normalizeHeading(heading: number): number {
+        return (heading - (Math.floor(heading / 360) * 360));
+    }
+
+    private calculateHeadings(position: PositionDto) {
+        const offsetX = this.ViewConfig.mapWidth / 2;
+        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
+            for (let x = 0; x < this.ViewConfig.mapWidth / 2; ++x) {
+                const rightAngle = Math.acos((this.ViewConfig.mapHeight - y) / Math.sqrt((x - offsetX) ** 2 + (this.ViewConfig.mapHeight - y) ** 2)) * (180 / Math.PI);
+                const leftAngle = 360 - rightAngle;
+
+                const headingRight = NDRenderer.normalizeHeading(rightAngle + position.heading);
+                const headingLeft = NDRenderer.normalizeHeading(leftAngle + position.heading);
+
+                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].heading = headingLeft;
+                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + this.ViewConfig.mapWidth - x - 1].heading = headingRight;
+            }
+        }
+    }
+
     public configureView(config: NDViewDto): void {
+        if (this.ViewConfig === undefined || config.mapHeight !== this.ViewConfig.mapHeight || config.mapWidth !== this.ViewConfig.mapWidth || this.distanceHeadingLut.length === 0) {
+            this.distanceHeadingLut = [...Array(config.mapHeight * config.mapWidth)].map(() => ({ distance: 0, heading: 0 }));
+            this.calculateDistances(config);
+            if (this.position !== undefined) {
+                this.calculateHeadings(this.position);
+            }
+        } else if (config.meterPerPixel !== this.ViewConfig.meterPerPixel) {
+            this.calculateDistances(config);
+        }
+
         this.ViewConfig = config;
     }
 
