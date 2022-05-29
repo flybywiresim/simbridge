@@ -85,7 +85,7 @@ export class NDRenderer {
         return values[index];
     }
 
-    private createLocalElevationMap(position: PositionDto): LocalMap {
+    private createLocalElevationMap(position: PositionDto, referenceAltitude: number): LocalMap {
         // initialize the local map
         const elevationMap: Int16Array = new Int16Array(this.ViewConfig.mapWidth * this.ViewConfig.mapHeight);
         const validElevations: number[] = [];
@@ -95,41 +95,9 @@ export class NDRenderer {
 
         const offsetX = this.ViewConfig.mapWidth / 2;
 
-        // calculate the look-up-table for movements in the y-direction (compensate errors due to long range linearizations)
-        const lutDeltaY: { latitude: number, longitude: number }[] = [];
-        let lastPosition = { latitude: position.latitude, longitude: position.longitude };
-        const deltaY = { latitude: 0, longitude: 0 };
-        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            const projection = WGS84.project(lastPosition.latitude, lastPosition.longitude, this.ViewConfig.meterPerPixel, position.heading);
-
-            lutDeltaY.unshift({ latitude: lastPosition.latitude - projection.latitude, longitude: lastPosition.longitude - projection.longitude });
-            lastPosition = projection;
-
-            deltaY.latitude -= lutDeltaY[0].latitude;
-            deltaY.longitude -= lutDeltaY[0].longitude;
-        }
-
-        // calculate the look-up-table for movements in the x-direction (compensate errors due to long range linearizations)
-        const lutDeltaX: { latitude: number, longitude: number }[] = [];
-        let lastPositionRight = { latitude: position.latitude, longitude: position.longitude };
-        let lastPositionLeft = { latitude: position.latitude, longitude: position.longitude };
-        const deltaXStart = { latitude: 0, longitude: 0 };
-        for (let x = 0; x < offsetX; ++x) {
-            const projectLeft = WGS84.project(lastPositionLeft.latitude, lastPositionLeft.longitude, this.ViewConfig.meterPerPixel, position.heading - 90);
-            const projectRight = WGS84.project(lastPositionRight.latitude, lastPositionRight.longitude, this.ViewConfig.meterPerPixel, position.heading + 90);
-            lutDeltaX.unshift({ latitude: lastPositionLeft.latitude - projectLeft.latitude, longitude: lastPositionLeft.longitude - projectLeft.longitude });
-            lutDeltaX.push({ latitude: projectRight.latitude - lastPositionRight.latitude, longitude: projectRight.longitude - lastPositionRight.longitude });
-
-            lastPositionRight = projectRight;
-            lastPositionLeft = projectLeft;
-
-            deltaXStart.latitude -= lutDeltaX[0].latitude;
-            deltaXStart.longitude -= lutDeltaX[0].longitude;
-        }
-
         // create the local map and find the highest obstacle
         for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            const deltaX = { latitude: deltaXStart.latitude, longitude: deltaXStart.longitude };
+            // const deltaX = { latitude: deltaXStart.latitude, longitude: deltaXStart.longitude };
 
             for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
@@ -140,11 +108,9 @@ export class NDRenderer {
                     }
                 }
 
-                // Calculate the resulting world coordinate based on the angular offsets per step
-                const projected = {
-                    latitude: position.latitude + deltaX.latitude + deltaY.latitude,
-                    longitude: position.longitude + deltaX.longitude + deltaY.longitude,
-                };
+                const lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x];
+                const projected = WGS84.project(position.latitude, position.longitude, lutEntry.distance, lutEntry.heading);
+                // console.log(position.latitude, position.longitude, projected, x, y, lutEntry.distance, lutEntry.heading);
 
                 // console.log(projected);
                 const worldIdx = this.worldmap.worldMapIndices(projected.latitude, projected.longitude);
@@ -167,13 +133,7 @@ export class NDRenderer {
                 }
 
                 elevationMap[y * this.ViewConfig.mapWidth + x] = elevation;
-
-                deltaX.latitude += lutDeltaX[x].latitude;
-                deltaX.longitude += lutDeltaX[x].longitude;
             }
-
-            deltaY.latitude += lutDeltaY[y].latitude;
-            deltaY.longitude += lutDeltaY[y].longitude;
         }
 
         // calculate the peak-mode percentils
@@ -181,13 +141,57 @@ export class NDRenderer {
 
         const retval = new LocalMap();
         retval.ElevationMap = elevationMap;
-        retval.MinimumElevation = minElevation;
         retval.MaximumElevation = maxElevation;
-        retval.ElevationPercentile85th = NDRenderer.percentile(validElevations, 0.85);
-        retval.ElevationPercentile95th = NDRenderer.percentile(validElevations, 0.95);
-        retval.LowerDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.5;
-        retval.HigherDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.65;
-        retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
+        retval.TerrainMapMaxElevation = retval.MaximumElevation;
+
+        const flatEarth = retval.MaximumElevation - minElevation <= 100;
+        const halfElevation = retval.MaximumElevation * 0.5;
+        const percentile85th = NDRenderer.percentile(validElevations, 0.85);
+
+        // normal mode
+        if (maxElevation >= referenceAltitude - (this.ViewConfig.gearDown ? 250 : 500)) {
+            retval.DisplayPeaksMode = false;
+            retval.LowDensityGreenThreshold = referenceAltitude - 2000 <= minElevation ? minElevation + 200 : referenceAltitude - 2000;
+            retval.HighDensityGreenThreshold = referenceAltitude - 1000 <= minElevation ? minElevation + 200 : referenceAltitude - 1000;
+            retval.LowDensityYellowThreshold = referenceAltitude - (this.ViewConfig.gearDown ? 250 : 500);
+            if (retval.LowDensityYellowThreshold <= minElevation) {
+                retval.LowDensityYellowThreshold = minElevation + 200;
+            }
+            retval.HighDensityYellowThreshold = referenceAltitude + 1000;
+            retval.HighDensityRedThreshold = referenceAltitude + 2000;
+
+            if (!flatEarth) {
+                if (halfElevation <= percentile85th && retval.LowDensityGreenThreshold > halfElevation) {
+                    retval.LowDensityGreenThreshold = halfElevation;
+                } else if (halfElevation > percentile85th && retval.LowDensityGreenThreshold > percentile85th) {
+                    retval.LowDensityGreenThreshold = percentile85th;
+                }
+            }
+
+            retval.TerrainMapMinElevation = retval.LowDensityGreenThreshold;
+        // flat earth situation which does not trigger higher densities
+        } else if (flatEarth) {
+            retval.LowerDensityRangeThreshold = minElevation;
+            retval.HigherDensityRangeThreshold = retval.MaximumElevation;
+            retval.SolidDensityRangeThreshold = retval.MaximumElevation;
+            retval.MinimumElevation = minElevation;
+
+            retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
+        // standard peaks mode
+        } else {
+            if (halfElevation < percentile85th) {
+                retval.LowerDensityRangeThreshold = percentile85th;
+                retval.HigherDensityRangeThreshold = NDRenderer.percentile(validElevations, 0.95);
+                retval.MinimumElevation = percentile85th;
+            } else {
+                retval.LowerDensityRangeThreshold = halfElevation;
+                retval.HigherDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.65;
+                retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
+                retval.MinimumElevation = retval.LowerDensityRangeThreshold;
+            }
+
+            retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
+        }
 
         return retval;
     }
@@ -202,7 +206,7 @@ export class NDRenderer {
         }
     }
 
-    private fillLowDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap, referenceAltitude: number, lowRelativeAltitudeMode: boolean): void {
+    private fillLowDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
         // define the low density pattern
         const lowDensityPattern = [
             { start: 0, pattern: [[9, 0, 3], [10, 1, 2], [8, 0, 3]] },
@@ -232,16 +236,15 @@ export class NDRenderer {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 148, b: 255 });
                 } else if (elevation === WaterElevation) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 255 });
-                } else if (lowRelativeAltitudeMode) {
-                    const delta = elevation - referenceAltitude;
-                    if (delta >= 2000) {
+                } else if (!localMapData.DisplayPeaksMode) {
+                    if (elevation >= localMapData.HighDensityRedThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 0, b: 0 });
-                    } else if ((delta >= 1000 && delta < 2000) || (delta >= (this.ViewConfig.gearDown ? -250 : -500) && delta < 1000)) {
+                    } else if (elevation >= localMapData.LowDensityYellowThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 255, b: 0 });
-                    } else if ((delta >= -1000 && delta < (this.ViewConfig.gearDown ? -250 : -500)) || (delta >= -2000 && delta < -1000)) {
+                    } else if (elevation >= localMapData.LowDensityGreenThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                     }
-                } else if (localMapData.LowerDensityRangeThreshold <= elevation || localMapData.ElevationPercentile85th <= elevation) {
+                } else if (localMapData.LowerDensityRangeThreshold <= elevation) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                 }
 
@@ -252,7 +255,7 @@ export class NDRenderer {
         }
     }
 
-    private fillHighDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap, referenceAltitude: number, lowRelativeAltitudeMode: boolean): void {
+    private fillHighDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
         // define the high density pattern
         const highDensityPattern = [
             { start: 5, pattern: [[4, 0, 3], [5, 0, 3], [5, 0, 3]] },
@@ -282,16 +285,15 @@ export class NDRenderer {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 148, b: 255 });
                 } else if (elevation === WaterElevation) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 255 });
-                } else if (lowRelativeAltitudeMode) {
-                    const delta = elevation - referenceAltitude;
-                    if (delta >= 2000) {
+                } else if (!localMapData.DisplayPeaksMode) {
+                    if (elevation >= localMapData.HighDensityRedThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 0, b: 0 });
-                    } else if (delta >= 1000 && delta < 2000) {
+                    } else if (elevation >= localMapData.HighDensityYellowThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 255, b: 0 });
-                    } else if (delta >= -1000 && delta < (this.ViewConfig.gearDown ? -250 : -500)) {
+                    } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                     }
-                } else if (localMapData.HigherDensityRangeThreshold <= elevation || localMapData.ElevationPercentile95th <= elevation) {
+                } else if (localMapData.HigherDensityRangeThreshold <= elevation) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                 }
 
@@ -321,34 +323,29 @@ export class NDRenderer {
         }
     }
 
-    private renderPeakMode(image: Uint8ClampedArray, localMapData: LocalMap, referenceAltitude: number): void {
-        const thresholdAltitude = referenceAltitude - (this.ViewConfig.gearDown ? 250 : 500);
-        const lowRelativeAltitudeMode = localMapData.MaximumElevation >= thresholdAltitude;
-
-        this.fillLowDensityLayer(image, localMapData, referenceAltitude, lowRelativeAltitudeMode);
-        this.fillHighDensityLayer(image, localMapData, referenceAltitude, lowRelativeAltitudeMode);
-        if (!lowRelativeAltitudeMode) {
+    private renderPeakMode(image: Uint8ClampedArray, localMapData: LocalMap): void {
+        this.fillLowDensityLayer(image, localMapData);
+        this.fillHighDensityLayer(image, localMapData);
+        if (localMapData.DisplayPeaksMode) {
             this.fillSolidLayer(image, localMapData);
-            localMapData.TerrainMapMinElevation = localMapData.LowerDensityRangeThreshold;
-        } else {
-            localMapData.TerrainMapMinElevation = Math.max(referenceAltitude - 2000, localMapData.MinimumElevation);
         }
-
-        localMapData.TerrainMapMaxElevation = localMapData.MaximumElevation;
     }
 
-    public render(position: PositionDto): { buffer: SharedArrayBuffer, rows: number, columns: number, minElevation: number, maxElevation: number } {
+    public async render(position: PositionDto): Promise<{ buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number }> {
         if (this.worldmap.Terraindata === undefined || position === undefined) {
             return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
         }
 
         const start = new Date().getTime();
 
+        if (this.position === undefined || position.heading !== this.position.heading) {
+            this.calculateHeadings(position);
+        }
+        this.position = position;
+
         // create the source buffer
         const sourceBuffer = new Uint8ClampedArray(this.ViewConfig.mapWidth * this.ViewConfig.mapHeight * 3);
         sourceBuffer.fill(0, 0, this.ViewConfig.mapWidth * this.ViewConfig.mapHeight * 3);
-
-        const localMapData = this.createLocalElevationMap(position);
 
         // predict the reference altitude
         let referenceAltitude = position.altitude;
@@ -357,7 +354,10 @@ export class NDRenderer {
             referenceAltitude += position.verticalSpeed / 2;
         }
 
-        this.renderPeakMode(sourceBuffer, localMapData, referenceAltitude);
+        // create the local map data
+        const localMapData = this.createLocalElevationMap(position, referenceAltitude);
+
+        this.renderPeakMode(sourceBuffer, localMapData);
 
         const { data, _ } = await sharp(new Uint8ClampedArray(sourceBuffer), { raw: { width: this.ViewConfig.mapWidth, height: this.ViewConfig.mapHeight, channels: 3 } })
             .toFormat('png')
