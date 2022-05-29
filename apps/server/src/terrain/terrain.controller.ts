@@ -9,8 +9,6 @@ import { NDTerrainDataDto } from './dto/ndterraindata.dto';
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
 export class TerrainController {
-    private presentHeading: number = 0;
-
     constructor(private terrainService: TerrainService) {}
 
     @Get('available')
@@ -78,7 +76,6 @@ export class TerrainController {
     })
     positionUpdate(@Body() position: PositionDto) {
         this.terrainService.updatePosition(position);
-        this.presentHeading = position.heading;
     }
 
     private streamNdMap(display: string, response): void {
