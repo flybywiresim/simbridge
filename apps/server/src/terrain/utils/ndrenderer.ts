@@ -97,8 +97,6 @@ export class NDRenderer {
 
         // create the local map and find the highest obstacle
         for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            // const deltaX = { latitude: deltaXStart.latitude, longitude: deltaXStart.longitude };
-
             for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
                     const distance = Math.sqrt((x - offsetX) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
@@ -110,9 +108,7 @@ export class NDRenderer {
 
                 const lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x];
                 const projected = WGS84.project(position.latitude, position.longitude, lutEntry.distance, lutEntry.heading);
-                // console.log(position.latitude, position.longitude, projected, x, y, lutEntry.distance, lutEntry.heading);
 
-                // console.log(projected);
                 const worldIdx = this.worldmap.worldMapIndices(projected.latitude, projected.longitude);
                 const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
                 let elevation = 0;
