@@ -175,17 +175,9 @@ export class NDRenderer {
             retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
         // standard peaks mode
         } else {
-            if (halfElevation < percentile85th) {
-                retval.LowerDensityRangeThreshold = percentile85th;
-                retval.HigherDensityRangeThreshold = NDRenderer.percentile(validElevations, 0.95);
-                retval.MinimumElevation = percentile85th;
-            } else {
-                retval.LowerDensityRangeThreshold = halfElevation;
-                retval.HigherDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.65;
-                retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
-                retval.MinimumElevation = retval.LowerDensityRangeThreshold;
-            }
-
+            retval.LowerDensityRangeThreshold = Math.min(percentile85th, halfElevation);
+            retval.HigherDensityRangeThreshold = Math.min(NDRenderer.percentile(validElevations, 0.95), (retval.MaximumElevation - minElevation) * 0.65);
+            retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
             retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
         }
 
