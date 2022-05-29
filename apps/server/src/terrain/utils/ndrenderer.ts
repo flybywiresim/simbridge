@@ -312,7 +312,7 @@ export class NDRenderer {
                 }
 
                 const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
-                if (localMapData.SolidDensityRangeThreshold <= elevation) {
+                if (localMapData.SolidDensityRangeThreshold <= elevation && elevation !== WaterElevation) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, 0, 2, { r: 0, g: 255, b: 0 });
                 }
             }
