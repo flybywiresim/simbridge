@@ -222,18 +222,16 @@ export class NDRenderer {
                 const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
                 if (!Number.isFinite(elevation)) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 148, b: 255 });
-                } else if (elevation === WaterElevation) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 255 });
-                } else if (!localMapData.DisplayPeaksMode) {
-                    if (elevation >= localMapData.HighDensityRedThreshold) {
-                        NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 0, b: 0 });
-                    } else if (elevation >= localMapData.LowDensityYellowThreshold) {
-                        NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 255, b: 0 });
-                    } else if (elevation >= localMapData.LowDensityGreenThreshold) {
+                } else if (elevation !== WaterElevation) {
+                    if (!localMapData.DisplayPeaksMode) {
+                        if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
+                            NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 255, b: 0 });
+                        } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
+                            NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                        }
+                    } else if (localMapData.LowerDensityRangeThreshold <= elevation && elevation < localMapData.HigherDensityRangeThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                     }
-                } else if (localMapData.LowerDensityRangeThreshold <= elevation) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                 }
 
                 x += cell[0];
@@ -281,7 +279,7 @@ export class NDRenderer {
                     } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
                         NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                     }
-                } else if (localMapData.HigherDensityRangeThreshold <= elevation) {
+                } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
                     NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
                 }
 
