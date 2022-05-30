@@ -272,7 +272,7 @@ export class NDRenderer {
                     }
                 } else if (elevation >= localMapData.HighDensityYellowThreshold) {
                     if (this.drawPixel(x, y, offsetX, elevation, true)) {
-                        this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
+                        this.fillPixel(image, x, y, { r: 255, g: 255, b: 50 });
                     }
                 } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
                     if (this.drawPixel(x, y, offsetX, elevation, true)) {
@@ -280,7 +280,7 @@ export class NDRenderer {
                     }
                 } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
                     if (this.drawPixel(x, y, offsetX, elevation, false)) {
-                        this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
+                        this.fillPixel(image, x, y, { r: 255, g: 255, b: 50 });
                     }
                 } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
                     if (this.drawPixel(x, y, offsetX, elevation, false)) {
