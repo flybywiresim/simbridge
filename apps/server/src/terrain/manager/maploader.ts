@@ -42,6 +42,8 @@ function loadTiles(world: Worldmap, position: PositionDto) {
             const map = Tile.loadElevationGrid(world.Terraindata.Tiles[world.Grid[index.row][index.column].tileIndex]);
             map.ElevationMap = null;
             retval.push({ row: index.row, column: index.column, grid: map });
+        } else {
+            retval.push({ row: index.row, column: index.column, grid: null });
         }
     });
 

@@ -95,10 +95,12 @@ export class Worldmap {
 
             result.forEach((tile) => {
                 loadedTiles.push({ row: tile.row, column: tile.column });
-                this.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
+                if (tile.grid !== null) {
+                    this.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
+                }
             });
 
-            this.cleanupElevationCache(result);
+            this.cleanupElevationCache(loadedTiles);
             this.tileLoadingInProgress = false;
         });
     }
