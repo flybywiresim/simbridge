@@ -3,6 +3,9 @@ import { Worldmap } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
 import { LocalMap } from './localmap';
+import { WaterPattern } from './waterpattern';
+import { HighDensityPattern } from './highdensitypattern';
+import { LowDensityPattern } from './lowdensitypattern';
 
 const sharp = require('sharp');
 
@@ -15,7 +18,7 @@ export class NDRenderer {
 
     private position: PositionDto | undefined = undefined;
 
-    private distanceHeadingLut: Array<{ distance: number, heading: number }> = [];
+    private distanceHeadingLut: Array<{ distancePixels: number, distanceMeters: number, heading: number, orientation: number }> = [];
 
     constructor(map: Worldmap) {
         this.worldmap = map;
@@ -25,9 +28,12 @@ export class NDRenderer {
         const offsetX = config.mapWidth / 2;
         for (let y = 0; y < config.mapHeight; ++y) {
             for (let x = 0; x < config.mapWidth / 2; ++x) {
-                const distance = Math.sqrt((x - offsetX) ** 2 + (config.mapHeight - y) ** 2) * config.meterPerPixel;
-                this.distanceHeadingLut[y * config.mapWidth + x].distance = distance;
-                this.distanceHeadingLut[y * config.mapWidth + config.mapWidth - x - 1].distance = distance;
+                const distancePixels = Math.sqrt((x - offsetX) ** 2 + (config.mapHeight - y) ** 2);
+                const distanceMeters = distancePixels * config.meterPerPixel;
+                this.distanceHeadingLut[y * config.mapWidth + x].distancePixels = distancePixels;
+                this.distanceHeadingLut[y * config.mapWidth + x].distanceMeters = distanceMeters;
+                this.distanceHeadingLut[y * config.mapWidth + config.mapWidth - x - 1].distancePixels = distancePixels;
+                this.distanceHeadingLut[y * config.mapWidth + config.mapWidth - x - 1].distanceMeters = distanceMeters;
             }
         }
     }
@@ -47,14 +53,16 @@ export class NDRenderer {
                 const headingLeft = NDRenderer.normalizeHeading(leftAngle + position.heading);
 
                 this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].heading = headingLeft;
+                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].orientation = rightAngle;
                 this.distanceHeadingLut[y * this.ViewConfig.mapWidth + this.ViewConfig.mapWidth - x - 1].heading = headingRight;
+                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + this.ViewConfig.mapWidth - x - 1].orientation = rightAngle;
             }
         }
     }
 
     public configureView(config: NDViewDto): void {
         if (this.ViewConfig === undefined || config.mapHeight !== this.ViewConfig.mapHeight || config.mapWidth !== this.ViewConfig.mapWidth || this.distanceHeadingLut.length === 0) {
-            this.distanceHeadingLut = [...Array(config.mapHeight * config.mapWidth)].map(() => ({ distance: 0, heading: 0 }));
+            this.distanceHeadingLut = [...Array(config.mapHeight * config.mapWidth)].map(() => ({ distancePixels: 0, distanceMeters: 0, heading: 0, orientation: 0 }));
             this.calculateDistances(config);
             if (this.position !== undefined) {
                 this.calculateHeadings(this.position);
@@ -107,7 +115,7 @@ export class NDRenderer {
                 }
 
                 const lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x];
-                const projected = WGS84.project(position.latitude, position.longitude, lutEntry.distance, lutEntry.heading);
+                const projected = WGS84.project(position.latitude, position.longitude, lutEntry.distanceMeters, lutEntry.heading);
 
                 const worldIdx = this.worldmap.worldMapIndices(projected.latitude, projected.longitude);
                 const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
@@ -184,33 +192,58 @@ export class NDRenderer {
         return retval;
     }
 
-    private static fillPixel(image:Uint8ClampedArray, x: number, y: number, width: number, start: number, size: number, color: { r: number, g: number, b: number }) {
-        for (let dy = start; dy < start + size; ++dy) {
-            for (let dx = start; dx < start + size; ++dx) {
-                image[((y + dy) * width + x + dx) * 3 + 0] = color.r;
-                image[((y + dy) * width + x + dx) * 3 + 1] = color.g;
-                image[((y + dy) * width + x + dx) * 3 + 2] = color.b;
+    private fillPixel(image: Uint8ClampedArray, x: number, y: number, color: { r: number, g: number, b: number }) {
+        image[(y * this.ViewConfig.mapWidth + x) * 3 + 0] = color.r;
+        image[(y * this.ViewConfig.mapWidth + x) * 3 + 1] = color.g;
+        image[(y * this.ViewConfig.mapWidth + x) * 3 + 2] = color.b;
+    }
+
+    private findCorrectPattern(densityPatterns: { angleRanges: number[][], minPixelDistance: number, patterns: number[][][] }[], x: number, y: number): number[][][] {
+        const pxDistance = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].distancePixels;
+        const angle = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].orientation;
+
+        for (let i = 0; i < densityPatterns.length; ++i) {
+            if (pxDistance >= densityPatterns[i].minPixelDistance) {
+                for (let a = 0; a < densityPatterns[i].angleRanges.length; ++a) {
+                    if (densityPatterns[i].angleRanges[a][0] <= angle && densityPatterns[i].angleRanges[a][1] > angle) {
+                        return densityPatterns[i].patterns;
+                    }
+                }
             }
         }
+
+        return densityPatterns[0].patterns;
+    }
+
+    private drawPixel(x: number, y: number, offsetX: number, elevation: number, highDensity: boolean): boolean {
+        let pattern = null;
+
+        if (highDensity) {
+            if (elevation === WaterElevation || !Number.isFinite(elevation)) {
+                pattern = this.findCorrectPattern(WaterPattern, x, y);
+            } else {
+                pattern = this.findCorrectPattern(HighDensityPattern, x, y);
+            }
+        } else {
+            pattern = this.findCorrectPattern(LowDensityPattern, x, y);
+        }
+
+        const row = y % 13;
+        let col = x % 13;
+        let patternIdx = Math.round((x * (y + 1)) / 13) % pattern.length;
+        if (x < offsetX) {
+            col = 13 - col - 1;
+            patternIdx = pattern.length - patternIdx - 1;
+        }
+
+        return pattern[patternIdx][row].includes(col);
     }
 
     private fillLowDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        // define the low density pattern
-        const lowDensityPattern = [
-            { start: 0, pattern: [[9, 0, 3], [10, 1, 2], [8, 0, 3]] },
-            { start: 3, pattern: [[6, 1, 2], [8, 0, 3], [8, 0, 3]] },
-            { start: 5, pattern: [[5, 0, 3], [6, 0, 3], [8, 1, 2]] },
-        ];
+        const offsetX = this.ViewConfig.mapWidth / 2;
 
-        let rowCounter = 0;
-        for (let y = 0; y < this.ViewConfig.mapHeight; y += 6) {
-            const rowPattern = lowDensityPattern[rowCounter++];
-
-            let column = 0;
-            for (let x = rowPattern.start; x < this.ViewConfig.mapWidth;) {
-                const cell = rowPattern.pattern[column++];
-                column %= 3;
-
+        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
+            for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
                     const distance = Math.sqrt((x - this.ViewConfig.mapHeight) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
                     if (distance > this.ViewConfig.mapHeight) {
@@ -220,44 +253,32 @@ export class NDRenderer {
                 }
 
                 const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
+                if (!this.drawPixel(x, y, offsetX, elevation, false)) {
+                    continue;
+                }
+
                 if (!Number.isFinite(elevation)) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 148, b: 255 });
+                    this.fillPixel(image, x, y, { r: 255, g: 148, b: 255 });
                 } else if (elevation !== WaterElevation) {
                     if (!localMapData.DisplayPeaksMode) {
                         if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
-                            NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 255, b: 0 });
+                            this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
                         } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
-                            NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                            this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                         }
                     } else if (localMapData.LowerDensityRangeThreshold <= elevation && elevation < localMapData.HigherDensityRangeThreshold) {
-                        NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                        this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                     }
                 }
-
-                x += cell[0];
             }
-
-            rowCounter %= 3;
         }
     }
 
     private fillHighDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        // define the high density pattern
-        const highDensityPattern = [
-            { start: 5, pattern: [[4, 0, 3], [5, 0, 3], [5, 0, 3]] },
-            { start: 2, pattern: [[5, 0, 3], [7, 0, 3], [5, 0, 3]] },
-            { start: 0, pattern: [[6, 0, 3], [7, 0, 3], [5, 0, 3]] },
-        ];
+        const offsetX = this.ViewConfig.mapWidth / 2;
 
-        let rowCounter = 0;
-        for (let y = 3; y < this.ViewConfig.mapHeight; y += 6) {
-            const rowPattern = highDensityPattern[rowCounter++];
-
-            let column = 0;
-            for (let x = rowPattern.start; x < this.ViewConfig.mapWidth;) {
-                const cell = rowPattern.pattern[column++];
-                column %= 3;
-
+        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
+            for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
                     const distance = Math.sqrt((x - this.ViewConfig.mapHeight) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
                     if (distance > this.ViewConfig.mapHeight) {
@@ -267,32 +288,32 @@ export class NDRenderer {
                 }
 
                 const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
-                if (!Number.isFinite(elevation)) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 148, b: 255 });
-                } else if (elevation === WaterElevation) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 255 });
-                } else if (!localMapData.DisplayPeaksMode) {
-                    if (elevation >= localMapData.HighDensityRedThreshold) {
-                        NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 0, b: 0 });
-                    } else if (elevation >= localMapData.HighDensityYellowThreshold) {
-                        NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 255, g: 255, b: 0 });
-                    } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
-                        NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
-                    }
-                } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, cell[1], cell[2], { r: 0, g: 255, b: 0 });
+                if (!this.drawPixel(x, y, offsetX, elevation, true)) {
+                    continue;
                 }
 
-                x += cell[0];
+                if (!Number.isFinite(elevation)) {
+                    this.fillPixel(image, x, y, { r: 255, g: 148, b: 255 });
+                } else if (elevation === WaterElevation) {
+                    this.fillPixel(image, x, y, { r: 0, g: 255, b: 255 });
+                } else if (!localMapData.DisplayPeaksMode) {
+                    if (elevation >= localMapData.HighDensityRedThreshold) {
+                        this.fillPixel(image, x, y, { r: 255, g: 0, b: 0 });
+                    } else if (elevation >= localMapData.HighDensityYellowThreshold) {
+                        this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
+                    } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
+                        this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
+                    }
+                } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
+                    this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
+                }
             }
-
-            rowCounter %= 3;
         }
     }
 
     private fillSolidLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        for (let y = 0; y < this.ViewConfig.mapHeight; y += 2) {
-            for (let x = 0; x < this.ViewConfig.mapWidth; x += 2) {
+        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
+            for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
                     const distance = Math.sqrt((x - this.ViewConfig.mapHeight) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
                     if (distance > this.ViewConfig.mapHeight) {
@@ -303,7 +324,7 @@ export class NDRenderer {
 
                 const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
                 if (localMapData.SolidDensityRangeThreshold <= elevation && elevation !== WaterElevation) {
-                    NDRenderer.fillPixel(image, x, y, this.ViewConfig.mapWidth, 0, 2, { r: 0, g: 255, b: 0 });
+                    this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                 }
             }
         }
