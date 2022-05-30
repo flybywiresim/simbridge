@@ -9,6 +9,7 @@ import { LowDensityPattern } from './lowdensitypattern';
 
 const sharp = require('sharp');
 
+const InvalidElevation = 32767;
 const WaterElevation = -1;
 
 export class NDRenderer {
@@ -99,7 +100,7 @@ export class NDRenderer {
         const validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
-        elevationMap.fill(0, 0);
+        elevationMap.fill(InvalidElevation, 0);
 
         const offsetX = this.ViewConfig.mapWidth / 2;
 
@@ -109,7 +110,6 @@ export class NDRenderer {
                 if (this.ViewConfig.arcMode) {
                     const distance = Math.sqrt((x - offsetX) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
                     if (distance > this.ViewConfig.mapHeight) {
-                        elevationMap[y * this.ViewConfig.mapWidth + x] = null;
                         continue;
                     }
                 }
