@@ -239,103 +239,62 @@ export class NDRenderer {
         return pattern[patternIdx][row].includes(col);
     }
 
-    private fillLowDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
+    private renderPeakMode(image: Uint8ClampedArray, localMapData: LocalMap): void {
         const offsetX = this.ViewConfig.mapWidth / 2;
 
-        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
-                if (this.ViewConfig.arcMode) {
-                    const distance = Math.sqrt((x - this.ViewConfig.mapHeight) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
-                    if (distance > this.ViewConfig.mapHeight) {
-                        x += 1;
-                        continue;
-                    }
-                }
-
-                const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
-                if (!this.drawPixel(x, y, offsetX, elevation, false)) {
-                    continue;
-                }
-
+        let y = 0;
+        let x = 0;
+        localMapData.ElevationMap.forEach((elevation) => {
+            if (elevation !== InvalidElevation) {
                 if (!Number.isFinite(elevation)) {
-                    this.fillPixel(image, x, y, { r: 255, g: 148, b: 255 });
-                } else if (elevation !== WaterElevation) {
-                    if (!localMapData.DisplayPeaksMode) {
-                        if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
-                            this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
-                        } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
+                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                        this.fillPixel(image, x, y, { r: 255, g: 148, b: 255 });
+                    }
+                } else if (elevation === WaterElevation) {
+                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                        this.fillPixel(image, x, y, { r: 0, g: 255, b: 255 });
+                    }
+                } else if (localMapData.DisplayPeaksMode) {
+                    if (localMapData.SolidDensityRangeThreshold <= elevation) {
+                        this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
+                    } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
+                        if (this.drawPixel(x, y, offsetX, elevation, true)) {
                             this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                         }
                     } else if (localMapData.LowerDensityRangeThreshold <= elevation && elevation < localMapData.HigherDensityRangeThreshold) {
-                        this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
+                        if (this.drawPixel(x, y, offsetX, elevation, false)) {
+                            this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
+                        }
                     }
-                }
-            }
-        }
-    }
-
-    private fillHighDensityLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        const offsetX = this.ViewConfig.mapWidth / 2;
-
-        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
-                if (this.ViewConfig.arcMode) {
-                    const distance = Math.sqrt((x - this.ViewConfig.mapHeight) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
-                    if (distance > this.ViewConfig.mapHeight) {
-                        x += 1;
-                        continue;
-                    }
-                }
-
-                const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
-                if (!this.drawPixel(x, y, offsetX, elevation, true)) {
-                    continue;
-                }
-
-                if (!Number.isFinite(elevation)) {
-                    this.fillPixel(image, x, y, { r: 255, g: 148, b: 255 });
-                } else if (elevation === WaterElevation) {
-                    this.fillPixel(image, x, y, { r: 0, g: 255, b: 255 });
-                } else if (!localMapData.DisplayPeaksMode) {
-                    if (elevation >= localMapData.HighDensityRedThreshold) {
+                } else if (elevation >= localMapData.HighDensityRedThreshold) {
+                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 255, g: 0, b: 0 });
-                    } else if (elevation >= localMapData.HighDensityYellowThreshold) {
+                    }
+                } else if (elevation >= localMapData.HighDensityYellowThreshold) {
+                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
-                    } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
+                    }
+                } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
+                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                     }
-                } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
-                    this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
-                }
-            }
-        }
-    }
-
-    private fillSolidLayer(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
-                if (this.ViewConfig.arcMode) {
-                    const distance = Math.sqrt((x - this.ViewConfig.mapHeight) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
-                    if (distance > this.ViewConfig.mapHeight) {
-                        x += 1;
-                        continue;
+                } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
+                    if (this.drawPixel(x, y, offsetX, elevation, false)) {
+                        this.fillPixel(image, x, y, { r: 255, g: 255, b: 0 });
+                    }
+                } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
+                    if (this.drawPixel(x, y, offsetX, elevation, false)) {
+                        this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                     }
                 }
-
-                const elevation = localMapData.ElevationMap[y * this.ViewConfig.mapWidth + x];
-                if (localMapData.SolidDensityRangeThreshold <= elevation && elevation !== WaterElevation) {
-                    this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
-                }
             }
-        }
-    }
 
-    private renderPeakMode(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        this.fillLowDensityLayer(image, localMapData);
-        this.fillHighDensityLayer(image, localMapData);
-        if (localMapData.DisplayPeaksMode) {
-            this.fillSolidLayer(image, localMapData);
-        }
+            x++;
+            if (x >= this.ViewConfig.mapWidth) {
+                y += 1;
+                x = 0;
+            }
+        });
     }
 
     public async render(position: PositionDto): Promise<{ buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number }> {
