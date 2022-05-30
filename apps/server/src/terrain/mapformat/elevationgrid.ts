@@ -23,14 +23,14 @@ export class ElevationGrid {
         this.ElevationMap = new Int16Array(this.Grid);
     }
 
-    public worldToGridIndices(coordinate: { latitude: number, longitude: number }): { row: number, column: number } {
-        const latRange = this.northeast.latitude - this.southwest.latitude;
-        const latDelta = coordinate.latitude - this.southwest.latitude;
-        const row = this.Rows - Math.floor((latDelta / latRange) * this.Rows) - 1;
+    public static worldToGridIndices(grid: ElevationGrid, coordinate: { latitude: number, longitude: number }): { row: number, column: number } {
+        const latRange = grid.northeast.latitude - grid.southwest.latitude;
+        const latDelta = coordinate.latitude - grid.southwest.latitude;
+        const row = grid.Rows - Math.floor((latDelta / latRange) * grid.Rows) - 1;
 
-        const lonRange = this.northeast.longitude - this.southwest.longitude;
-        const lonDelta = coordinate.longitude - this.southwest.longitude;
-        const column = Math.floor((lonDelta / lonRange) * this.Columns);
+        const lonRange = grid.northeast.longitude - grid.southwest.longitude;
+        const lonDelta = coordinate.longitude - grid.southwest.longitude;
+        const column = Math.floor((lonDelta / lonRange) * grid.Columns);
 
         return { row, column };
     }

@@ -6,6 +6,7 @@ import { LocalMap } from './localmap';
 import { WaterPattern } from './waterpattern';
 import { HighDensityPattern } from './highdensitypattern';
 import { LowDensityPattern } from './lowdensitypattern';
+import { ElevationGrid } from '../mapformat/elevationgrid';
 
 const sharp = require('sharp');
 
@@ -117,14 +118,14 @@ export class NDRenderer {
                 const lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x];
                 const projected = WGS84.project(position.latitude, position.longitude, lutEntry.distanceMeters, lutEntry.heading);
 
-                const worldIdx = this.worldmap.worldMapIndices(projected.latitude, projected.longitude);
+                const worldIdx = Worldmap.worldMapIndices(this.worldmap, projected.latitude, projected.longitude);
                 const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
                 let elevation = 0;
 
                 if (tile.tileIndex === -1) {
                     elevation = WaterElevation;
                 } else if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
-                    const mapIdx = tile.elevationmap.worldToGridIndices({ latitude: projected.latitude, longitude: projected.longitude });
+                    const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
                     elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
                 } else {
                     elevation = Infinity;

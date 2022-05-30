@@ -1,4 +1,7 @@
+import { parentPort, workerData } from 'worker_threads';
+import { ElevationGrid } from '../mapformat/elevationgrid';
 import { Worldmap } from './worldmap';
+import { Tile } from '../mapformat/tile';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from '../utils/wgs84';
 
@@ -6,8 +9,8 @@ function findTileIndices(world: Worldmap, latitude: number, longitude0: number, 
     const indices: { row: number, column: number }[] = [];
 
     for (let lon = longitude0; lon < longitude1; lon += world.Terraindata.AngularSteps.longitude) {
-        const index = world.worldMapIndices(latitude, lon);
-        if (index !== undefined && world.validTile(index) === true) {
+        const index = Worldmap.worldMapIndices(world, latitude, lon);
+        if (index !== undefined && Worldmap.validTile(world, index) === true) {
             indices.push(index);
         }
     }
@@ -15,7 +18,7 @@ function findTileIndices(world: Worldmap, latitude: number, longitude0: number, 
     return indices;
 }
 
-export function loadTiles(world: Worldmap, position: PositionDto) {
+function loadTiles(world: Worldmap, position: PositionDto) {
     const southwest = WGS84.project(position.latitude, position.longitude, world.VisibilityRange * 1852, 225);
     const northeast = WGS84.project(position.latitude, position.longitude, world.VisibilityRange * 1852, 45);
 
@@ -33,7 +36,18 @@ export function loadTiles(world: Worldmap, position: PositionDto) {
     }
 
     // load all missing tiles
-    tileIndices.forEach((index) => world.loadElevationMap(index));
+    const retval: { row: Number, column: Number, grid: ElevationGrid }[] = [];
+    tileIndices.forEach((index) => {
+        if (Worldmap.validTile(world, index) === true && world.Grid[index.row][index.column].elevationmap === undefined) {
+            const map = Tile.loadElevationGrid(world.Terraindata.Tiles[world.Grid[index.row][index.column].tileIndex]);
+            map.ElevationMap = null;
+            retval.push({ row: index.row, column: index.column, grid: map });
+        }
+    });
 
-    world.cleanupElevationCache(tileIndices);
+    return retval;
 }
+
+parentPort.postMessage(
+    loadTiles(workerData.world, workerData.position),
+);

@@ -1,4 +1,4 @@
-import { gunzip } from 'zlib';
+import { gunzipSync } from 'zlib';
 import { ElevationGrid } from './elevationgrid';
 import { Terrainmap } from './terrainmap';
 
@@ -30,28 +30,26 @@ export class Tile {
         this.BufferOffset = offset + 11;
     }
 
-    public loadElevationGrid(): ElevationGrid {
-        const northeast = { latitude: this.Southwest.latitude + this.parent.AngularSteps.latitude, longitude: this.Southwest.longitude + this.parent.AngularSteps.longitude };
-        const retval = new ElevationGrid(this.Southwest, northeast, this.GridDimension.columns, this.GridDimension.rows);
+    public static loadElevationGrid(tile: Tile): ElevationGrid {
+        const northeast = { latitude: tile.Southwest.latitude + tile.parent.AngularSteps.latitude, longitude: tile.Southwest.longitude + tile.parent.AngularSteps.longitude };
+        const retval = new ElevationGrid(tile.Southwest, northeast, tile.GridDimension.columns, tile.GridDimension.rows);
 
-        const compressed = new Uint8Array(this.buffer).subarray(this.BufferOffset, this.BufferOffset + this.BufferSize);
-        gunzip(compressed, (err, decompressed) => {
-            const decompressedBuffer = Buffer.from(decompressed);
-            const grid = new Int16Array(retval.Grid);
+        const compressed = new Uint8Array(tile.buffer).subarray(tile.BufferOffset, tile.BufferOffset + tile.BufferSize);
+        const decompressed = gunzipSync(compressed);
+        const decompressedBuffer = Buffer.from(decompressed);
+        const grid = new Int16Array(retval.Grid);
 
-            let offset = 0;
-            for (let row = 0; row < this.GridDimension.rows; ++row) {
-                for (let col = 0; col < this.GridDimension.columns; ++col) {
-                    grid[row * this.GridDimension.columns + col] = decompressedBuffer.readInt16LE(offset);
-                    if (grid[row * this.GridDimension.columns + col] !== -1) {
-                        grid[row * this.GridDimension.columns + col] = Math.round(grid[row * this.GridDimension.columns + col] * 3.28084);
-                    }
-                    offset += 2;
+        let offset = 0;
+        for (let row = 0; row < tile.GridDimension.rows; ++row) {
+            for (let col = 0; col < tile.GridDimension.columns; ++col) {
+                grid[row * tile.GridDimension.columns + col] = decompressedBuffer.readInt16LE(offset);
+                if (grid[row * tile.GridDimension.columns + col] !== -1) {
+                    grid[row * tile.GridDimension.columns + col] = Math.round(grid[row * tile.GridDimension.columns + col] * 3.28084);
                 }
+                offset += 2;
             }
-
-            retval.MapLoaded = true;
-        });
+        }
+        retval.MapLoaded = true;
 
         return retval;
     }
