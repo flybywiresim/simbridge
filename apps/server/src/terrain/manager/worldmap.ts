@@ -19,7 +19,7 @@ export class Worldmap {
 
     private presentPosition: PositionDto | undefined = undefined;
 
-    public VisibilityRange: number = 250;
+    public VisibilityRange: number = 400;
 
     private static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
         for (let i = 0; i < tiles.length; ++i) {
@@ -45,8 +45,6 @@ export class Worldmap {
                 });
             }
         }
-
-        setInterval(() => this.renderNdMap('L'), 1000);
     }
 
     public configure(config: ConfigurationDto): void {
@@ -58,7 +56,6 @@ export class Worldmap {
     }
 
     public renderNdMap(id: string): void {
-        // TODO put this in a worker thread (per render-call)
         if (id in this.displays) {
             if (this.displays[id].renderer.ViewConfig !== undefined && this.displays[id].renderer.ViewConfig.active === true) {
                 this.displays[id].renderer.render(this.presentPosition).then((data) => {
