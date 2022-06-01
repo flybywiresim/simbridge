@@ -35,6 +35,7 @@ const uploadFile = async (url, buffer) => {
             await uploadFile(url, buffer);
         } else {
             MAX_RETRY = 5;
+            console.log('File Uploaded');
         }
     } catch (e) {
         console.error(e);
@@ -46,7 +47,7 @@ const upload = async (fileName, buffer) => {
     try {
         MAX_RETRY = 5;
         const url = `${CDN_URL}/${CDN_DIR}/${fileName}`;
-        console.log(`Syncing file: ${fileName}`);
+        console.log(`Syncing file: ${LOCAL_DIR}/${fileName}`);
         console.log(`Destination: ${url}`);
 
         await uploadFile(url, buffer);
@@ -84,7 +85,7 @@ const execute = async () => {
         const files = await readdir(LOCAL_DIR);
 
         for (const fileName of files) {
-            const buffer = await readFile(`${LOCAL_DIR}${fileName}`);
+            const buffer = await readFile(`${LOCAL_DIR}/${fileName}`);
             await upload(fileName, buffer);
             await purge(fileName);
         }
