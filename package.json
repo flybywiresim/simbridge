@@ -23,7 +23,7 @@
 		"copy:deps": "npm run copy:resources && npm run copy:modules && copyfiles -s -f LICENSE build",
 		"copy:resources": "copyfiles -s -f apps/server/src/config/properties.json ./node_modules/pdf-to-printer/dist/SumatraPDF.exe build/resources",
 		"copy:modules": "npm run copy:traybin && npm run copy:pdfjs && npm run copy:nodehide",
-		"copy:traybin": "copyfiles -s -f ./node_modules/systray2/traybin/tray_windows_release.exe build/node_modules/traybin",
+		"copy:traybin": "copyfiles -s -f ./node_modules/systray2/traybin/tray_windows_release.exe build/traybin",
 		"copy:pdfjs": "copyfiles -s -f \"node_modules/pdfjs-dist/build/**/*.*\" build/node_modules/pdfjs-dist/build",
 		"copy:nodehide": "copyfiles -s -f \"node_modules/node-hide-console-window/build/Release/**/*\" build/node_modules/node-hide-console-window/build/Release",
 		"install:exec": "pkg --public --public-packages '*' --output build/fbw-simbridge.exe dist/main.js --config package.json",

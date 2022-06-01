@@ -15,6 +15,10 @@ const execute = async () => {
                     name: 'modules',
                     sourceDir: './node_modules',
                 },
+                {
+                    name: 'traybin',
+                    sourceDir: './traybin',
+                },
             ],
         });
         console.log(result);
