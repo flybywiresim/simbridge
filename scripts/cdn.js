@@ -1,0 +1,97 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+const { readdir, readFile } = require('fs/promises');
+const fetch = require('node-fetch');
+
+const CDN_URL = 'https://storage.bunnycdn.com/flybywiresim-cdn';
+const CDN_PURGE_LINK = 'https://bunnycdn.com/api/purge?url=http://flybywiresim.b-cdn.net';
+
+const BUCKET_DESTINATION = process.argv[2];
+const DIRECTORY = process.argv[3];
+const CDN_DIR = BUCKET_DESTINATION ?? 'addons/simbridge/test';
+const LOCAL_DIR = DIRECTORY ?? './build-modules/';
+
+const PASSWORD = process.env.BUNNY_BUCKET_PASSWORD;
+const TOKEN = process.env.BUNNY_SECRET_TOKEN;
+
+let MAX_RETRY = 5;
+
+const uploadFile = async (url, buffer) => {
+    if (MAX_RETRY === 0) {
+        return;
+    }
+
+    try {
+        const putOptions = {
+            method: 'PUT',
+            headers: { AccessKey: PASSWORD },
+            body: buffer,
+        };
+
+        const response = await fetch(url, putOptions);
+
+        if (response.status !== 201) {
+            console.log('Failed to upload file, trying again');
+            MAX_RETRY--;
+            await uploadFile(url, buffer);
+        } else {
+            MAX_RETRY = 5;
+        }
+    } catch (e) {
+        console.error(e);
+        process.exit(1);
+    }
+};
+
+const upload = async (fileName, buffer) => {
+    try {
+        MAX_RETRY = 5;
+        const url = `${CDN_URL}/${CDN_DIR}/${fileName}`;
+        console.log(`Syncing file: ${fileName}`);
+        console.log(`Destination: ${url}`);
+
+        await uploadFile(url, buffer);
+    } catch (e) {
+        console.error(e);
+        process.exit(1);
+    }
+};
+
+const purge = async (filename) => {
+    try {
+        console.log('Purging cache');
+
+        const url = `${CDN_PURGE_LINK}/${CDN_DIR}/${filename}`;
+        console.log(`Purging cache for file: ${filename}`);
+        console.log(`Purge URL: ${url} \n`);
+
+        const putOptions = {
+            method: 'POST',
+            headers: {
+                'AccessKey': TOKEN,
+                'Content-Length': 0,
+            },
+        };
+
+        await fetch(url, putOptions);
+    } catch (e) {
+        console.error(e);
+        process.exit(1);
+    }
+};
+
+const execute = async () => {
+    try {
+        const files = await readdir(LOCAL_DIR);
+
+        for (const fileName of files) {
+            const buffer = await readFile(`${LOCAL_DIR}${fileName}`);
+            await upload(fileName, buffer);
+            await purge(fileName);
+        }
+    } catch (e) {
+        console.error(e);
+        process.exit(1);
+    }
+};
+
+execute();
