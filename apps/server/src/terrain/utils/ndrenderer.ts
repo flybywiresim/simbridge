@@ -7,6 +7,7 @@ import { WaterPattern } from './waterpattern';
 import { HighDensityPattern } from './highdensitypattern';
 import { LowDensityPattern } from './lowdensitypattern';
 import { ElevationGrid } from '../mapformat/elevationgrid';
+import { TerrainLevelMode, NDData } from '../manager/nddata';
 
 const sharp = require('sharp');
 
@@ -170,10 +171,13 @@ export class NDRenderer {
                     retval.LowDensityGreenThreshold = halfElevation;
                 } else if (halfElevation > percentile85th && retval.LowDensityGreenThreshold > percentile85th) {
                     retval.LowDensityGreenThreshold = percentile85th;
+                } else {
+                    retval.TerrainMapMinElevation = TerrainLevelMode.Warning;
                 }
             }
 
             retval.TerrainMapMinElevation = retval.LowDensityGreenThreshold;
+            retval.TerrainMapMaxElevationMode = maxElevation >= retval.HighDensityRedThreshold ? TerrainLevelMode.Caution : TerrainLevelMode.Warning;
         // flat earth situation which does not trigger higher densities
         } else if (flatEarth) {
             retval.LowerDensityRangeThreshold = minElevation;
@@ -298,9 +302,9 @@ export class NDRenderer {
         });
     }
 
-    public async render(position: PositionDto): Promise<{ buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number }> {
+    public async render(position: PositionDto): Promise<NDData> {
         if (this.worldmap.Terraindata === undefined || position === undefined) {
-            return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
+            return null;
         }
 
         const start = new Date().getTime();
@@ -333,12 +337,15 @@ export class NDRenderer {
         const deltaTime = new Date().getTime() - start;
         console.log(`Rendering duration: ${deltaTime}`);
 
-        return {
-            buffer: new Uint8Array(data.buffer),
-            rows: this.ViewConfig.mapHeight,
-            columns: this.ViewConfig.mapWidth,
-            minElevation: localMapData.TerrainMapMinElevation,
-            maxElevation: localMapData.TerrainMapMaxElevation,
-        };
+        const retval = new NDData();
+        retval.Image = new Uint8Array(data.buffer);
+        retval.Rows = this.ViewConfig.mapHeight;
+        retval.Columns = this.ViewConfig.mapWidth;
+        retval.MinimumElevation = localMapData.TerrainMapMinElevation;
+        retval.MinimumElevationMode = localMapData.TerrainMapMinElevationMode;
+        retval.MaximumElevation = localMapData.TerrainMapMaxElevation;
+        retval.MaximumElevationMode = localMapData.TerrainMapMaxElevationMode;
+
+        return retval;
     }
 }

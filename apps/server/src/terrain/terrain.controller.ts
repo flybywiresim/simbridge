@@ -1,10 +1,15 @@
 import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, Put, Res, Query, HttpStatus, HttpException } from '@nestjs/common';
-import { ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
+import { ApiResponse, ApiTags, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
-import { ConfigurationDto } from './dto/configuration.dto';
 import { PositionDto } from './dto/position.dto';
 import { NDViewDto } from './dto/ndview.dto';
 import { NDTerrainDataDto } from './dto/ndterraindata.dto';
+import { TerrainLevelMode } from './manager/nddata';
+
+enum DisplaySide {
+    Left = 'L',
+    Right = 'R',
+}
 
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
@@ -26,7 +31,8 @@ export class TerrainController {
         }
     }
 
-    @Put('configureDisplay')
+    @Put('displaysettings')
+    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
     @ApiBody({
         description: 'The new connection containing the flight number and current location',
         type: NDViewDto,
@@ -39,30 +45,11 @@ export class TerrainController {
         status: 400,
         description: 'Unable to update the display configuration',
     })
-    configureDisplay(@Body() config: NDViewDto): void {
+    configureDisplay(@Query('display') display, @Body() config: NDViewDto): void {
         if (this.terrainService.MapManager === undefined) {
             throw new BadRequestException('Unable to configure the ND display');
         }
-        this.terrainService.MapManager.configureNd(config);
-    }
-
-    @Patch('configure')
-    @ApiBody({
-        description: 'The configuration entry',
-        type: ConfigurationDto,
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Configured the system',
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'Unable to configure the system',
-    })
-    configure(@Body() config: ConfigurationDto) {
-        if (this.terrainService.configure(config) === false) {
-            throw new BadRequestException('Unable to configure the terrain service');
-        }
+        this.terrainService.MapManager.configureNd(display, config);
     }
 
     @Patch('position')
@@ -79,25 +66,60 @@ export class TerrainController {
         this.terrainService.updatePosition(position);
     }
 
-    private streamNdMap(display: string, response): void {
-        const { buffer, rows, columns } = this.terrainService.MapManager.ndMap(display);
-        if (rows !== 0 && columns !== 0) {
-            response.set({ 'Content-Type': 'image/png' });
-            response.end(buffer);
+    @Get('ndmap.png')
+    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+    @ApiQuery({ name: 'timestamp', required: true })
+    @ApiResponse({
+        status: 200,
+        description: 'The ND map data as a PNG',
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid display or timestamp request',
+    })
+    async getNdMap(@Query('display') display, @Query('timestamp') timestamp, @Res({ passthrough: true }) response) {
+        const data = this.terrainService.MapManager.ndMap(display, parseInt(timestamp));
+        if (data === null) {
+            throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
         }
+
+        response.set({ 'Content-Type': 'image/png' });
+        response.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+        response.set({ Pragma: 'no-cache' });
+        response.set({ Expires: '0' });
+        response.end(data.Image);
     }
 
-    @Get('left.png')
-    async getLeftNdMap(@Res({ passthrough: true }) response) {
-        return this.streamNdMap('L', response);
+    @Get('renderMap')
+    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+    @ApiQuery({ name: 'timestamp', required: true })
+    @ApiResponse({
+        status: 200,
+        description: 'The ND map will be rendered',
+        type: Number,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid display settings set',
+    })
+    renderTerrainMap(@Query('display') display) {
+        return this.terrainService.MapManager.renderNdMap(display);
     }
 
-    @Get('right.png')
-    async getRightNdMap(@Res({ passthrough: true }) response) {
-        return this.streamNdMap('R', response);
+    @Get('ndMapAvailable')
+    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+    @ApiResponse({
+        status: 200,
+        description: 'The ND map will be rendered',
+        type: Boolean,
+    })
+    ndMapAvailable(@Query('display') display, @Query('timestamp') timestamp) {
+        return this.terrainService.MapManager.ndMap(display, parseInt(timestamp)) !== null;
     }
 
     @Get('terrainRange')
+    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+    @ApiQuery({ name: 'timestamp', required: true })
     @ApiResponse({
         status: 200,
         description: 'The ND terrain data information',
@@ -105,17 +127,21 @@ export class TerrainController {
     })
     @ApiResponse({
         status: 400,
-        description: 'Invalid display settings set',
+        description: 'Invalid display requested',
     })
-    getTerrainRange(@Query() query) {
-        if (!('display' in query) || (query.display !== 'L' && query.display !== 'R')) {
-            throw new HttpException('Invalid display setting', HttpStatus.BAD_REQUEST);
+    getTerrainRange(@Query('display') display, @Query('timestamp') timestamp) {
+        const ndMap = this.terrainService.MapManager.ndMap(display, parseInt(timestamp));
+        if (ndMap === null) {
+            throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
         }
 
-        const ndMap = this.terrainService.MapManager.ndMap(query.display);
         const retval = new NDTerrainDataDto();
-        retval.minElevation = Math.round(ndMap.minElevation);
-        retval.maxElevation = Math.round(ndMap.maxElevation);
+        retval.minElevation = Math.round(ndMap.MinimumElevation);
+        retval.minElevationIsWarning = ndMap.MinimumElevationMode === TerrainLevelMode.Warning;
+        retval.minElevationIsCaution = ndMap.MinimumElevationMode === TerrainLevelMode.Caution;
+        retval.maxElevation = Math.round(ndMap.MaximumElevation);
+        retval.maxElevationIsWarning = ndMap.MaximumElevationMode === TerrainLevelMode.Warning;
+        retval.maxElevationIsCaution = ndMap.MaximumElevationMode === TerrainLevelMode.Caution;
 
         return retval;
     }

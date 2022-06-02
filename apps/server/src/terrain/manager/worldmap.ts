@@ -3,17 +3,17 @@ import * as path from 'path';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
-import { ConfigurationDto } from '../dto/configuration.dto';
 import { PositionDto } from '../dto/position.dto';
 import { NDViewDto } from '../dto/ndview.dto';
 import { NDRenderer } from '../utils/ndrenderer';
+import { NDData } from './nddata';
 
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
     private tileLoadingInProgress: boolean = false;
 
-    private displays: { [id: string]: { renderer: NDRenderer, map: { buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number } } } = {};
+    private displays: { [id: string]: { renderer: NDRenderer, data: [NDData, NDData] } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -47,34 +47,31 @@ export class Worldmap {
         }
     }
 
-    public configure(config: ConfigurationDto): void {
-        this.VisibilityRange = config.visibilityRange;
-
-        if (config.reset === true) {
-            this.cleanupElevationCache([]);
-        }
-    }
-
-    public renderNdMap(id: string): void {
+    public renderNdMap(id: string): number {
         if (id in this.displays) {
             if (this.displays[id].renderer.ViewConfig !== undefined && this.displays[id].renderer.ViewConfig.active === true) {
-                this.displays[id].renderer.render(this.presentPosition).then((data) => {
-                    this.displays[id].map = data;
+                const timestamp = new Date().getTime();
+                this.displays[id].renderer.render(this.presentPosition).then((renderedImage) => {
+                    renderedImage.Timestamp = timestamp;
+                    this.displays[id].data = [renderedImage, this.displays[id].data[0]];
                 });
-            } else if (this.displays[id].map.rows !== 0 || this.displays[id].map.columns !== 0) {
-                this.displays[id].map = { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
+                return timestamp;
             }
+
+            this.displays[id].data = [null, null];
         }
+
+        return -1;
     }
 
-    public configureNd(config: NDViewDto) {
-        if (!(config.display in this.displays)) {
-            this.displays[config.display] = {
+    public configureNd(display: string, config: NDViewDto) {
+        if (!(display in this.displays)) {
+            this.displays[display] = {
                 renderer: new NDRenderer(this),
-                map: { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity },
+                data: [null, null],
             };
         }
-        this.displays[config.display].renderer.configureView(config);
+        this.displays[display].renderer.configureView(config);
     }
 
     public async updatePosition(position: PositionDto): Promise<void> {
@@ -154,10 +151,17 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    public ndMap(id: string): { buffer: Uint8Array, rows: number, columns: number, minElevation: number, maxElevation: number } {
+    public ndMap(id: string, timestamp: number): NDData {
         if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
-            return { buffer: undefined, rows: 0, columns: 0, minElevation: Infinity, maxElevation: Infinity };
+            return null;
         }
-        return this.displays[id].map;
+
+        if (this.displays[id].data[0].Timestamp === timestamp) {
+            return this.displays[id].data[0];
+        }
+        if (this.displays[id].data[1].Timestamp === timestamp) {
+            return this.displays[id].data[1];
+        }
+        return null;
     }
 }
