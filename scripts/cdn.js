@@ -47,6 +47,7 @@ const upload = async (fileName, buffer) => {
     try {
         MAX_RETRY = 5;
         const url = `${CDN_URL}/${CDN_DIR}/${fileName}`;
+
         console.log(`Syncing file: ${LOCAL_DIR}/${fileName}`);
         console.log(`Destination: ${url}`);
 

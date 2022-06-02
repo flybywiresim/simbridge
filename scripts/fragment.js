@@ -12,7 +12,7 @@ const execute = async () => {
                     sourceDir: './resources',
                 },
                 {
-                    name: 'modules',
+                    name: 'dependencies',
                     sourceDir: './node_modules',
                 },
                 {
