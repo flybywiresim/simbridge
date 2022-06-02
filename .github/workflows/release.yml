@@ -63,14 +63,14 @@ jobs:
           assets: "*"
           fail-if-no-assets: false
           fail-if-no-release: false
-      - name: Upload aicraft package to GitHub Pre-Release Assets
+      - name: Upload simbridge package to GitHub Pre-Release Assets
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.STABLE_PRE_RELEASE_ID }}/assets{?name,label}
-          asset_path: .\${{ env.BUILD_DIR_NAME }}\${{ env.STABLE_ZIP_NAME }}
-          asset_name: ${{ env.STABLE_ZIP_NAME }}
+          asset_path: .\${{ env.BUILD_DIR_NAME }}\${{ env.RELEASE_ZIP_NAME }}
+          asset_name: ${{ env.RELEASE_ZIP_NAME }}
           asset_content_type: application/zip
       - name: Upload fragments to GitHub Pre-Release Assets
         uses: dwenegar/upload-release-assets@v1
@@ -86,5 +86,5 @@ jobs:
             --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
             --header 'Content-Type: application/json' \
             --data-raw '{
-              "body": "This pre-release has its asset updated on every release\nLast updated on ${{ env.BUILT_DATE_TIME }} from commit ${{ github.sha }}\nThis link will always point to the latest stable build: https://github.com/${{ github.repository }}/releases/download/${{ env.STABLE_PRE_RELEASE_TAG }}/${{ env.STABLE_ZIP_NAME }}"
+              "body": "This pre-release has its asset updated on every release\nLast updated on ${{ env.BUILT_DATE_TIME }} from commit ${{ github.sha }}\nThis link will always point to the latest stable build: https://github.com/${{ github.repository }}/releases/download/${{ env.STABLE_PRE_RELEASE_TAG }}/${{ env.RELEASE_ZIP_NAME }}"
             }'
