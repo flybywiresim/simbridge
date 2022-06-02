@@ -10,6 +10,8 @@ jobs:
     runs-on: windows-latest
     env:
       RELEASE_ZIP_NAME: fbw-simbridge.zip
+      STABLE_PRE_RELEASE_TAG: assets/stable
+      STABLE_PRE_RELEASE_ID: 66067815
       BUILD_DIR_NAME: release
     steps:
       - name: Checkout source
