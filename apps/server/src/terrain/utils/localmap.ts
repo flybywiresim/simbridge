@@ -40,4 +40,6 @@ export class LocalMap {
     public TerrainMapMaxElevation: number = Infinity;
 
     public TerrainMapMaxElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
+
+    public RenderedNonCriticalAreas: boolean = false;
 }

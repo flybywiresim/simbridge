@@ -140,8 +140,6 @@ class NDRenderer {
                     retval.LowDensityGreenThreshold = halfElevation;
                 } else if (halfElevation > percentile85th && retval.LowDensityGreenThreshold > percentile85th) {
                     retval.LowDensityGreenThreshold = percentile85th;
-                } else {
-                    retval.TerrainMapMinElevationMode = TerrainLevelMode.Warning;
                 }
             }
 
@@ -236,13 +234,16 @@ class NDRenderer {
                 } else if (localMapData.DisplayPeaksMode) {
                     if (localMapData.SolidDensityRangeThreshold <= elevation) {
                         this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                        localMapData.RenderedNonCriticalAreas = true;
                     } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
                         if (this.drawPixel(viewConfig, x, y, elevation, true)) {
                             this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                            localMapData.RenderedNonCriticalAreas = true;
                         }
                     } else if (localMapData.LowerDensityRangeThreshold <= elevation && elevation < localMapData.HigherDensityRangeThreshold) {
                         if (this.drawPixel(viewConfig, x, y, elevation, false)) {
                             this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                            localMapData.RenderedNonCriticalAreas = true;
                         }
                     }
                 } else if (elevation >= localMapData.HighDensityRedThreshold) {
@@ -256,6 +257,7 @@ class NDRenderer {
                 } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
                         this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                        localMapData.RenderedNonCriticalAreas = true;
                     }
                 } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, false)) {
@@ -264,6 +266,7 @@ class NDRenderer {
                 } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, false)) {
                         this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                        localMapData.RenderedNonCriticalAreas = true;
                     }
                 }
             }
@@ -305,7 +308,7 @@ class NDRenderer {
         retval.MinimumElevation = localMapData.TerrainMapMinElevation;
         retval.MinimumElevationMode = localMapData.TerrainMapMinElevationMode;
         retval.MaximumElevation = localMapData.TerrainMapMaxElevation;
-        retval.MaximumElevationMode = localMapData.TerrainMapMaxElevationMode;
+        retval.MaximumElevationMode = localMapData.RenderedNonCriticalAreas ? TerrainLevelMode.PeaksMode : TerrainLevelMode.Warning;
 
         return retval;
     }
