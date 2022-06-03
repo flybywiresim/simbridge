@@ -143,7 +143,7 @@ class NDRenderer {
                 }
             }
 
-            retval.TerrainMapMinElevation = retval.LowDensityGreenThreshold;
+            retval.TerrainMapMinElevation = retval.LowDensityGreenThreshold >= 0 ? retval.LowDensityGreenThreshold : 0;
             retval.TerrainMapMaxElevationMode = maxElevation >= retval.HighDensityRedThreshold ? TerrainLevelMode.Caution : TerrainLevelMode.Warning;
         // flat earth situation which does not trigger higher densities
         } else if (flatEarth) {
@@ -306,9 +306,9 @@ class NDRenderer {
         retval.Rows = viewConfig.mapHeight;
         retval.Columns = viewConfig.mapWidth;
         retval.MinimumElevation = localMapData.TerrainMapMinElevation;
-        retval.MinimumElevationMode = localMapData.TerrainMapMinElevationMode;
+        retval.MinimumElevationMode = localMapData.RenderedNonCriticalAreas ? TerrainLevelMode.PeaksMode : TerrainLevelMode.Warning;
         retval.MaximumElevation = localMapData.TerrainMapMaxElevation;
-        retval.MaximumElevationMode = localMapData.RenderedNonCriticalAreas ? TerrainLevelMode.PeaksMode : TerrainLevelMode.Warning;
+        retval.MaximumElevationMode = localMapData.TerrainMapMaxElevationMode;
 
         return retval;
     }

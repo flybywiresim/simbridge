@@ -35,8 +35,6 @@ export class LocalMap {
 
     public TerrainMapMinElevation: number = Infinity;
 
-    public TerrainMapMinElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
-
     public TerrainMapMaxElevation: number = Infinity;
 
     public TerrainMapMaxElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
