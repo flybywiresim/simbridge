@@ -7,7 +7,9 @@ export enum TerrainLevelMode {
 export class NDData {
     public Timestamp: number = 0;
 
-    public Image: SharedArrayBuffer = null;
+    public Image: Uint8Array = null;
+
+    public Pixeldata: SharedArrayBuffer = null;
 
     public Rows: number = 0;
 

@@ -1,3 +1,4 @@
+import { parentPort, workerData } from 'worker_threads';
 import { NDViewDto } from '../dto/ndview.dto';
 import { Worldmap } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
@@ -9,12 +10,10 @@ import { LowDensityPattern } from './lowdensitypattern';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { TerrainLevelMode, NDData } from '../manager/nddata';
 
-const sharp = require('sharp');
-
 const InvalidElevation = 32767;
 const WaterElevation = -1;
 
-export class NDRenderer {
+class NDRenderer {
     private worldmap: Worldmap | undefined = undefined;
 
     private centerPixelX: number = 0;
@@ -277,13 +276,14 @@ export class NDRenderer {
         });
     }
 
-    public async render(viewConfig: NDViewDto, position: PositionDto): Promise<NDData> {
+    public render(viewConfig: NDViewDto, position: PositionDto): NDData {
         if (this.worldmap.Terraindata === undefined || position === undefined) {
             return null;
         }
 
         // create the source buffer
-        const sourceBuffer = new Uint8ClampedArray(viewConfig.mapWidth * viewConfig.mapHeight * 3);
+        const sharedBuffer = new SharedArrayBuffer(viewConfig.mapWidth * viewConfig.mapHeight * 3);
+        const sourceBuffer = new Uint8ClampedArray(sharedBuffer);
         sourceBuffer.fill(0, 0, viewConfig.mapWidth * viewConfig.mapHeight * 3);
 
         // predict the reference altitude
@@ -298,13 +298,8 @@ export class NDRenderer {
 
         this.renderPeakMode(viewConfig, sourceBuffer, localMapData);
 
-        const { data, _ } = await sharp(new Uint8ClampedArray(sourceBuffer), { raw: { width: viewConfig.mapWidth, height: viewConfig.mapHeight, channels: 3 } })
-            .toFormat('png')
-            .toBuffer({ resolveWithObject: true });
-
         const retval = new NDData();
-        retval.Image = new SharedArrayBuffer(data.buffer.byteLength);
-        new Uint8Array(retval.Image).set(new Uint8Array(data.buffer));
+        retval.Pixeldata = sharedBuffer;
         retval.Rows = viewConfig.mapHeight;
         retval.Columns = viewConfig.mapWidth;
         retval.MinimumElevation = localMapData.TerrainMapMinElevation;
@@ -315,3 +310,12 @@ export class NDRenderer {
         return retval;
     }
 }
+
+function renderNdMap(world: Worldmap, viewConfig: NDViewDto, position: PositionDto) {
+    const renderer = new NDRenderer(world);
+    return renderer.render(viewConfig, position);
+}
+
+parentPort.postMessage(
+    renderNdMap(workerData.world, workerData.viewConfig, workerData.position),
+);

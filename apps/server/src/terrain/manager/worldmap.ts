@@ -5,15 +5,16 @@ import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { PositionDto } from '../dto/position.dto';
 import { NDViewDto } from '../dto/ndview.dto';
-import { NDRenderer } from '../utils/ndrenderer';
 import { NDData } from './nddata';
+
+const sharp = require('sharp');
 
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
     private tileLoadingInProgress: boolean = false;
 
-    private displays: { [id: string]: { viewConfig: NDViewDto, renderer: NDRenderer, data: [NDData, NDData] } } = {};
+    private displays: { [id: string]: { viewConfig: NDViewDto, data: [NDData, NDData] } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -50,27 +51,25 @@ export class Worldmap {
     public renderNdMap(id: string): number {
         if (id in this.displays) {
             if (this.displays[id].viewConfig !== undefined && this.displays[id].viewConfig.active === true) {
-                // const worker = new Worker(path.resolve(__dirname, '../utils/renderer.js'), { workerData: { world: this, position: this.presentPosition } });
+                const worker = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'), {
+                    workerData: {
+                        world: this,
+                        viewConfig: this.displays[id].viewConfig,
+                        position: this.presentPosition,
+                    },
+                });
                 const timestamp = new Date().getTime();
 
-                // worker.on('message', (result) => {
-                //    const loadedTiles: { row: number, column: number }[] = [];
-                //
-                //    result.forEach((tile) => {
-                //        loadedTiles.push({ row: tile.row, column: tile.column });
-                //        if (tile.grid !== null) {
-                //            this.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
-                //        }
-                //    });
-                //
-                //    this.cleanupElevationCache(loadedTiles);
-                //    this.tileLoadingInProgress = false;
-                // });
+                worker.on('message', async (result: NDData) => {
+                    const { data, _ } = await sharp(new Uint8ClampedArray(result.Pixeldata), { raw: { width: result.Columns, height: result.Rows, channels: 3 } })
+                        .toFormat('png')
+                        .toBuffer({ resolveWithObject: true });
 
-                this.displays[id].renderer.render(this.displays[id].viewConfig, this.presentPosition).then((renderedImage) => {
-                    renderedImage.Timestamp = timestamp;
-                    this.displays[id].data = [renderedImage, this.displays[id].data[0]];
+                    result.Image = new Uint8Array(data.buffer);
+                    result.Timestamp = timestamp;
+                    this.displays[id].data = [result, this.displays[id].data[0]];
                 });
+
                 return timestamp;
             }
 
@@ -84,7 +83,6 @@ export class Worldmap {
         if (!(display in this.displays)) {
             this.displays[display] = {
                 viewConfig: config,
-                renderer: new NDRenderer(this),
                 data: [null, null],
             };
         } else {
