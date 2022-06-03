@@ -92,7 +92,6 @@ export class TerrainController {
 
     @Get('renderMap')
     @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
-    @ApiQuery({ name: 'timestamp', required: true })
     @ApiResponse({
         status: 200,
         description: 'The ND map will be rendered',
