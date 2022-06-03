@@ -19,61 +19,19 @@ export class NDRenderer {
 
     public ViewConfig: NDViewDto | undefined = undefined;
 
-    private position: PositionDto | undefined = undefined;
+    private centerPixelX: number = 0;
 
-    private distanceHeadingLut: Array<{ distancePixels: number, distanceMeters: number, heading: number, orientation: number }> = [];
+    private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
     constructor(map: Worldmap) {
         this.worldmap = map;
-    }
-
-    private calculateDistances(config: NDViewDto): void {
-        const offsetX = config.mapWidth / 2;
-        for (let y = 0; y < config.mapHeight; ++y) {
-            for (let x = 0; x < config.mapWidth / 2; ++x) {
-                const distancePixels = Math.sqrt((x - offsetX) ** 2 + (config.mapHeight - y) ** 2);
-                const distanceMeters = distancePixels * config.meterPerPixel;
-                this.distanceHeadingLut[y * config.mapWidth + x].distancePixels = distancePixels;
-                this.distanceHeadingLut[y * config.mapWidth + x].distanceMeters = distanceMeters;
-                this.distanceHeadingLut[y * config.mapWidth + config.mapWidth - x - 1].distancePixels = distancePixels;
-                this.distanceHeadingLut[y * config.mapWidth + config.mapWidth - x - 1].distanceMeters = distanceMeters;
-            }
-        }
     }
 
     private static normalizeHeading(heading: number): number {
         return (heading - (Math.floor(heading / 360) * 360));
     }
 
-    private calculateHeadings(position: PositionDto) {
-        const offsetX = this.ViewConfig.mapWidth / 2;
-        for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
-            for (let x = 0; x < this.ViewConfig.mapWidth / 2; ++x) {
-                const rightAngle = Math.acos((this.ViewConfig.mapHeight - y) / Math.sqrt((x - offsetX) ** 2 + (this.ViewConfig.mapHeight - y) ** 2)) * (180 / Math.PI);
-                const leftAngle = 360 - rightAngle;
-
-                const headingRight = NDRenderer.normalizeHeading(rightAngle + position.heading);
-                const headingLeft = NDRenderer.normalizeHeading(leftAngle + position.heading);
-
-                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].heading = headingLeft;
-                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].orientation = rightAngle;
-                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + this.ViewConfig.mapWidth - x - 1].heading = headingRight;
-                this.distanceHeadingLut[y * this.ViewConfig.mapWidth + this.ViewConfig.mapWidth - x - 1].orientation = rightAngle;
-            }
-        }
-    }
-
     public configureView(config: NDViewDto): void {
-        if (this.ViewConfig === undefined || config.mapHeight !== this.ViewConfig.mapHeight || config.mapWidth !== this.ViewConfig.mapWidth || this.distanceHeadingLut.length === 0) {
-            this.distanceHeadingLut = [...Array(config.mapHeight * config.mapWidth)].map(() => ({ distancePixels: 0, distanceMeters: 0, heading: 0, orientation: 0 }));
-            this.calculateDistances(config);
-            if (this.position !== undefined) {
-                this.calculateHeadings(this.position);
-            }
-        } else if (config.meterPerPixel !== this.ViewConfig.meterPerPixel) {
-            this.calculateDistances(config);
-        }
-
         this.ViewConfig = config;
     }
 
@@ -97,27 +55,45 @@ export class NDRenderer {
     }
 
     private createLocalElevationMap(position: PositionDto, referenceAltitude: number): LocalMap {
-        // initialize the local map
+        this.centerPixelX = Math.round(this.ViewConfig.mapWidth / 2);
+
+        // initialize the local map and LUT
         const elevationMap: Int16Array = new Int16Array(this.ViewConfig.mapWidth * this.ViewConfig.mapHeight);
         const validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
         elevationMap.fill(InvalidElevation, 0);
-
-        const offsetX = this.ViewConfig.mapWidth / 2;
+        this.distanceHeadingLut = [...Array(this.ViewConfig.mapHeight * this.ViewConfig.mapWidth)].map(() => ({ distancePixels: 0, heading: 0, orientation: 0 }));
 
         // create the local map and find the highest obstacle
         for (let y = 0; y < this.ViewConfig.mapHeight; ++y) {
             for (let x = 0; x < this.ViewConfig.mapWidth; ++x) {
                 if (this.ViewConfig.arcMode) {
-                    const distance = Math.sqrt((x - offsetX) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
+                    const distance = Math.sqrt((x - this.centerPixelX) ** 2 + (y - this.ViewConfig.mapHeight) ** 2);
                     if (distance > this.ViewConfig.mapHeight) {
                         continue;
                     }
                 }
 
-                const lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x];
-                const projected = WGS84.project(position.latitude, position.longitude, lutEntry.distanceMeters, lutEntry.heading);
+                let distanceMeters = 0;
+                let heading = 0;
+
+                // calculate only the first half and access the second half via wrapping of data
+                if (x <= this.centerPixelX) {
+                    const distancePixels = Math.sqrt((x - this.centerPixelX) ** 2 + (this.ViewConfig.mapHeight - y) ** 2);
+                    distanceMeters = distancePixels * this.ViewConfig.meterPerPixel;
+                    const angle = Math.acos((this.ViewConfig.mapHeight - y) / Math.sqrt((x - this.centerPixelX) ** 2 + (this.ViewConfig.mapHeight - y) ** 2)) * (180 / Math.PI);
+                    heading = NDRenderer.normalizeHeading(360 - angle + position.heading);
+
+                    this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].distancePixels = distancePixels;
+                    this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].orientation = angle;
+                } else {
+                    const lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + (2 * this.centerPixelX - x)];
+                    distanceMeters = lutEntry.distancePixels * this.ViewConfig.meterPerPixel;
+                    heading = NDRenderer.normalizeHeading(lutEntry.orientation + position.heading);
+                }
+
+                const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
                 const worldIdx = Worldmap.worldMapIndices(this.worldmap, projected.latitude, projected.longitude);
                 const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
@@ -204,8 +180,15 @@ export class NDRenderer {
     }
 
     private findCorrectPattern(densityPatterns: { angleRanges: number[][], minPixelDistance: number, patterns: number[][][] }[], x: number, y: number): number[][][] {
-        const pxDistance = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].distancePixels;
-        const angle = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x].orientation;
+        let lutEntry = null;
+        if (x > this.centerPixelX) {
+            lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + (this.ViewConfig.mapWidth - x)];
+        } else {
+            lutEntry = this.distanceHeadingLut[y * this.ViewConfig.mapWidth + x];
+        }
+
+        const pxDistance = lutEntry.distancePixels;
+        const angle = lutEntry.orientation;
 
         for (let i = 0; i < densityPatterns.length; ++i) {
             if (pxDistance >= densityPatterns[i].minPixelDistance) {
@@ -220,7 +203,7 @@ export class NDRenderer {
         return densityPatterns[0].patterns;
     }
 
-    private drawPixel(x: number, y: number, offsetX: number, elevation: number, highDensity: boolean): boolean {
+    private drawPixel(x: number, y: number, elevation: number, highDensity: boolean): boolean {
         let pattern = null;
 
         if (highDensity) {
@@ -236,7 +219,7 @@ export class NDRenderer {
         const row = y % 13;
         let col = x % 13;
         let patternIdx = Math.round((x * (y + 1)) / 13) % pattern.length;
-        if (x < offsetX) {
+        if (x < this.centerPixelX) {
             col = 13 - col - 1;
             patternIdx = pattern.length - patternIdx - 1;
         }
@@ -245,50 +228,48 @@ export class NDRenderer {
     }
 
     private renderPeakMode(image: Uint8ClampedArray, localMapData: LocalMap): void {
-        const offsetX = this.ViewConfig.mapWidth / 2;
-
         let y = 0;
         let x = 0;
         localMapData.ElevationMap.forEach((elevation) => {
             if (elevation !== InvalidElevation) {
                 if (!Number.isFinite(elevation)) {
-                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                    if (this.drawPixel(x, y, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 255, g: 148, b: 255 });
                     }
                 } else if (elevation === WaterElevation) {
-                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                    if (this.drawPixel(x, y, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 0, g: 255, b: 255 });
                     }
                 } else if (localMapData.DisplayPeaksMode) {
                     if (localMapData.SolidDensityRangeThreshold <= elevation) {
                         this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                     } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
-                        if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                        if (this.drawPixel(x, y, elevation, true)) {
                             this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                         }
                     } else if (localMapData.LowerDensityRangeThreshold <= elevation && elevation < localMapData.HigherDensityRangeThreshold) {
-                        if (this.drawPixel(x, y, offsetX, elevation, false)) {
+                        if (this.drawPixel(x, y, elevation, false)) {
                             this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                         }
                     }
                 } else if (elevation >= localMapData.HighDensityRedThreshold) {
-                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                    if (this.drawPixel(x, y, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 255, g: 0, b: 0 });
                     }
                 } else if (elevation >= localMapData.HighDensityYellowThreshold) {
-                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                    if (this.drawPixel(x, y, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 255, g: 255, b: 50 });
                     }
                 } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
-                    if (this.drawPixel(x, y, offsetX, elevation, true)) {
+                    if (this.drawPixel(x, y, elevation, true)) {
                         this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                     }
                 } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
-                    if (this.drawPixel(x, y, offsetX, elevation, false)) {
+                    if (this.drawPixel(x, y, elevation, false)) {
                         this.fillPixel(image, x, y, { r: 255, g: 255, b: 50 });
                     }
                 } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
-                    if (this.drawPixel(x, y, offsetX, elevation, false)) {
+                    if (this.drawPixel(x, y, elevation, false)) {
                         this.fillPixel(image, x, y, { r: 0, g: 255, b: 0 });
                     }
                 }
@@ -308,11 +289,6 @@ export class NDRenderer {
         }
 
         const start = new Date().getTime();
-
-        if (this.position === undefined || position.heading !== this.position.heading) {
-            this.calculateHeadings(position);
-        }
-        this.position = position;
 
         // create the source buffer
         const sourceBuffer = new Uint8ClampedArray(this.ViewConfig.mapWidth * this.ViewConfig.mapHeight * 3);
