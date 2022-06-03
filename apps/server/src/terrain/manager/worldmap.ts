@@ -156,10 +156,10 @@ export class Worldmap {
             return null;
         }
 
-        if (this.displays[id].data[0].Timestamp === timestamp) {
+        if (this.displays[id].data[0] && this.displays[id].data[0].Timestamp === timestamp) {
             return this.displays[id].data[0];
         }
-        if (this.displays[id].data[1].Timestamp === timestamp) {
+        if (this.displays[id].data[1] && this.displays[id].data[1].Timestamp === timestamp) {
             return this.displays[id].data[1];
         }
         return null;
