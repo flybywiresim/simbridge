@@ -87,7 +87,7 @@ export class TerrainController {
         response.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
         response.set({ Pragma: 'no-cache' });
         response.set({ Expires: '0' });
-        response.end(data.Image);
+        response.end(new Uint8Array(data.Image));
     }
 
     @Get('renderMap')

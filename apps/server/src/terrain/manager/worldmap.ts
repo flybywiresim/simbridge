@@ -13,7 +13,7 @@ export class Worldmap {
 
     private tileLoadingInProgress: boolean = false;
 
-    private displays: { [id: string]: { renderer: NDRenderer, data: [NDData, NDData] } } = {};
+    private displays: { [id: string]: { viewConfig: NDViewDto, renderer: NDRenderer, data: [NDData, NDData] } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -49,9 +49,25 @@ export class Worldmap {
 
     public renderNdMap(id: string): number {
         if (id in this.displays) {
-            if (this.displays[id].renderer.ViewConfig !== undefined && this.displays[id].renderer.ViewConfig.active === true) {
+            if (this.displays[id].viewConfig !== undefined && this.displays[id].viewConfig.active === true) {
+                // const worker = new Worker(path.resolve(__dirname, '../utils/renderer.js'), { workerData: { world: this, position: this.presentPosition } });
                 const timestamp = new Date().getTime();
-                this.displays[id].renderer.render(this.presentPosition).then((renderedImage) => {
+
+                // worker.on('message', (result) => {
+                //    const loadedTiles: { row: number, column: number }[] = [];
+                //
+                //    result.forEach((tile) => {
+                //        loadedTiles.push({ row: tile.row, column: tile.column });
+                //        if (tile.grid !== null) {
+                //            this.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
+                //        }
+                //    });
+                //
+                //    this.cleanupElevationCache(loadedTiles);
+                //    this.tileLoadingInProgress = false;
+                // });
+
+                this.displays[id].renderer.render(this.displays[id].viewConfig, this.presentPosition).then((renderedImage) => {
                     renderedImage.Timestamp = timestamp;
                     this.displays[id].data = [renderedImage, this.displays[id].data[0]];
                 });
@@ -67,11 +83,13 @@ export class Worldmap {
     public configureNd(display: string, config: NDViewDto) {
         if (!(display in this.displays)) {
             this.displays[display] = {
+                viewConfig: config,
                 renderer: new NDRenderer(this),
                 data: [null, null],
             };
+        } else {
+            this.displays[display].viewConfig = config;
         }
-        this.displays[display].renderer.configureView(config);
     }
 
     public async updatePosition(position: PositionDto): Promise<void> {
@@ -152,7 +170,7 @@ export class Worldmap {
     }
 
     public ndMap(id: string, timestamp: number): NDData {
-        if (!(id in this.displays) || this.displays[id].renderer.ViewConfig.active === false) {
+        if (!(id in this.displays) || this.displays[id].viewConfig.active === false) {
             return null;
         }
 
