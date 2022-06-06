@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'worker_threads';
-import { NDViewDto } from '../dto/ndview.dto';
+import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { Worldmap } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
@@ -8,12 +8,12 @@ import { WaterPattern } from './waterpattern';
 import { HighDensityPattern } from './highdensitypattern';
 import { LowDensityPattern } from './lowdensitypattern';
 import { ElevationGrid } from '../mapformat/elevationgrid';
-import { TerrainLevelMode, NDData } from '../manager/nddata';
+import { TerrainLevelMode, NavigationDisplayData } from '../manager/navigationdisplaydata';
 
 const InvalidElevation = 32767;
 const WaterElevation = -1;
 
-class NDRenderer {
+class NavigationDisplayRenderer {
     private worldmap: Worldmap | undefined = undefined;
 
     private centerPixelX: number = 0;
@@ -47,7 +47,7 @@ class NDRenderer {
         return values[index];
     }
 
-    private createLocalElevationMap(viewConfig: NDViewDto, position: PositionDto, referenceAltitude: number): LocalMap {
+    private createLocalElevationMap(viewConfig: NavigationDisplayViewDto, position: PositionDto, referenceAltitude: number): LocalMap {
         this.centerPixelX = Math.round(viewConfig.mapWidth / 2);
 
         // initialize the local map and LUT
@@ -76,14 +76,14 @@ class NDRenderer {
                     const distancePixels = Math.sqrt((x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2);
                     distanceMeters = distancePixels * viewConfig.meterPerPixel;
                     const angle = Math.acos((viewConfig.mapHeight - y) / Math.sqrt((x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2)) * (180 / Math.PI);
-                    heading = NDRenderer.normalizeHeading(360 - angle + position.heading);
+                    heading = NavigationDisplayRenderer.normalizeHeading(360 - angle + position.heading);
 
                     this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
                     this.distanceHeadingLut[y * viewConfig.mapWidth + x].orientation = angle;
                 } else {
                     const lutEntry = this.distanceHeadingLut[y * viewConfig.mapWidth + (2 * this.centerPixelX - x)];
                     distanceMeters = lutEntry.distancePixels * viewConfig.meterPerPixel;
-                    heading = NDRenderer.normalizeHeading(lutEntry.orientation + position.heading);
+                    heading = NavigationDisplayRenderer.normalizeHeading(lutEntry.orientation + position.heading);
                 }
 
                 const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
@@ -121,7 +121,7 @@ class NDRenderer {
 
         const flatEarth = retval.MaximumElevation - minElevation <= 100;
         const halfElevation = retval.MaximumElevation * 0.5;
-        const percentile85th = NDRenderer.percentile(validElevations, 0.85);
+        const percentile85th = NavigationDisplayRenderer.percentile(validElevations, 0.85);
 
         // normal mode
         if (maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500)) {
@@ -156,7 +156,7 @@ class NDRenderer {
         // standard peaks mode
         } else {
             retval.LowerDensityRangeThreshold = Math.min(percentile85th, halfElevation);
-            retval.HigherDensityRangeThreshold = Math.min(NDRenderer.percentile(validElevations, 0.95), (retval.MaximumElevation - minElevation) * 0.65);
+            retval.HigherDensityRangeThreshold = Math.min(NavigationDisplayRenderer.percentile(validElevations, 0.95), (retval.MaximumElevation - minElevation) * 0.65);
             retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
             retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
         }
@@ -164,13 +164,15 @@ class NDRenderer {
         return retval;
     }
 
-    private fillPixel(viewConfig: NDViewDto, image: Uint8ClampedArray, x: number, y: number, color: { r: number, g: number, b: number }) {
+    private fillPixel(viewConfig: NavigationDisplayViewDto, image: Uint8ClampedArray, x: number, y: number, color: { r: number, g: number, b: number }) {
         image[(y * viewConfig.mapWidth + x) * 3 + 0] = color.r;
         image[(y * viewConfig.mapWidth + x) * 3 + 1] = color.g;
         image[(y * viewConfig.mapWidth + x) * 3 + 2] = color.b;
     }
 
-    private findCorrectPattern(viewConfig: NDViewDto, densityPatterns: { angleRanges: number[][], minPixelDistance: number, patterns: number[][][] }[], x: number, y: number): number[][][] {
+    private findCorrectPattern(viewConfig: NavigationDisplayViewDto, densityPatterns: { angleRanges: number[][],
+        minPixelDistance: number, patterns: number[][][] }[], x: number, y: number): number[][][] {
+        // find the correct pixel entry
         let lutEntry = null;
         if (x > this.centerPixelX) {
             lutEntry = this.distanceHeadingLut[y * viewConfig.mapWidth + (viewConfig.mapWidth - x)];
@@ -194,7 +196,7 @@ class NDRenderer {
         return densityPatterns[0].patterns;
     }
 
-    private drawPixel(viewConfig: NDViewDto, x: number, y: number, elevation: number, highDensity: boolean): boolean {
+    private drawPixel(viewConfig: NavigationDisplayViewDto, x: number, y: number, elevation: number, highDensity: boolean): boolean {
         let pattern = null;
 
         if (highDensity) {
@@ -218,7 +220,7 @@ class NDRenderer {
         return pattern[patternIdx][row].includes(col);
     }
 
-    private renderPeakMode(viewConfig: NDViewDto, image: Uint8ClampedArray, localMapData: LocalMap): void {
+    private renderPeakMode(viewConfig: NavigationDisplayViewDto, image: Uint8ClampedArray, localMapData: LocalMap): void {
         let y = 0;
         let x = 0;
         localMapData.ElevationMap.forEach((elevation) => {
@@ -279,7 +281,7 @@ class NDRenderer {
         });
     }
 
-    public render(viewConfig: NDViewDto, position: PositionDto): NDData {
+    public render(viewConfig: NavigationDisplayViewDto, position: PositionDto): NavigationDisplayData {
         if (this.worldmap.Terraindata === undefined || position === undefined) {
             return null;
         }
@@ -301,7 +303,7 @@ class NDRenderer {
 
         this.renderPeakMode(viewConfig, sourceBuffer, localMapData);
 
-        const retval = new NDData();
+        const retval = new NavigationDisplayData();
         retval.Pixeldata = sharedBuffer;
         retval.Rows = viewConfig.mapHeight;
         retval.Columns = viewConfig.mapWidth;
@@ -314,8 +316,8 @@ class NDRenderer {
     }
 }
 
-function renderNdMap(world: Worldmap, viewConfig: NDViewDto, position: PositionDto) {
-    const renderer = new NDRenderer(world);
+function renderNdMap(world: Worldmap, viewConfig: NavigationDisplayViewDto, position: PositionDto) {
+    const renderer = new NavigationDisplayRenderer(world);
     return renderer.render(viewConfig, position);
 }
 

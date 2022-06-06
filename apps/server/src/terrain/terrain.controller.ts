@@ -2,9 +2,9 @@ import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, P
 import { ApiResponse, ApiTags, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { PositionDto } from './dto/position.dto';
-import { NDViewDto } from './dto/ndview.dto';
-import { NDTerrainDataDto } from './dto/ndterraindata.dto';
-import { TerrainLevelMode } from './manager/nddata';
+import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
+import { NavigationDisplayTerrainDataDto } from './dto/navigationdisplayterraindata.dto';
+import { TerrainLevelMode } from './manager/navigationdisplaydata';
 
 enum DisplaySide {
     Left = 'L',
@@ -35,7 +35,7 @@ export class TerrainController {
     @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
     @ApiBody({
         description: 'The new connection containing the flight number and current location',
-        type: NDViewDto,
+        type: NavigationDisplayViewDto,
     })
     @ApiResponse({
         status: 200,
@@ -45,7 +45,7 @@ export class TerrainController {
         status: 400,
         description: 'Unable to update the display configuration',
     })
-    configureDisplay(@Query('display') display, @Body() config: NDViewDto): void {
+    configureDisplay(@Query('display') display, @Body() config: NavigationDisplayViewDto): void {
         if (this.terrainService.MapManager === undefined) {
             throw new BadRequestException('Unable to configure the ND display');
         }
@@ -122,7 +122,7 @@ export class TerrainController {
     @ApiResponse({
         status: 200,
         description: 'The ND terrain data information',
-        type: NDTerrainDataDto,
+        type: NavigationDisplayTerrainDataDto,
     })
     @ApiResponse({
         status: 400,
@@ -134,7 +134,7 @@ export class TerrainController {
             throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
         }
 
-        const retval = new NDTerrainDataDto();
+        const retval = new NavigationDisplayTerrainDataDto();
         retval.minElevation = Math.round(ndMap.MinimumElevation);
         retval.minElevationIsWarning = ndMap.MinimumElevationMode === TerrainLevelMode.Warning;
         retval.minElevationIsCaution = ndMap.MinimumElevationMode === TerrainLevelMode.Caution;

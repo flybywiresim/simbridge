@@ -4,7 +4,7 @@ export enum TerrainLevelMode {
     Caution,
 }
 
-export class NDData {
+export class NavigationDisplayData {
     public Timestamp: number = 0;
 
     public Image: Uint8Array = null;

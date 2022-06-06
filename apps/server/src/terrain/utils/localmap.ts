@@ -1,4 +1,4 @@
-import { TerrainLevelMode } from '../manager/nddata';
+import { TerrainLevelMode } from '../manager/navigationdisplaydata';
 
 export class LocalMap {
     public ElevationMap: Int16Array = null;

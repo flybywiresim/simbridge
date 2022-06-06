@@ -4,8 +4,8 @@ import { ElevationGrid } from '../mapformat/elevationgrid';
 import { Terrainmap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { PositionDto } from '../dto/position.dto';
-import { NDViewDto } from '../dto/ndview.dto';
-import { NDData } from './nddata';
+import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
+import { NavigationDisplayData } from './navigationdisplaydata';
 
 const sharp = require('sharp');
 
@@ -14,7 +14,7 @@ export class Worldmap {
 
     private tileLoadingInProgress: boolean = false;
 
-    private displays: { [id: string]: { viewConfig: NDViewDto, data: [NDData, NDData] } } = {};
+    private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: [NavigationDisplayData, NavigationDisplayData] } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -60,7 +60,7 @@ export class Worldmap {
                 });
                 const timestamp = new Date().getTime();
 
-                worker.on('message', async (result: NDData) => {
+                worker.on('message', async (result: NavigationDisplayData) => {
                     const { data, _ } = await sharp(new Uint8ClampedArray(result.Pixeldata), { raw: { width: result.Columns, height: result.Rows, channels: 3 } })
                         .toFormat('png')
                         .toBuffer({ resolveWithObject: true });
@@ -79,7 +79,7 @@ export class Worldmap {
         return -1;
     }
 
-    public configureNd(display: string, config: NDViewDto) {
+    public configureNd(display: string, config: NavigationDisplayViewDto) {
         if (!(display in this.displays)) {
             this.displays[display] = {
                 viewConfig: config,
@@ -167,7 +167,7 @@ export class Worldmap {
         return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
     }
 
-    public ndMap(id: string, timestamp: number): NDData {
+    public ndMap(id: string, timestamp: number): NavigationDisplayData {
         if (!(id in this.displays) || this.displays[id].viewConfig.active === false) {
             return null;
         }
