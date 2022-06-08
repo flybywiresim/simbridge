@@ -8,7 +8,7 @@ import { PositionDto } from './dto/position.dto';
 export class TerrainService {
     private readonly logger = new Logger(TerrainService.name);
 
-    private terrainDirectory = 'resources/terrain/';
+    private terrainDirectory = 'terrain/';
 
     public Terrainmap: Terrainmap | undefined = undefined;
 

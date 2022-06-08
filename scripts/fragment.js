@@ -19,6 +19,10 @@ const execute = async () => {
                     name: 'traybin',
                     sourceDir: './traybin',
                 },
+                {
+                    name: 'terrain',
+                    sourceDir: './terrain',
+                },
             ],
         });
         console.log(result);
