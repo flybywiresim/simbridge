@@ -66,28 +66,30 @@ export class TerrainController {
         this.terrainService.updatePosition(position);
     }
 
-    @Get('ndmap.png')
+    @Get('ndmap')
     @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
     @ApiQuery({ name: 'timestamp', required: true })
     @ApiResponse({
         status: 200,
-        description: 'The ND map data as a PNG',
+        description: 'The ND map data as a Base64',
     })
     @ApiResponse({
         status: 400,
         description: 'Invalid display or timestamp request',
     })
-    async getNdMap(@Query('display') display, @Query('timestamp') timestamp, @Res({ passthrough: true }) response) {
+    async getNdMapBase64(@Query('display') display, @Query('timestamp') timestamp, @Res({ passthrough: true }) response) {
         const data = this.terrainService.MapManager.ndMap(display, parseInt(timestamp));
         if (data === null) {
             throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
         }
 
         response.set({ 'Content-Type': 'image/png' });
+        response.set({ 'Content-Transfer-Encoding': 'Base64' });
         response.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
         response.set({ Pragma: 'no-cache' });
         response.set({ Expires: '0' });
-        response.end(new Uint8Array(data.Image));
+
+        response.end(Buffer.from(data.Image).toString('base64'));
     }
 
     @Get('renderMap')
