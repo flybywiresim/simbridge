@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "v*"
+      - "!v*-rc*"
 
 jobs:
   build:
@@ -11,7 +12,7 @@ jobs:
     env:
       RELEASE_ZIP_NAME: fbw-simbridge.zip
       STABLE_PRE_RELEASE_TAG: assets/stable
-      STABLE_PRE_RELEASE_ID: 66067815
+      STABLE_PRE_RELEASE_ID: 69042719
       BUILD_DIR_NAME: release
     steps:
       - name: Checkout source
