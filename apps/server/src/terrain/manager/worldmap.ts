@@ -14,7 +14,7 @@ export class Worldmap {
 
     private tileLoadingInProgress: boolean = false;
 
-    private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: [NavigationDisplayData, NavigationDisplayData] } } = {};
+    private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: NavigationDisplayData } } = {};
 
     public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
@@ -67,13 +67,13 @@ export class Worldmap {
 
                     result.Image = new Uint8Array(data.buffer);
                     result.Timestamp = timestamp;
-                    this.displays[id].data = [result, this.displays[id].data[0]];
+                    this.displays[id].data = result;
                 });
 
                 return timestamp;
             }
 
-            this.displays[id].data = [null, null];
+            this.displays[id].data = null;
         }
 
         return -1;
@@ -83,7 +83,7 @@ export class Worldmap {
         if (!(display in this.displays)) {
             this.displays[display] = {
                 viewConfig: config,
-                data: [null, null],
+                data: null,
             };
         } else {
             this.displays[display].viewConfig = config;
@@ -172,12 +172,10 @@ export class Worldmap {
             return null;
         }
 
-        if (this.displays[id].data[0] && this.displays[id].data[0].Timestamp === timestamp) {
-            return this.displays[id].data[0];
+        if (this.displays[id].data && this.displays[id].data.Timestamp === timestamp) {
+            return this.displays[id].data;
         }
-        if (this.displays[id].data[1] && this.displays[id].data[1].Timestamp === timestamp) {
-            return this.displays[id].data[1];
-        }
+
         return null;
     }
 }
