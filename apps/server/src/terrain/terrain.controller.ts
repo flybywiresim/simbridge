@@ -66,7 +66,7 @@ export class TerrainController {
         this.terrainService.updatePosition(position);
     }
 
-    @Get('ndmap')
+    @Get('ndmaps')
     @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
     @ApiQuery({ name: 'timestamp', required: true })
     @ApiResponse({
@@ -77,19 +77,13 @@ export class TerrainController {
         status: 400,
         description: 'Invalid display or timestamp request',
     })
-    async getNdMapBase64(@Query('display') display, @Query('timestamp') timestamp, @Res({ passthrough: true }) response) {
+    async getAllNdMapsBase64(@Query('display') display, @Query('timestamp') timestamp) {
         const data = this.terrainService.MapManager.ndMap(display, parseInt(timestamp));
         if (data === null) {
             throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
         }
 
-        response.set({ 'Content-Type': 'image/png' });
-        response.set({ 'Content-Transfer-Encoding': 'Base64' });
-        response.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
-        response.set({ Pragma: 'no-cache' });
-        response.set({ Expires: '0' });
-
-        response.end(Buffer.from(data.Image).toString('base64'));
+        return data.ImageSequence;
     }
 
     @Get('renderMap')
@@ -104,6 +98,7 @@ export class TerrainController {
         description: 'Invalid display settings set',
     })
     renderTerrainMap(@Query('display') display) {
+        console.log('TEST');
         return this.terrainService.MapManager.renderNdMap(display);
     }
 
