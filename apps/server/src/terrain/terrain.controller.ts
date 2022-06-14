@@ -98,7 +98,6 @@ export class TerrainController {
         description: 'Invalid display settings set',
     })
     renderTerrainMap(@Query('display') display) {
-        console.log('TEST');
         return this.terrainService.MapManager.renderNdMap(display);
     }
 
