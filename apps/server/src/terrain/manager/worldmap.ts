@@ -7,8 +7,6 @@ import { PositionDto } from '../dto/position.dto';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { NavigationDisplayData } from './navigationdisplaydata';
 
-const sharp = require('sharp');
-
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
@@ -60,12 +58,7 @@ export class Worldmap {
                 });
                 const timestamp = new Date().getTime();
 
-                worker.on('message', async (result: NavigationDisplayData) => {
-                    const { data, _ } = await sharp(new Uint8ClampedArray(result.Pixeldata), { raw: { width: result.Columns, height: result.Rows, channels: 3 } })
-                        .toFormat('png')
-                        .toBuffer({ resolveWithObject: true });
-
-                    result.Image = new Uint8Array(data.buffer);
+                worker.on('message', (result: NavigationDisplayData) => {
                     result.Timestamp = timestamp;
                     this.displays[id].data = result;
                 });

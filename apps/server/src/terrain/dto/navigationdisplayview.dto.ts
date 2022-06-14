@@ -18,6 +18,14 @@ export class NavigationDisplayViewDto {
     @IsNumber()
     meterPerPixel: number
 
+    @ApiProperty({ description: 'The map transition time [s]', example: '2' })
+    @IsNumber()
+    mapTransitionTime: number
+
+    @ApiProperty({ description: 'The map transition FPS', example: '20' })
+    @IsNumber()
+    mapTransitionFps: number
+
     @ApiProperty({ description: 'Indicates if the ARC mode is active', example: 'true' })
     @IsBoolean()
     arcMode: boolean

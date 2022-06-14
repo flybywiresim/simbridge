@@ -7,7 +7,7 @@ export enum TerrainLevelMode {
 export class NavigationDisplayData {
     public Timestamp: number = 0;
 
-    public Image: Uint8Array = null;
+    public ImageSequence: string[] = [];
 
     public Pixeldata: SharedArrayBuffer = null;
 

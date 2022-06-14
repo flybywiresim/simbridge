@@ -10,6 +10,8 @@ import { LowDensityPattern } from './lowdensitypattern';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { TerrainLevelMode, NavigationDisplayData } from '../manager/navigationdisplaydata';
 
+const sharp = require('sharp');
+
 const InvalidElevation = 32767;
 const WaterElevation = -1;
 
@@ -314,13 +316,67 @@ class NavigationDisplayRenderer {
 
         return retval;
     }
+
+    public static async clipNavigationDisplayMap(pngData, width: number, height: number, stepSize: number, horizontal: boolean): Promise<string> {
+        const centerX = Math.round(width / 2);
+        let clippingPath = undefined;
+
+        if (horizontal) {
+            clippingPath = Buffer.from(`
+                <svg width="${width}" height="${height}">
+                    <path d="M ${centerX} ${height} L ${centerX + stepSize} 0 L ${centerX - stepSize} 0z" />
+                </svg>`);
+        } else {
+            clippingPath = Buffer.from(`
+                <svg width="${width}" height="${height}">
+                    <path d="M ${centerX} ${height} L ${width - 1} ${stepSize} L ${width - 1} 0 L 0 0 L 0 ${stepSize}z" />
+                </svg>`);
+        }
+
+        return sharp(pngData)
+            .composite([
+                { input: clippingPath, blend: 'dest-atop' },
+            ])
+            .toBuffer()
+            .then((clipped) => Buffer.from(new Uint8Array(clipped)).toString('base64'));
+    }
 }
 
-function renderNdMap(world: Worldmap, viewConfig: NavigationDisplayViewDto, position: PositionDto) {
+async function createNavigationDisplayMaps() {
+    const { world, viewConfig, position } = workerData;
+
     const renderer = new NavigationDisplayRenderer(world);
-    return renderer.render(viewConfig, position);
+    const mapdata = renderer.render(viewConfig, position);
+
+    const frames = await sharp(new Uint8ClampedArray(mapdata.Pixeldata), { raw: { width: mapdata.Columns, height: mapdata.Rows, channels: 3 } })
+        .png()
+        .ensureAlpha()
+        .toBuffer()
+        .then((data) => {
+            const overallFrames = viewConfig.mapTransitionTime * viewConfig.mapTransitionFps;
+            const overallFramesHalfTime = Math.ceil(overallFrames / 2);
+
+            const heightStep = Math.round(mapdata.Rows / overallFramesHalfTime);
+            const widthStep = Math.round((mapdata.Columns / 2) / overallFramesHalfTime);
+            const frameCollection = {};
+
+            for (let i = 0; i < overallFramesHalfTime; ++i) {
+                frameCollection[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, widthStep * i, true);
+            }
+            for (let i = 0; i < overallFramesHalfTime; ++i) {
+                frameCollection[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, heightStep * i, false);
+            }
+            if ((overallFrames - overallFramesHalfTime) * heightStep !== mapdata.Rows) {
+                frameCollection[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, mapdata.Rows, false);
+            }
+
+            return frameCollection;
+        });
+
+    const frameKeys = Object.keys(frames);
+    mapdata.ImageSequence = await Promise.all(frameKeys.map((frame) => frames[frame]));
+
+    parentPort.postMessage(mapdata);
 }
 
-parentPort.postMessage(
-    renderNdMap(workerData.world, workerData.viewConfig, workerData.position),
-);
+createNavigationDisplayMaps();
