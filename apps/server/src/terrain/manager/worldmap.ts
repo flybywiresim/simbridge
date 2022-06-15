@@ -7,6 +7,8 @@ import { PositionDto } from '../dto/position.dto';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { NavigationDisplayData } from './navigationdisplaydata';
 
+require('sharp');
+
 export class Worldmap {
     public Terraindata: Terrainmap | undefined = undefined;
 
