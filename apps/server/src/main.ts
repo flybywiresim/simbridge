@@ -122,7 +122,7 @@ function buildSysTray(logger, isConsoleHidden: Boolean) {
                 exitItem,
             ],
         },
-        copyDir: true,
+        copyDir: false,
     });
 
     sysTray.onClick((action) => {
