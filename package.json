@@ -19,7 +19,7 @@
 		"build": "npm run build:server && npm run build:mcdu",
 		"build:mcdu": "webpack --config apps/mcdu/webpack.config.js",
 		"build:server": "nest build server",
-		"build:exec": "npm run build && npm run install:exec && npm run copy:deps",
+		"build:exec": "npm run build && npx pkg-exe-build build && npm run copy:deps",
 		"copy:deps": "npm run copy:resources && npm run copy:modules && copyfiles -s -f LICENSE build && npm run fetch:terrain",
 		"copy:resources": "copyfiles -s -f apps/server/src/config/properties.json ./node_modules/pdf-to-printer/dist/SumatraPDF.exe build/resources",
 		"copy:modules": "npm run copy:traybin && npm run copy:pdfjs && npm run copy:nodehide && npm run copy:sharp",
@@ -84,7 +84,6 @@
 		"xml2js": "^0.4.23"
 	},
 	"devDependencies": {
-		"axios": "^0.27.2",
 		"@babel/core": "^7.17.5",
 		"@babel/plugin-proposal-class-properties": "^7.16.7",
 		"@babel/plugin-syntax-dynamic-import": "^7.8.3",
@@ -116,6 +115,7 @@
 		"@types/ws": "^8.2.2",
 		"@types/xml2js": "^0.4.9",
 		"@typescript-eslint/parser": "^4.33.0",
+		"axios": "^0.27.2",
 		"babel-loader": "^8.2.3",
 		"babel-plugin-transform-react-remove-prop-types": "^0.4.24",
 		"copy-webpack-plugin": "^10.2.4",
@@ -127,6 +127,7 @@
 		"mini-css-extract-plugin": "^2.5.3",
 		"node-fetch": "^2.6.7",
 		"pkg": "^5.5.1",
+		"pkg-exe-build": "^1.0.15",
 		"rollup": "^2.67.2",
 		"rollup-plugin-copy": "^3.4.0",
 		"rollup-plugin-css-only": "^2.1.0",
@@ -166,19 +167,6 @@
 		"testEnvironment": "node",
 		"roots": [
 			"<rootDir>/apps/"
-		]
-	},
-	"pkg": {
-		"targets": [
-			"node16-win-x64"
-		],
-		"assets": [
-			"node_modules/linebreak/src/classes.trie",
-			"node_modules/skia-canvas/**/*.*",
-			"node_modules/canvas/**/*.*",
-			"node_modules/pdfkit/js/data/Helvetica.afm",
-			"dist/mcdu/**/*",
-			"dist/assets/**/*"
 		]
 	}
 }
