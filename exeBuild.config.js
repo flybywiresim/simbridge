@@ -4,7 +4,7 @@ module.exports = {
     name: 'fbw-simbridge',
     description: 'Application for providing external service to FlyByWire aircraft',
     company: 'FlyByWire Simulations',
-    version: '0.3.9',
+    version: '0.3.11',
     copyright: 'GNU v3',
     pkg: {
         targets: [
