@@ -11,6 +11,7 @@ import bg from './assets/images/mcdu-a32nx.png';
 // Parse the parameters and initialize the state accordingly.
 let fullscreenParam = false;
 let soundParam = false;
+let aspect43Param = false;
 const params = window.location.href.split('?');
 if (params.length > 1) {
     params[1].split('&').forEach((p) => {
@@ -20,6 +21,10 @@ if (params.length > 1) {
             break;
         case 'sound':
             soundParam = true;
+            break;
+        case '43':
+            aspect43Param = true;
+            fullscreenParam = true;
             break;
         default:
             console.error('wrong param provided');
@@ -130,11 +135,11 @@ const App = () => {
             )}
             {fullscreen && (
                 <>
-                    <div className="fullscreen">
+                    <div className={aspect43Param ? 'fullscreen aspect43' : 'fullscreen'}>
                         <div className="App">
                             <WebsocketContext.Provider value={{ sendMessage, lastMessage, readyState }}>
                                 <div title="Exit fullscreen" onClick={() => setFullscreen(false)}>
-                                    <McduScreen content={content} />
+                                    <McduScreen content={content} aspect43={aspect43Param} />
                                 </div>
                             </WebsocketContext.Provider>
                         </div>
