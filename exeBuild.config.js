@@ -2,7 +2,7 @@ module.exports = {
     file: 'dist/main.js',
     icon: 'apps/server/src/assets/images/tail.ico',
     name: 'fbw-simbridge',
-    description: 'Application for providing external service to FlyByWire aircraft',
+    description: 'FlyByWire Simbridge',
     company: 'FlyByWire Simulations',
     version: '0.3.11',
     copyright: 'GNU v3',
