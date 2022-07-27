@@ -17,6 +17,8 @@ module.exports = {
             'node_modules/pdfkit/js/data/Helvetica.afm',
             'dist/mcdu/**/*',
             'dist/assets/**/*',
+            'dist/terrain/manager/maploader.js',
+            'dist/terrain/utils/**/*.js',
         ],
         outputPath: 'build',
     },
