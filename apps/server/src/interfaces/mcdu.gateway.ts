@@ -8,7 +8,7 @@ import serverConfig from '../config/server.config';
 
 @WebSocketGateway({
     cors: { origin: '*' },
-    path: '/interfaces/mcdu',
+    path: '/interfaces/v1/mcdu',
 })
 export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     constructor(
@@ -23,7 +23,7 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     afterInit(server: Server) {
         this.server = server;
         this.logger.log('Remote MCDU websocket initialised');
-        this.logger.debug(`Initialised on http://${address()}:${this.serverConf.port}${server.path}`);
+        this.logger.log(`Initialised on http://${address()}:${this.serverConf.port}${server.path}`);
     }
 
     handleConnection(client: WebSocket) {

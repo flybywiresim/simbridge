@@ -38,7 +38,7 @@ const App = () => {
     const [dark, setDark] = useState(false);
 
     // as http and websocket port are always the same we can read it from the URL
-    const socketUrl = `ws://${window.location.host}/interfaces/mcdu`;
+    const socketUrl = `ws://${window.location.host}/interfaces/v1/mcdu`;
 
     const [content, setContent] = useState(
         {
