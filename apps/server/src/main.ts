@@ -11,6 +11,7 @@ import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
 import { platform } from 'os';
 import { hideConsole, showConsole } from 'node-hide-console-window';
+import open = require('open')
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -58,7 +59,7 @@ async function bootstrap() {
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
     logger.log(`FlyByWire SimBridge started on: http://${address()}:${port}`, 'NestApplication');
 
-    buildSysTray(logger, isConsoleHidden);
+    buildSysTray(logger, isConsoleHidden, port);
 
     if (platform() === 'win32' && isConsoleHidden) {
         hideConsole();
@@ -84,13 +85,26 @@ interface MenuItemClickable extends MenuItem {
     click?: () => void
 }
 
-function buildSysTray(logger, isConsoleHidden: Boolean) {
+function buildSysTray(logger, isConsoleHidden: Boolean, port) {
     let hidden = isConsoleHidden;
 
     const manageConsole = () => {
         if (hidden) showConsole();
         else hideConsole();
         hidden = !hidden;
+    };
+
+    const remoteDisplayItem = {
+        title: 'Remote Displays',
+        tooltip: 'Open remote displays',
+        items: [{
+            title: 'Open MCDU',
+            tooltip: 'Open the MCDU remote display with your default browser',
+            enabled: true,
+            click: () => {
+                open(`http://localhost:${port}/interfaces/mcdu`);
+            },
+        }],
     };
 
     const exitItem : MenuItemClickable = {
@@ -118,6 +132,7 @@ function buildSysTray(logger, isConsoleHidden: Boolean) {
             title: 'FBW SimBridge',
             tooltip: 'Flybywire SimBridge',
             items: [
+                remoteDisplayItem,
                 consoleVisibleItem,
                 exitItem,
             ],
