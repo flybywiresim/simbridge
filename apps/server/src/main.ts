@@ -17,7 +17,7 @@ import { AppModule } from './app.module';
 declare const module: any;
 
 const dirs = [
-    'resources/logs/local-api',
+    'resources/logs',
     'resources/coroutes',
     'resources/pdfs',
     'resources/images',
