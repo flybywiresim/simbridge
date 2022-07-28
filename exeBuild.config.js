@@ -15,6 +15,7 @@ module.exports = {
             'node_modules/skia-canvas/**/*.*',
             'node_modules/canvas/**/*.*',
             'node_modules/pdfkit/js/data/Helvetica.afm',
+            'node_modules/swagger-ui-dist/**/*.*',
             'dist/mcdu/**/*',
             'dist/assets/**/*',
             'dist/terrain/manager/maploader.js',

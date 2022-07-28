@@ -8,15 +8,15 @@ const consoleTransport = new winston.transports.Console({
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.ms(),
-        nestWinstonModuleUtilities.format.nestLike('fbw-local-api', { prettyPrint: true }),
+        nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true }),
         winston.format.errors({ stack: true }),
     ),
 });
 
 const fileTransport = new winston.transports.DailyRotateFile({
     frequency: '24h',
-    filename: 'fbw-local-server-%DATE%.log',
-    dirname: 'resources/logs/local-api',
+    filename: 'fbw-simbridge-%DATE%.log',
+    dirname: 'resources/logs',
     datePattern: 'YYYY-MM-DD-HH',
     zippedArchive: true,
     maxSize: '20m',
@@ -27,7 +27,7 @@ const fileTransport = new winston.transports.DailyRotateFile({
 const defaultFormat = winston.format.combine(
     winston.format.timestamp(),
     winston.format.ms(),
-    nestWinstonModuleUtilities.format.nestLike('fbw-local-api', { prettyPrint: true }),
+    nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true }),
     winston.format.errors({ stack: true }),
     winston.format.uncolorize(),
 );
