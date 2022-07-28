@@ -107,6 +107,15 @@ function buildSysTray(logger, isConsoleHidden: Boolean, port) {
         }],
     };
 
+    const resourcesFolderItem = {
+        title: 'Open Resources Folder',
+        tooltip: 'Open resource folder in your file explorer',
+        enabled: true,
+        click: () => {
+            open.openApp('explorer', { arguments: [`${process.cwd()}\\resources`] });
+        },
+    };
+
     const exitItem : MenuItemClickable = {
         title: 'Exit',
         tooltip: 'Kill the server',
@@ -133,6 +142,7 @@ function buildSysTray(logger, isConsoleHidden: Boolean, port) {
             tooltip: 'Flybywire SimBridge',
             items: [
                 remoteDisplayItem,
+                resourcesFolderItem,
                 consoleVisibleItem,
                 exitItem,
             ],
