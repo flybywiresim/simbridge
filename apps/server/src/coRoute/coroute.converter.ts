@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { plainToClass } from 'class-transformer';
-import { validateOrReject } from 'class-validator';
+import { validateOrReject, ValidationError } from 'class-validator';
 import { Airport } from './dto/airport.dto';
 import { CoRouteDto } from './dto/coroute.dto';
 import { Fix } from './dto/fix.dto';
@@ -25,7 +25,7 @@ export class CoRouteConverter {
             return tempCoRouteDto;
         } catch (errors) {
             const message = 'Failed to instantiate DTO';
-            this.logger.warn(message, errors);
+            this.logger.error(message, errors);
             throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
@@ -34,9 +34,25 @@ export class CoRouteConverter {
         try {
             await validateOrReject(coRoute, { whitelist: true });
         } catch (errors) {
-            const message = `${rteNumber} failed validation`;
-            this.logger.warn(`${rteNumber} failed validation`, errors);
+            const message = `${rteNumber} failed validation, check logs`;
+            (errors as ValidationError[]).forEach((element) => {
+                delete element.target;
+            });
+            this.logger.error(`${rteNumber} failed validation`, errors);
             throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    async isCoRouteValid(coRoute: CoRouteDto, rteNumber: String = 'PLACEHOLDER'): Promise<Boolean> {
+        try {
+            await validateOrReject(coRoute, { whitelist: true });
+            return true;
+        } catch (errors) {
+            (errors as ValidationError[]).forEach((element) => {
+                delete element.target;
+            });
+            this.logger.error(`${rteNumber} failed validation while retrieving route list`, errors);
+            return false;
         }
     }
 }

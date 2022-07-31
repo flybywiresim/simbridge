@@ -41,12 +41,14 @@ export class CoRouteService {
             fileBuffers.fileNames[index],
         ));
 
-        return coRoutes
-            .filter((coRoute) => this.coRouteConverter.validateCoRoute(coRoute))
-            .filter((validatedCoRoute) => this.filterInvalidCoRoute(validatedCoRoute, originIcao, destinationIcao));
+        const foundRoutes = coRoutes
+            .filter((coRoute) => this.coRouteConverter.isCoRouteValid(coRoute, coRoute.name))
+            .filter((validatedCoRoute) => this.isRequestedOrigDest(validatedCoRoute, originIcao, destinationIcao));
+
+        return foundRoutes;
     }
 
-    private filterInvalidCoRoute(coRoute: CoRouteDto, originIcao: String, destinationIcao: String) {
+    private isRequestedOrigDest(coRoute: CoRouteDto, originIcao: String, destinationIcao: String) {
         if (coRoute.origin.icao_code === originIcao && coRoute.destination.icao_code === destinationIcao) {
             return true;
         }

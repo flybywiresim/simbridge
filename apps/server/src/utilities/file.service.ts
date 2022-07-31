@@ -52,7 +52,8 @@ export class FileService {
     async getFolderFilenames(directory: PathLike): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            return readdir(`${process.cwd()}/${directory}`);
+            const dir = await readdir(`${process.cwd()}/${directory}`);
+            return dir;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -63,7 +64,8 @@ export class FileService {
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            return readFile(`${process.cwd()}/${directory}${fileName}`);
+            const file = await readFile(`${process.cwd()}/${directory}${fileName}`);
+            return file;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
             this.logger.error(message, err);

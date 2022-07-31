@@ -16,7 +16,7 @@ export class CoRouteController {
     })
     @ApiResponse({
         status: 404,
-        description: 'unable to find th coroutes folder',
+        description: 'unable to find the coroutes folder',
     })
     async getNumOfRoutes(): Promise<number> {
         return this.coRouteService.getNumOfRoutes();

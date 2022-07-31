@@ -19,7 +19,7 @@ export class UtiliyController {
         @Query('pagenumber', ParseIntPipe) pagenumber: number,
         @Response({ passthrough: true }) res,
     ): Promise<StreamableFile> {
-        const convertedPdfFile = await this.fileService.getConvertedPdfFile(filename, pagenumber);
+        const convertedPdfFile = await this.fileService.getConvertedPdfFile(`${filename}.pdf`, pagenumber);
 
         res.set({
             'Content-Type': 'image/png',
@@ -46,7 +46,7 @@ export class UtiliyController {
         type: Number,
     })
     async getNumberOfPages(@Query('filename') filename: string): Promise<number> {
-        return this.fileService.getNumberOfPdfPages(filename);
+        return this.fileService.getNumberOfPdfPages(`${filename}.pdf`);
     }
 
     @Get('image')
