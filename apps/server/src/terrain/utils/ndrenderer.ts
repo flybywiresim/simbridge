@@ -91,7 +91,7 @@ class NavigationDisplayRenderer {
                 const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
                 const worldIdx = Worldmap.worldMapIndices(this.worldmap, projected.latitude, projected.longitude);
-                const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
+                const tile = this.worldmap.data.grid[worldIdx.row][worldIdx.column];
                 let elevation = 0;
 
                 if (tile.tileIndex === -1) {
@@ -294,7 +294,7 @@ class NavigationDisplayRenderer {
     }
 
     public render(viewConfig: NavigationDisplayViewDto, position: PositionDto): NavigationDisplayData {
-        if (this.worldmap.Terraindata === undefined || position === undefined) {
+        if (this.worldmap.data.terrainData === undefined || position === undefined) {
             return null;
         }
 

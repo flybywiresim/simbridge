@@ -9,14 +9,23 @@ import { NavigationDisplayData } from './navigationdisplaydata';
 
 require('sharp');
 
+export interface WorldMapData {
+    terrainData: TerrainMap | undefined;
+
+    grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][];
+}
+
 export class Worldmap {
-    public Terraindata: TerrainMap | undefined = undefined;
+    public data: WorldMapData = {
+        terrainData: undefined,
+        grid: [],
+    };
+
+    private tileLoaderWorker: Worker;
 
     private tileLoadingInProgress: boolean = false;
 
     private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: NavigationDisplayData } } = {};
-
-    public Grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
     private presentPosition: PositionDto | undefined = undefined;
 
@@ -33,13 +42,13 @@ export class Worldmap {
     }
 
     constructor(mapfile: TerrainMap) {
-        this.Terraindata = mapfile;
+        this.data.terrainData = mapfile;
 
         for (let lat = -90; lat < 90; lat += mapfile.AngularSteps.latitude) {
-            this.Grid.push([]);
+            this.data.grid.push([]);
 
             for (let lon = -180; lon < 180; lon += mapfile.AngularSteps.longitude) {
-                this.Grid[this.Grid.length - 1].push({
+                this.data.grid[this.data.grid.length - 1].push({
                     southwest: { latitude: lat, longitude: lon },
                     tileIndex: Worldmap.findTileIndex(mapfile.Tiles, lat, lon),
                     elevationmap: undefined,
@@ -111,10 +120,10 @@ export class Worldmap {
     }
 
     public static worldMapIndices(world: Worldmap, latitude: number, longitude: number): { row: number, column: number } | undefined {
-        const row = Math.floor((latitude + 90) / world.Terraindata.AngularSteps.latitude);
-        const column = Math.floor((longitude + 180) / world.Terraindata.AngularSteps.longitude);
+        const row = Math.floor((latitude + 90) / world.data.terrainData.AngularSteps.latitude);
+        const column = Math.floor((longitude + 180) / world.data.terrainData.AngularSteps.longitude);
 
-        if (row < 0 || row >= world.Grid.length || column < 0 || column >= world.Grid[row].length) {
+        if (row < 0 || row >= world.data.grid.length || column < 0 || column >= world.data.grid[row].length) {
             return undefined;
         }
 
@@ -122,26 +131,26 @@ export class Worldmap {
     }
 
     public static validTile(world: Worldmap, index: { row: number, column: number }): boolean {
-        if (world.Grid.length <= index.row || index.row < 0 || world.Grid[index.row].length <= index.column || index.column < 0) {
+        if (world.data.grid.length <= index.row || index.row < 0 || world.data.grid[index.row].length <= index.column || index.column < 0) {
             return false;
         }
 
-        return world.Grid[index.row][index.column].tileIndex >= 0 && world.Grid[index.row][index.column].tileIndex < world.Terraindata.Tiles.length;
+        return world.data.grid[index.row][index.column].tileIndex >= 0 && world.data.grid[index.row][index.column].tileIndex < world.data.terrainData.Tiles.length;
     }
 
     public setElevationMap(index: { row: number, column: number }, map: ElevationGrid): void {
-        if (Worldmap.validTile(this, index) === true && this.Grid[index.row][index.column].elevationmap === undefined) {
-            this.Grid[index.row][index.column].elevationmap = map;
-            this.Grid[index.row][index.column].elevationmap.ElevationMap = new Int16Array(this.Grid[index.row][index.column].elevationmap.Grid);
+        if (Worldmap.validTile(this, index) === true && this.data.grid[index.row][index.column].elevationmap === undefined) {
+            this.data.grid[index.row][index.column].elevationmap = map;
+            this.data.grid[index.row][index.column].elevationmap.ElevationMap = new Int16Array(this.data.grid[index.row][index.column].elevationmap.Grid);
         }
     }
 
     public cleanupElevationCache(whitelist: { row: number, column: number }[]): void {
-        for (let row = 0; row < this.Grid.length; ++row) {
-            for (let col = 0; col < this.Grid[row].length; ++col) {
+        for (let row = 0; row < this.data.grid.length; ++row) {
+            for (let col = 0; col < this.data.grid[row].length; ++col) {
                 const idx = whitelist.findIndex((element) => element.column === col && element.row === row);
                 if (idx === -1) {
-                    this.Grid[row][col].elevationmap = undefined;
+                    this.data.grid[row][col].elevationmap = undefined;
                 } else {
                     whitelist.splice(idx, 1);
                 }
@@ -155,11 +164,11 @@ export class Worldmap {
             return undefined;
         }
 
-        if (this.Grid[index.row][index.column].tileIndex < 0 || this.Grid[index.row][index.column].tileIndex >= this.Terraindata.Tiles.length) {
+        if (this.data.grid[index.row][index.column].tileIndex < 0 || this.data.grid[index.row][index.column].tileIndex >= this.data.terrainData.Tiles.length) {
             return undefined;
         }
 
-        return this.Terraindata.Tiles[this.Grid[index.row][index.column].tileIndex];
+        return this.data.terrainData.Tiles[this.data.grid[index.row][index.column].tileIndex];
     }
 
     public ndMap(id: string, timestamp: number): NavigationDisplayData {
