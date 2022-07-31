@@ -9,8 +9,8 @@ function findTileIndices(world: Worldmap, latitude: number, longitude0: number, 
     const indices: { row: number, column: number }[] = [];
 
     for (let lon = longitude0; lon < longitude1; lon += world.data.terrainData.AngularSteps.longitude) {
-        const index = Worldmap.worldMapIndices(world, latitude, lon);
-        if (index !== undefined && Worldmap.validTile(world, index) === true) {
+        const index = Worldmap.worldMapIndices(world.data, latitude, lon);
+        if (index !== undefined && Worldmap.validTile(world.data, index) === true) {
             indices.push(index);
         }
     }
@@ -38,7 +38,7 @@ function loadTiles(world: Worldmap, position: PositionDto) {
     // load all missing tiles
     const retval: { row: Number, column: Number, grid: ElevationGrid }[] = [];
     tileIndices.forEach((index) => {
-        if (Worldmap.validTile(world, index) === true && world.data.grid[index.row][index.column].elevationmap === undefined) {
+        if (Worldmap.validTile(world.data, index) === true && world.data.grid[index.row][index.column].elevationmap === undefined) {
             const map = Tile.loadElevationGrid(world.data.terrainData.Tiles[world.data.grid[index.row][index.column].tileIndex]);
             map.ElevationMap = null;
             retval.push({ row: index.row, column: index.column, grid: map });

@@ -90,7 +90,7 @@ class NavigationDisplayRenderer {
 
                 const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
-                const worldIdx = Worldmap.worldMapIndices(this.worldmap, projected.latitude, projected.longitude);
+                const worldIdx = Worldmap.worldMapIndices(this.worldmap.data, projected.latitude, projected.longitude);
                 const tile = this.worldmap.data.grid[worldIdx.row][worldIdx.column];
                 let elevation = 0;
 

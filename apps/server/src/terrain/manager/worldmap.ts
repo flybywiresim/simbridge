@@ -119,27 +119,27 @@ export class Worldmap {
         });
     }
 
-    public static worldMapIndices(world: Worldmap, latitude: number, longitude: number): { row: number, column: number } | undefined {
-        const row = Math.floor((latitude + 90) / world.data.terrainData.AngularSteps.latitude);
-        const column = Math.floor((longitude + 180) / world.data.terrainData.AngularSteps.longitude);
+    public static worldMapIndices(data: WorldMapData, latitude: number, longitude: number): { row: number, column: number } | undefined {
+        const row = Math.floor((latitude + 90) / data.terrainData.AngularSteps.latitude);
+        const column = Math.floor((longitude + 180) / data.terrainData.AngularSteps.longitude);
 
-        if (row < 0 || row >= world.data.grid.length || column < 0 || column >= world.data.grid[row].length) {
+        if (row < 0 || row >= data.grid.length || column < 0 || column >= data.grid[row].length) {
             return undefined;
         }
 
         return { row, column };
     }
 
-    public static validTile(world: Worldmap, index: { row: number, column: number }): boolean {
-        if (world.data.grid.length <= index.row || index.row < 0 || world.data.grid[index.row].length <= index.column || index.column < 0) {
+    public static validTile(data: WorldMapData, index: { row: number, column: number }): boolean {
+        if (data.grid.length <= index.row || index.row < 0 || data.grid[index.row].length <= index.column || index.column < 0) {
             return false;
         }
 
-        return world.data.grid[index.row][index.column].tileIndex >= 0 && world.data.grid[index.row][index.column].tileIndex < world.data.terrainData.Tiles.length;
+        return data.grid[index.row][index.column].tileIndex >= 0 && data.grid[index.row][index.column].tileIndex < data.terrainData.Tiles.length;
     }
 
     public setElevationMap(index: { row: number, column: number }, map: ElevationGrid): void {
-        if (Worldmap.validTile(this, index) === true && this.data.grid[index.row][index.column].elevationmap === undefined) {
+        if (Worldmap.validTile(this.data, index) === true && this.data.grid[index.row][index.column].elevationmap === undefined) {
             this.data.grid[index.row][index.column].elevationmap = map;
             this.data.grid[index.row][index.column].elevationmap.ElevationMap = new Int16Array(this.data.grid[index.row][index.column].elevationmap.Grid);
         }
@@ -159,7 +159,7 @@ export class Worldmap {
     }
 
     public getTile(latitude: number, longitude: number): Tile | undefined {
-        const index = Worldmap.worldMapIndices(this, latitude, longitude);
+        const index = Worldmap.worldMapIndices(this.data, latitude, longitude);
         if (index === undefined) {
             return undefined;
         }
