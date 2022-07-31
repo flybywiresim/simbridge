@@ -27,7 +27,7 @@ export class TerrainController {
     })
     mapAvailable() {
         if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
-            throw new NotFoundException('Terrainmap not loaded');
+            throw new NotFoundException('System not initialized');
         }
     }
 
@@ -46,8 +46,8 @@ export class TerrainController {
         description: 'Unable to update the display configuration',
     })
     configureDisplay(@Query('display') display, @Body() config: NavigationDisplayViewDto): void {
-        if (this.terrainService.MapManager === undefined) {
-            throw new BadRequestException('Unable to configure the ND display');
+        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+            throw new BadRequestException('System not initialized');
         }
         this.terrainService.MapManager.configureNd(display, config);
     }
@@ -78,6 +78,10 @@ export class TerrainController {
         description: 'Invalid display or timestamp request',
     })
     async getAllNdMapsBase64(@Query('display') display, @Query('timestamp') timestamp) {
+        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+            throw new HttpException('System not initialized', HttpStatus.BAD_REQUEST);
+        }
+
         const data = this.terrainService.MapManager.ndMap(display, parseInt(timestamp));
         if (data === null) {
             throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
@@ -98,7 +102,10 @@ export class TerrainController {
         description: 'Invalid display settings set',
     })
     renderTerrainMap(@Query('display') display) {
-        return this.terrainService.MapManager.renderNdMap(display);
+        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager !== undefined) {
+            return this.terrainService.MapManager.renderNdMap(display);
+        }
+        return -1;
     }
 
     @Get('ndMapAvailable')
@@ -109,7 +116,10 @@ export class TerrainController {
         type: Boolean,
     })
     ndMapAvailable(@Query('display') display, @Query('timestamp') timestamp) {
-        return this.terrainService.MapManager.ndMap(display, parseInt(timestamp)) !== null;
+        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager !== undefined) {
+            return this.terrainService.MapManager.ndMap(display, parseInt(timestamp)) !== null;
+        }
+        return false;
     }
 
     @Get('terrainRange')
@@ -125,6 +135,10 @@ export class TerrainController {
         description: 'Invalid display requested',
     })
     getTerrainRange(@Query('display') display, @Query('timestamp') timestamp) {
+        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+            throw new HttpException('System not initialized', HttpStatus.BAD_REQUEST);
+        }
+
         const ndMap = this.terrainService.MapManager.ndMap(display, parseInt(timestamp));
         if (ndMap === null) {
             throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
