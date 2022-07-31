@@ -1,9 +1,9 @@
 import { gunzipSync } from 'zlib';
 import { ElevationGrid } from './elevationgrid';
-import { Terrainmap } from './terrainmap';
+import { TerrainMap } from './terrainmap';
 
 export class Tile {
-    private parent: Terrainmap | undefined = undefined;
+    private parent: TerrainMap | undefined = undefined;
 
     private buffer: SharedArrayBuffer | undefined = undefined;
 
@@ -15,7 +15,7 @@ export class Tile {
 
     private GridDimension: { rows: number, columns: number } = { rows: 0, columns: 0 };
 
-    constructor(parent: Terrainmap, buffer: SharedArrayBuffer, offset: number) {
+    constructor(parent: TerrainMap, buffer: SharedArrayBuffer, offset: number) {
         const arrBuffer = Buffer.from(buffer);
 
         this.parent = parent;

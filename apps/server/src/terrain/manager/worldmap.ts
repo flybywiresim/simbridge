@@ -1,7 +1,7 @@
 import { Worker } from 'worker_threads';
 import * as path from 'path';
 import { ElevationGrid } from '../mapformat/elevationgrid';
-import { Terrainmap } from '../mapformat/terrainmap';
+import { TerrainMap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { PositionDto } from '../dto/position.dto';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
@@ -10,7 +10,7 @@ import { NavigationDisplayData } from './navigationdisplaydata';
 require('sharp');
 
 export class Worldmap {
-    public Terraindata: Terrainmap | undefined = undefined;
+    public Terraindata: TerrainMap | undefined = undefined;
 
     private tileLoadingInProgress: boolean = false;
 
@@ -32,7 +32,7 @@ export class Worldmap {
         return -1;
     }
 
-    constructor(mapfile: Terrainmap) {
+    constructor(mapfile: TerrainMap) {
         this.Terraindata = mapfile;
 
         for (let lat = -90; lat < 90; lat += mapfile.AngularSteps.latitude) {

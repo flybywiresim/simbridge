@@ -1,6 +1,6 @@
 import { Tile } from './tile';
 
-export class Terrainmap {
+export class TerrainMap {
     public LatitudeRange: { min: number, max: number } = { min: 89, max: -90 };
 
     public LongitudeRange: { min: number, max: number } = { min: 179, max: -180 };

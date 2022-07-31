@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FileService } from '../utilities/file.service';
-import { Terrainmap } from './mapformat/terrainmap';
+import { TerrainMap } from './mapformat/terrainmap';
 import { Worldmap } from './manager/worldmap';
 import { PositionDto } from './dto/position.dto';
 
@@ -10,12 +10,12 @@ export class TerrainService {
 
     private terrainDirectory = 'terrain/';
 
-    public Terrainmap: Terrainmap | undefined = undefined;
+    public Terrainmap: TerrainMap | undefined = undefined;
 
     public MapManager: Worldmap | undefined = undefined;
 
     constructor(private fileService: FileService) {
-        this.readTerrainmap().then((map) => {
+        this.readTerrainMap().then((map) => {
             this.Terrainmap = map;
             if (map !== undefined) {
                 this.MapManager = new Worldmap(this.Terrainmap);
@@ -23,7 +23,7 @@ export class TerrainService {
         });
     }
 
-    private async readTerrainmap(): Promise<Terrainmap | undefined> {
+    private async readTerrainMap(): Promise<TerrainMap | undefined> {
         try {
             const buffer = await this.fileService.getFile(
                 this.terrainDirectory,
@@ -31,7 +31,7 @@ export class TerrainService {
             );
             this.logger.log(`Read MB of terrainmap: ${Buffer.byteLength(buffer) / (1024 * 1024)}`);
 
-            return new Terrainmap(buffer);
+            return new TerrainMap(buffer);
         } catch (err) {
             this.logger.warn('Did not find the terrain.map-file');
             this.logger.warn(err);
