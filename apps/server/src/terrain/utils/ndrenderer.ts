@@ -162,6 +162,12 @@ class NavigationDisplayRenderer {
                 retval.HigherDensityRangeThreshold = retval.SolidDensityRangeThreshold;
                 retval.TerrainMapMinElevation = retval.SolidDensityRangeThreshold;
             }
+
+            // special case for all-water scenarios
+            if (retval.TerrainMapMaxElevation < 0) {
+                retval.TerrainMapMinElevation = -1;
+                retval.TerrainMapMaxElevation = 0;
+            }
         }
 
         return retval;
