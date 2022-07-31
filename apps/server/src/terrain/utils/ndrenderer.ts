@@ -160,7 +160,6 @@ class NavigationDisplayRenderer {
             || retval.HigherDensityRangeThreshold >= retval.SolidDensityRangeThreshold) {
                 retval.LowerDensityRangeThreshold = retval.SolidDensityRangeThreshold;
                 retval.HigherDensityRangeThreshold = retval.SolidDensityRangeThreshold;
-                retval.SolidDensityRangeThreshold = 0;
                 retval.TerrainMapMinElevation = retval.SolidDensityRangeThreshold;
             }
         }
