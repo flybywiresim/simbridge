@@ -147,20 +147,30 @@ class NavigationDisplayRenderer {
 
             retval.TerrainMapMinElevation = retval.LowDensityGreenThreshold >= 0 ? retval.LowDensityGreenThreshold : 0;
             retval.TerrainMapMaxElevationMode = maxElevation >= retval.HighDensityRedThreshold ? TerrainLevelMode.Caution : TerrainLevelMode.Warning;
-        // flat earth situation which does not trigger higher densities
-        } else if (flatEarth) {
-            retval.LowerDensityRangeThreshold = minElevation;
-            retval.HigherDensityRangeThreshold = retval.MaximumElevation;
-            retval.SolidDensityRangeThreshold = retval.MaximumElevation;
-            retval.MinimumElevation = minElevation;
-
-            retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
         // standard peaks mode
         } else {
+            const percentile95th = NavigationDisplayRenderer.percentile(validElevations, 0.95);
             retval.LowerDensityRangeThreshold = Math.min(percentile85th, halfElevation);
-            retval.HigherDensityRangeThreshold = Math.min(NavigationDisplayRenderer.percentile(validElevations, 0.95), (retval.MaximumElevation - minElevation) * 0.65);
-            retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95;
+            retval.HigherDensityRangeThreshold = Math.min(percentile95th, (retval.MaximumElevation - minElevation) * 0.65 + minElevation);
+            retval.SolidDensityRangeThreshold = (retval.MaximumElevation - minElevation) * 0.95 + minElevation;
             retval.TerrainMapMinElevation = retval.LowerDensityRangeThreshold;
+
+            // validate the ranges and statistics to detect other flat terrain situations (disable upper ranges)
+            if (retval.LowerDensityRangeThreshold >= retval.HigherDensityRangeThreshold
+            || retval.LowerDensityRangeThreshold >= retval.SolidDensityRangeThreshold
+            || retval.HigherDensityRangeThreshold >= retval.SolidDensityRangeThreshold
+            || percentile85th >= percentile95th
+            || percentile85th >= retval.SolidDensityRangeThreshold
+            || percentile95th >= retval.SolidDensityRangeThreshold) {
+                retval.HigherDensityRangeThreshold = retval.MaximumElevation + 100;
+                retval.SolidDensityRangeThreshold = retval.MaximumElevation + 100;
+            }
+
+            // special case for all-water scenarios
+            if (retval.TerrainMapMaxElevation < 0) {
+                retval.TerrainMapMinElevation = -1;
+                retval.TerrainMapMaxElevation = 0;
+            }
         }
 
         return retval;
