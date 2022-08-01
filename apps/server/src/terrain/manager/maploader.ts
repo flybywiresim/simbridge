@@ -50,7 +50,6 @@ function loadTiles(data: WorldMapData, position: PositionDto, visibilityRange: n
     return retval;
 }
 
-// parentPort.postMessage(
 parentPort.on('message', (data: { data: WorldMapData, position: PositionDto, visibilityRange: number }) => {
     parentPort.postMessage(
         loadTiles(data.data, data.position, data.visibilityRange),
