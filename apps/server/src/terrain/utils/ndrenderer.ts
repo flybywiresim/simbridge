@@ -45,75 +45,86 @@ class NavigationDisplayRenderer {
         return values[index];
     }
 
+    private extractElevation(viewConfig: NavigationDisplayViewDto, position: PositionDto, x: number, y: number): number {
+        const distancePixelsSqrt = (x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2;
+
+        if (viewConfig.arcMode) {
+            if (distancePixelsSqrt > viewConfig.mapHeight * viewConfig.mapHeight) {
+                return InvalidElevation;
+            }
+        }
+
+        const distancePixels = Math.sqrt(distancePixelsSqrt);
+        const distanceMeters = distancePixels * viewConfig.meterPerPixel;
+        const angle = Math.acos((viewConfig.mapHeight - y) / distancePixels) * (180 / Math.PI);
+        const heading = NavigationDisplayRenderer.normalizeHeading((x > this.centerPixelX ? angle : (360 - angle)) + position.heading);
+        this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
+        this.distanceHeadingLut[y * viewConfig.mapWidth + x].orientation = angle;
+
+        const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
+
+        const worldIdx = Worldmap.worldMapIndices(this.data, projected.latitude, projected.longitude);
+        const tile = this.data.grid[worldIdx.row][worldIdx.column];
+        let elevation = 0;
+
+        if (tile.tileIndex === -1) {
+            elevation = WaterElevation;
+        } else if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
+            const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
+            elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+        } else {
+            elevation = Infinity;
+        }
+
+        return elevation;
+    }
+
     private createLocalElevationMap(viewConfig: NavigationDisplayViewDto, position: PositionDto, referenceAltitude: number): LocalMap {
         this.centerPixelX = Math.round(viewConfig.mapWidth / 2);
 
         // initialize the local map and LUT
         const elevationMap: Int16Array = new Int16Array(viewConfig.mapWidth * viewConfig.mapHeight);
+        // const elevationMap = Int16Array.from({ length: viewConfig.mapWidth * viewConfig.mapHeight }, (_, _i) => InvalidElevation);
         const validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
-        elevationMap.fill(InvalidElevation, 0);
+        // elevationMap.fill(InvalidElevation, 0);
         this.distanceHeadingLut = [...Array(viewConfig.mapHeight * viewConfig.mapWidth)].map(() => ({ distancePixels: 0, heading: 0, orientation: 0 }));
 
         // create the local map and find the highest obstacle
-        for (let y = 0; y < viewConfig.mapHeight; ++y) {
-            for (let x = 0; x < viewConfig.mapWidth; ++x) {
-                if (viewConfig.arcMode) {
-                    const distance = Math.sqrt((x - this.centerPixelX) ** 2 + (y - viewConfig.mapHeight) ** 2);
-                    if (distance > viewConfig.mapHeight) {
-                        continue;
-                    }
+        let x = 0;
+        let y = 0;
+        elevationMap.forEach((_) => {
+            let elevation = InvalidElevation;
+            if (viewConfig.arcMode) {
+                const distance = Math.sqrt((x - this.centerPixelX) ** 2 + (y - viewConfig.mapHeight) ** 2);
+                if (distance <= viewConfig.mapHeight) {
+                    elevation = this.extractElevation(viewConfig, position, x, y);
                 }
-
-                let distanceMeters = 0;
-                let heading = 0;
-
-                // calculate only the first half and access the second half via wrapping of data
-                if (x <= this.centerPixelX) {
-                    const distancePixels = Math.sqrt((x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2);
-                    distanceMeters = distancePixels * viewConfig.meterPerPixel;
-                    const angle = Math.acos((viewConfig.mapHeight - y) / Math.sqrt((x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2)) * (180 / Math.PI);
-                    heading = NavigationDisplayRenderer.normalizeHeading(360 - angle + position.heading);
-
-                    this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
-                    this.distanceHeadingLut[y * viewConfig.mapWidth + x].orientation = angle;
-                } else {
-                    const lutEntry = this.distanceHeadingLut[y * viewConfig.mapWidth + (2 * this.centerPixelX - x)];
-                    distanceMeters = lutEntry.distancePixels * viewConfig.meterPerPixel;
-                    heading = NavigationDisplayRenderer.normalizeHeading(lutEntry.orientation + position.heading);
-                }
-
-                const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
-
-                const worldIdx = Worldmap.worldMapIndices(this.data, projected.latitude, projected.longitude);
-                const tile = this.data.grid[worldIdx.row][worldIdx.column];
-                let elevation = 0;
-
-                if (tile.tileIndex === -1) {
-                    elevation = WaterElevation;
-                } else if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
-                    const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
-                    elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
-                } else {
-                    elevation = Infinity;
-                }
-
-                if (Number.isFinite(elevation) && elevation !== WaterElevation) {
-                    maxElevation = Math.max(elevation, maxElevation);
-                    minElevation = Math.min(elevation, minElevation);
-                    validElevations.push(elevation);
-                }
-
-                elevationMap[y * viewConfig.mapWidth + x] = elevation;
+            } else {
+                elevation = this.extractElevation(viewConfig, position, x, y);
             }
-        }
+
+            if (Number.isFinite(elevation) && elevation !== WaterElevation) {
+                maxElevation = Math.max(elevation, maxElevation);
+                minElevation = Math.min(elevation, minElevation);
+                validElevations.push(elevation);
+            }
+
+            elevationMap[y * viewConfig.mapWidth + x] = elevation;
+
+            x += 1;
+            if (x >= viewConfig.mapWidth) {
+                y += 1;
+                x = 0;
+            }
+        });
 
         // calculate the peak-mode percentils
         validElevations.sort((a, b) => a - b);
 
         const retval = new LocalMap();
-        retval.ElevationMap = elevationMap;
+        retval.ElevationMap = Int16Array.from(elevationMap);
         retval.MaximumElevation = maxElevation;
         retval.TerrainMapMaxElevation = retval.MaximumElevation;
 
@@ -354,7 +365,6 @@ async function createNavigationDisplayMaps(viewConfig: NavigationDisplayViewDto,
 
     const frames = await sharp(new Uint8ClampedArray(mapData.Pixeldata), { raw: { width: mapData.Columns, height: mapData.Rows, channels: 3 } })
         .png()
-        .ensureAlpha()
         .toBuffer()
         .then((data) => {
             const overallFrames = viewConfig.mapTransitionTime * viewConfig.mapTransitionFps;
