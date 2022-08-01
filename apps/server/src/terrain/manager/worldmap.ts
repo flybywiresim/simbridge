@@ -25,11 +25,19 @@ export class Worldmap {
 
     private tileLoadingInProgress: boolean = false;
 
+    private ndRenderingLeftInProgress: boolean = false;
+
+    private ndRendererWorkerLeft: Worker;
+
+    private ndRenderingRightInProgress: boolean = false;
+
+    private ndRendererWorkerRight: Worker;
+
     private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: NavigationDisplayData } } = {};
 
     private presentPosition: PositionDto | undefined = undefined;
 
-    public VisibilityRange: number = 400;
+    private visibilityRange: number = 400;
 
     private static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
         for (let i = 0; i < tiles.length; ++i) {
@@ -55,26 +63,60 @@ export class Worldmap {
                 });
             }
         }
+
+        this.tileLoaderWorker = new Worker(path.resolve(__dirname, './maploader.js'));
+        this.tileLoaderWorker.on('message', (result) => {
+            const loadedTiles: { row: number, column: number }[] = [];
+
+            result.forEach((tile) => {
+                loadedTiles.push({ row: tile.row, column: tile.column });
+                if (tile.grid !== null) {
+                    this.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
+                }
+            });
+
+            this.cleanupElevationCache(loadedTiles);
+            this.tileLoadingInProgress = false;
+        });
+
+        this.ndRendererWorkerLeft = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
+        this.ndRendererWorkerLeft.on('message', (result: NavigationDisplayData) => {
+            this.displays.L.data = result;
+            this.ndRenderingLeftInProgress = false;
+        });
+
+        this.ndRendererWorkerRight = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
+        this.ndRendererWorkerRight.on('message', (result: NavigationDisplayData) => {
+            this.displays.R.data = result;
+            this.ndRenderingRightInProgress = false;
+        });
     }
 
     public renderNdMap(id: string): number {
         if (id in this.displays) {
+            const timestamp = new Date().getTime();
+            const workerContent = {
+                viewConfig: this.displays[id].viewConfig,
+                data: this.data,
+                position: this.presentPosition,
+                timestamp,
+            };
+
             if (this.displays[id].viewConfig !== undefined && this.displays[id].viewConfig.active === true) {
-                const worker = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'), {
-                    workerData: {
-                        world: this,
-                        viewConfig: this.displays[id].viewConfig,
-                        position: this.presentPosition,
-                    },
-                });
-                const timestamp = new Date().getTime();
+                if (id === 'L') {
+                    if (this.ndRenderingLeftInProgress === false) {
+                        this.ndRendererWorkerLeft.postMessage(workerContent);
+                        return timestamp;
+                    }
+                } else if (this.ndRenderingRightInProgress === false) {
+                    this.ndRendererWorkerRight.postMessage(workerContent);
+                    return timestamp;
+                }
 
-                worker.on('message', (result: NavigationDisplayData) => {
-                    result.Timestamp = timestamp;
-                    this.displays[id].data = result;
-                });
-
-                return timestamp;
+                if (this.displays[id].data !== null) {
+                    return this.displays[id].data.Timestamp;
+                }
+                return -1;
             }
 
             this.displays[id].data = null;
@@ -102,21 +144,7 @@ export class Worldmap {
         this.tileLoadingInProgress = true;
         this.presentPosition = position;
 
-        const worker = new Worker(path.resolve(__dirname, './maploader.js'), { workerData: { world: this, position: this.presentPosition } });
-
-        worker.on('message', (result) => {
-            const loadedTiles: { row: number, column: number }[] = [];
-
-            result.forEach((tile) => {
-                loadedTiles.push({ row: tile.row, column: tile.column });
-                if (tile.grid !== null) {
-                    this.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
-                }
-            });
-
-            this.cleanupElevationCache(loadedTiles);
-            this.tileLoadingInProgress = false;
-        });
+        this.tileLoaderWorker.postMessage({ data: this.data, position: this.presentPosition, visibilityRange: this.visibilityRange });
     }
 
     public static worldMapIndices(data: WorldMapData, latitude: number, longitude: number): { row: number, column: number } | undefined {

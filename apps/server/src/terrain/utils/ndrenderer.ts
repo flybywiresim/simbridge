@@ -1,6 +1,6 @@
-import { parentPort, workerData } from 'worker_threads';
+import { parentPort } from 'worker_threads';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
-import { Worldmap } from '../manager/worldmap';
+import { Worldmap, WorldMapData } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
 import { LocalMap } from './localmap';
@@ -16,15 +16,11 @@ const InvalidElevation = 32767;
 const WaterElevation = -1;
 
 class NavigationDisplayRenderer {
-    private worldmap: Worldmap | undefined = undefined;
-
     private centerPixelX: number = 0;
 
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
-    constructor(map: Worldmap) {
-        this.worldmap = map;
-    }
+    constructor(private data: WorldMapData) { }
 
     private static normalizeHeading(heading: number): number {
         return (heading - (Math.floor(heading / 360) * 360));
@@ -90,8 +86,8 @@ class NavigationDisplayRenderer {
 
                 const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
-                const worldIdx = Worldmap.worldMapIndices(this.worldmap.data, projected.latitude, projected.longitude);
-                const tile = this.worldmap.data.grid[worldIdx.row][worldIdx.column];
+                const worldIdx = Worldmap.worldMapIndices(this.data, projected.latitude, projected.longitude);
+                const tile = this.data.grid[worldIdx.row][worldIdx.column];
                 let elevation = 0;
 
                 if (tile.tileIndex === -1) {
@@ -294,7 +290,7 @@ class NavigationDisplayRenderer {
     }
 
     public render(viewConfig: NavigationDisplayViewDto, position: PositionDto): NavigationDisplayData {
-        if (this.worldmap.data.terrainData === undefined || position === undefined) {
+        if (this.data.terrainData === undefined || position === undefined) {
             return null;
         }
 
@@ -352,13 +348,11 @@ class NavigationDisplayRenderer {
     }
 }
 
-async function createNavigationDisplayMaps() {
-    const { world, viewConfig, position } = workerData;
+async function createNavigationDisplayMaps(viewConfig: NavigationDisplayViewDto, data: WorldMapData, position: PositionDto, timestamp: number) {
+    const renderer = new NavigationDisplayRenderer(data);
+    const mapData = renderer.render(viewConfig, position);
 
-    const renderer = new NavigationDisplayRenderer(world);
-    const mapdata = renderer.render(viewConfig, position);
-
-    const frames = await sharp(new Uint8ClampedArray(mapdata.Pixeldata), { raw: { width: mapdata.Columns, height: mapdata.Rows, channels: 3 } })
+    const frames = await sharp(new Uint8ClampedArray(mapData.Pixeldata), { raw: { width: mapData.Columns, height: mapData.Rows, channels: 3 } })
         .png()
         .ensureAlpha()
         .toBuffer()
@@ -366,27 +360,30 @@ async function createNavigationDisplayMaps() {
             const overallFrames = viewConfig.mapTransitionTime * viewConfig.mapTransitionFps;
             const overallFramesHalfTime = Math.ceil(overallFrames / 2);
 
-            const heightStep = Math.round(mapdata.Rows / overallFramesHalfTime);
-            const widthStep = Math.round((mapdata.Columns / 2) / overallFramesHalfTime);
+            const heightStep = Math.round(mapData.Rows / overallFramesHalfTime);
+            const widthStep = Math.round((mapData.Columns / 2) / overallFramesHalfTime);
             const frameCollection = {};
 
             for (let i = 0; i < overallFramesHalfTime; ++i) {
-                frameCollection[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, widthStep * i, true);
+                frameCollection[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapData.Columns, mapData.Rows, widthStep * i, true);
             }
             for (let i = 0; i < overallFramesHalfTime; ++i) {
-                frameCollection[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, heightStep * i, false);
+                frameCollection[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapData.Columns, mapData.Rows, heightStep * i, false);
             }
-            if ((overallFrames - overallFramesHalfTime) * heightStep !== mapdata.Rows) {
-                frameCollection[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, mapdata.Rows, false);
+            if ((overallFrames - overallFramesHalfTime) * heightStep !== mapData.Rows) {
+                frameCollection[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapData.Columns, mapData.Rows, mapData.Rows, false);
             }
 
             return frameCollection;
         });
 
     const frameKeys = Object.keys(frames);
-    mapdata.ImageSequence = await Promise.all(frameKeys.map((frame) => frames[frame]));
+    mapData.ImageSequence = await Promise.all(frameKeys.map((frame) => frames[frame]));
+    mapData.Timestamp = timestamp;
 
-    parentPort.postMessage(mapdata);
+    parentPort.postMessage(mapData);
 }
 
-createNavigationDisplayMaps();
+parentPort.on('message', (data: { viewConfig: NavigationDisplayViewDto, data: WorldMapData, position: PositionDto, timestamp: number }) => {
+    createNavigationDisplayMaps(data.viewConfig, data.data, data.position, data.timestamp);
+});
