@@ -84,11 +84,9 @@ class NavigationDisplayRenderer {
 
         // initialize the local map and LUT
         const elevationMap: Int16Array = new Int16Array(viewConfig.mapWidth * viewConfig.mapHeight);
-        // const elevationMap = Int16Array.from({ length: viewConfig.mapWidth * viewConfig.mapHeight }, (_, _i) => InvalidElevation);
         const validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
-        // elevationMap.fill(InvalidElevation, 0);
         this.distanceHeadingLut = [...Array(viewConfig.mapHeight * viewConfig.mapWidth)].map(() => ({ distancePixels: 0, heading: 0, orientation: 0 }));
 
         // create the local map and find the highest obstacle
