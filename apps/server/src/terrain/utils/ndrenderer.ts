@@ -226,6 +226,7 @@ class NavigationDisplayRenderer {
         let y = 0;
         let x = 0;
         localMapData.ElevationMap.forEach((elevation) => {
+            this.fillPixel(viewConfig, image, x, y, 4, 4, 5);
             if (elevation !== InvalidElevation) {
                 if (!Number.isFinite(elevation)) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
@@ -272,11 +273,7 @@ class NavigationDisplayRenderer {
                         this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                         localMapData.RenderedNonCriticalAreas = true;
                     }
-                } else {
-                    this.fillPixel(viewConfig, image, x, y, 4, 4, 5);
                 }
-            } else {
-                this.fillPixel(viewConfig, image, x, y, 4, 4, 5);
             }
 
             x++;
