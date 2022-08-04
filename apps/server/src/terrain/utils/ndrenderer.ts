@@ -103,7 +103,7 @@ class NavigationDisplayRenderer {
                 elevation = this.extractElevation(viewConfig, position, x, y);
             }
 
-            if (Number.isFinite(elevation) && elevation !== WaterElevation) {
+            if (Number.isFinite(elevation) && elevation !== WaterElevation && elevation !== InvalidElevation) {
                 maxElevation = Math.max(elevation, maxElevation);
                 minElevation = Math.min(elevation, minElevation);
                 validElevations.push(elevation);
