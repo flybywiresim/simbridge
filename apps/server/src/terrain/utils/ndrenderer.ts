@@ -1,6 +1,6 @@
-import { parentPort, workerData } from 'worker_threads';
+import { parentPort } from 'worker_threads';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
-import { Worldmap } from '../manager/worldmap';
+import { Worldmap, RenderingData } from '../manager/worldmap';
 import { PositionDto } from '../dto/position.dto';
 import { WGS84 } from './wgs84';
 import { LocalMap } from './localmap';
@@ -16,14 +16,20 @@ const InvalidElevation = 32767;
 const WaterElevation = -1;
 
 class NavigationDisplayRenderer {
-    private worldmap: Worldmap | undefined = undefined;
-
     private centerPixelX: number = 0;
+
+    private grid: Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>;
 
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
-    constructor(map: Worldmap) {
-        this.worldmap = map;
+    constructor(private data: RenderingData) {
+        // create the local grid
+        this.grid = new Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>(data.gridDefinition.rows)
+            .fill(new Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>(data.gridDefinition.columns)
+                .fill({ southwest: { latitude: 0, longitude: 0 }, tileIndex: 0, elevationmap: undefined }));
+        data.tiles.forEach((tile) => {
+            this.grid[tile.row][tile.column].elevationmap = tile.grid;
+        });
     }
 
     private static normalizeHeading(heading: number): number {
@@ -49,6 +55,40 @@ class NavigationDisplayRenderer {
         return values[index];
     }
 
+    private extractElevation(viewConfig: NavigationDisplayViewDto, position: PositionDto, x: number, y: number): number {
+        const distancePixelsSqrt = (x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2;
+
+        if (viewConfig.arcMode) {
+            if (distancePixelsSqrt > viewConfig.mapHeight * viewConfig.mapHeight) {
+                return InvalidElevation;
+            }
+        }
+
+        const distancePixels = Math.sqrt(distancePixelsSqrt);
+        const distanceMeters = distancePixels * viewConfig.meterPerPixel;
+        const angle = Math.acos((viewConfig.mapHeight - y) / distancePixels) * (180 / Math.PI);
+        const heading = NavigationDisplayRenderer.normalizeHeading((x > this.centerPixelX ? angle : (360 - angle)) + position.heading);
+        this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
+        this.distanceHeadingLut[y * viewConfig.mapWidth + x].orientation = angle;
+
+        const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
+
+        const worldIdx = Worldmap.worldMapIndices(this.data.gridDefinition, projected.latitude, projected.longitude);
+        const tile = this.grid[worldIdx.row][worldIdx.column];
+        let elevation = 0;
+
+        if (tile.tileIndex === -1) {
+            elevation = WaterElevation;
+        } else if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
+            const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
+            elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+        } else {
+            elevation = Infinity;
+        }
+
+        return elevation;
+    }
+
     private createLocalElevationMap(viewConfig: NavigationDisplayViewDto, position: PositionDto, referenceAltitude: number): LocalMap {
         this.centerPixelX = Math.round(viewConfig.mapWidth / 2);
 
@@ -57,67 +97,42 @@ class NavigationDisplayRenderer {
         const validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
-        elevationMap.fill(InvalidElevation, 0);
         this.distanceHeadingLut = [...Array(viewConfig.mapHeight * viewConfig.mapWidth)].map(() => ({ distancePixels: 0, heading: 0, orientation: 0 }));
 
         // create the local map and find the highest obstacle
-        for (let y = 0; y < viewConfig.mapHeight; ++y) {
-            for (let x = 0; x < viewConfig.mapWidth; ++x) {
-                if (viewConfig.arcMode) {
-                    const distance = Math.sqrt((x - this.centerPixelX) ** 2 + (y - viewConfig.mapHeight) ** 2);
-                    if (distance > viewConfig.mapHeight) {
-                        continue;
-                    }
+        let x = 0;
+        let y = 0;
+        elevationMap.forEach((_) => {
+            let elevation = InvalidElevation;
+            if (viewConfig.arcMode) {
+                const distance = Math.sqrt((x - this.centerPixelX) ** 2 + (y - viewConfig.mapHeight) ** 2);
+                if (distance <= viewConfig.mapHeight) {
+                    elevation = this.extractElevation(viewConfig, position, x, y);
                 }
-
-                let distanceMeters = 0;
-                let heading = 0;
-
-                // calculate only the first half and access the second half via wrapping of data
-                if (x <= this.centerPixelX) {
-                    const distancePixels = Math.sqrt((x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2);
-                    distanceMeters = distancePixels * viewConfig.meterPerPixel;
-                    const angle = Math.acos((viewConfig.mapHeight - y) / Math.sqrt((x - this.centerPixelX) ** 2 + (viewConfig.mapHeight - y) ** 2)) * (180 / Math.PI);
-                    heading = NavigationDisplayRenderer.normalizeHeading(360 - angle + position.heading);
-
-                    this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
-                    this.distanceHeadingLut[y * viewConfig.mapWidth + x].orientation = angle;
-                } else {
-                    const lutEntry = this.distanceHeadingLut[y * viewConfig.mapWidth + (2 * this.centerPixelX - x)];
-                    distanceMeters = lutEntry.distancePixels * viewConfig.meterPerPixel;
-                    heading = NavigationDisplayRenderer.normalizeHeading(lutEntry.orientation + position.heading);
-                }
-
-                const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
-
-                const worldIdx = Worldmap.worldMapIndices(this.worldmap, projected.latitude, projected.longitude);
-                const tile = this.worldmap.Grid[worldIdx.row][worldIdx.column];
-                let elevation = 0;
-
-                if (tile.tileIndex === -1) {
-                    elevation = WaterElevation;
-                } else if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
-                    const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
-                    elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
-                } else {
-                    elevation = Infinity;
-                }
-
-                if (Number.isFinite(elevation) && elevation !== WaterElevation) {
-                    maxElevation = Math.max(elevation, maxElevation);
-                    minElevation = Math.min(elevation, minElevation);
-                    validElevations.push(elevation);
-                }
-
-                elevationMap[y * viewConfig.mapWidth + x] = elevation;
+            } else {
+                elevation = this.extractElevation(viewConfig, position, x, y);
             }
-        }
+
+            if (Number.isFinite(elevation) && elevation !== WaterElevation && elevation !== InvalidElevation) {
+                maxElevation = Math.max(elevation, maxElevation);
+                minElevation = Math.min(elevation, minElevation);
+                validElevations.push(elevation);
+            }
+
+            elevationMap[y * viewConfig.mapWidth + x] = elevation;
+
+            x += 1;
+            if (x >= viewConfig.mapWidth) {
+                y += 1;
+                x = 0;
+            }
+        });
 
         // calculate the peak-mode percentils
         validElevations.sort((a, b) => a - b);
 
         const retval = new LocalMap();
-        retval.ElevationMap = elevationMap;
+        retval.ElevationMap = Int16Array.from(elevationMap);
         retval.MaximumElevation = maxElevation;
         retval.TerrainMapMaxElevation = retval.MaximumElevation;
 
@@ -294,7 +309,7 @@ class NavigationDisplayRenderer {
     }
 
     public render(viewConfig: NavigationDisplayViewDto, position: PositionDto): NavigationDisplayData {
-        if (this.worldmap.Terraindata === undefined || position === undefined) {
+        if (this.data.tiles.length === 0 || position === undefined) {
             return null;
         }
 
@@ -327,7 +342,7 @@ class NavigationDisplayRenderer {
         return retval;
     }
 
-    public static async clipNavigationDisplayMap(pngData, width: number, height: number, stepSize: number, horizontal: boolean): Promise<string> {
+    public static async clipNavigationDisplayMap(pixelData: Uint8ClampedArray, mapData, width: number, height: number, stepSize: number, horizontal: boolean): Promise<string> {
         const centerX = Math.round(width / 2);
         let clippingPath = undefined;
 
@@ -343,50 +358,45 @@ class NavigationDisplayRenderer {
                 </svg>`);
         }
 
-        return sharp(pngData)
+        return sharp(pixelData, { raw: { width: mapData.Columns, height: mapData.Rows, channels: 3 } })
             .composite([
                 { input: clippingPath, blend: 'dest-atop' },
             ])
+            .png()
             .toBuffer()
             .then((clipped) => Buffer.from(new Uint8Array(clipped)).toString('base64'));
     }
 }
 
-async function createNavigationDisplayMaps() {
-    const { world, viewConfig, position } = workerData;
+async function createNavigationDisplayMaps(data: RenderingData) {
+    const renderer = new NavigationDisplayRenderer(data);
+    const mapData = renderer.render(data.viewConfig, data.position);
 
-    const renderer = new NavigationDisplayRenderer(world);
-    const mapdata = renderer.render(viewConfig, position);
+    const pixeldata = new Uint8ClampedArray(mapData.Pixeldata);
+    const overallFrames = data.viewConfig.mapTransitionTime * data.viewConfig.mapTransitionFps;
+    const overallFramesHalfTime = Math.ceil(overallFrames / 2);
 
-    const frames = await sharp(new Uint8ClampedArray(mapdata.Pixeldata), { raw: { width: mapdata.Columns, height: mapdata.Rows, channels: 3 } })
-        .png()
-        .ensureAlpha()
-        .toBuffer()
-        .then((data) => {
-            const overallFrames = viewConfig.mapTransitionTime * viewConfig.mapTransitionFps;
-            const overallFramesHalfTime = Math.ceil(overallFrames / 2);
+    const heightStep = Math.round(mapData.Rows / overallFramesHalfTime);
+    const widthStep = Math.round((mapData.Columns / 2) / overallFramesHalfTime);
+    const frames = {};
 
-            const heightStep = Math.round(mapdata.Rows / overallFramesHalfTime);
-            const widthStep = Math.round((mapdata.Columns / 2) / overallFramesHalfTime);
-            const frameCollection = {};
-
-            for (let i = 0; i < overallFramesHalfTime; ++i) {
-                frameCollection[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, widthStep * i, true);
-            }
-            for (let i = 0; i < overallFramesHalfTime; ++i) {
-                frameCollection[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, heightStep * i, false);
-            }
-            if ((overallFrames - overallFramesHalfTime) * heightStep !== mapdata.Rows) {
-                frameCollection[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(data, mapdata.Columns, mapdata.Rows, mapdata.Rows, false);
-            }
-
-            return frameCollection;
-        });
+    for (let i = 0; i < overallFramesHalfTime; ++i) {
+        frames[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(pixeldata, mapData, mapData.Columns, mapData.Rows, widthStep * i, true);
+    }
+    for (let i = 0; i < overallFramesHalfTime; ++i) {
+        frames[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(pixeldata, mapData, mapData.Columns, mapData.Rows, heightStep * i, false);
+    }
+    if ((overallFrames - overallFramesHalfTime) * heightStep !== mapData.Rows) {
+        frames[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(pixeldata, mapData, mapData.Columns, mapData.Rows, mapData.Rows, false);
+    }
 
     const frameKeys = Object.keys(frames);
-    mapdata.ImageSequence = await Promise.all(frameKeys.map((frame) => frames[frame]));
+    mapData.ImageSequence = await Promise.all(frameKeys.map((frame) => frames[frame]));
+    mapData.Timestamp = data.timestamp;
 
-    parentPort.postMessage(mapdata);
+    parentPort.postMessage(mapData);
 }
 
-createNavigationDisplayMaps();
+parentPort.on('message', (data: RenderingData) => {
+    createNavigationDisplayMaps(data);
+});
