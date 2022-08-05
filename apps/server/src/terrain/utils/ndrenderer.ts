@@ -342,7 +342,7 @@ class NavigationDisplayRenderer {
         return retval;
     }
 
-    public static async clipNavigationDisplayMap(pngData, width: number, height: number, stepSize: number, horizontal: boolean): Promise<string> {
+    public static async clipNavigationDisplayMap(pixelData: Uint8ClampedArray, mapData, width: number, height: number, stepSize: number, horizontal: boolean): Promise<string> {
         const centerX = Math.round(width / 2);
         let clippingPath = undefined;
 
@@ -358,10 +358,11 @@ class NavigationDisplayRenderer {
                 </svg>`);
         }
 
-        return sharp(pngData)
+        return sharp(pixelData, { raw: { width: mapData.Columns, height: mapData.Rows, channels: 3 } })
             .composite([
                 { input: clippingPath, blend: 'dest-atop' },
             ])
+            .png()
             .toBuffer()
             .then((clipped) => Buffer.from(new Uint8Array(clipped)).toString('base64'));
     }
@@ -371,29 +372,23 @@ async function createNavigationDisplayMaps(data: RenderingData) {
     const renderer = new NavigationDisplayRenderer(data);
     const mapData = renderer.render(data.viewConfig, data.position);
 
-    const frames = await sharp(new Uint8ClampedArray(mapData.Pixeldata), { raw: { width: mapData.Columns, height: mapData.Rows, channels: 3 } })
-        .png()
-        .toBuffer()
-        .then((pngData) => {
-            const overallFrames = data.viewConfig.mapTransitionTime * data.viewConfig.mapTransitionFps;
-            const overallFramesHalfTime = Math.ceil(overallFrames / 2);
+    const pixeldata = new Uint8ClampedArray(mapData.Pixeldata);
+    const overallFrames = data.viewConfig.mapTransitionTime * data.viewConfig.mapTransitionFps;
+    const overallFramesHalfTime = Math.ceil(overallFrames / 2);
 
-            const heightStep = Math.round(mapData.Rows / overallFramesHalfTime);
-            const widthStep = Math.round((mapData.Columns / 2) / overallFramesHalfTime);
-            const frameCollection = {};
+    const heightStep = Math.round(mapData.Rows / overallFramesHalfTime);
+    const widthStep = Math.round((mapData.Columns / 2) / overallFramesHalfTime);
+    const frames = {};
 
-            for (let i = 0; i < overallFramesHalfTime; ++i) {
-                frameCollection[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(pngData, mapData.Columns, mapData.Rows, widthStep * i, true);
-            }
-            for (let i = 0; i < overallFramesHalfTime; ++i) {
-                frameCollection[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(pngData, mapData.Columns, mapData.Rows, heightStep * i, false);
-            }
-            if ((overallFrames - overallFramesHalfTime) * heightStep !== mapData.Rows) {
-                frameCollection[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(pngData, mapData.Columns, mapData.Rows, mapData.Rows, false);
-            }
-
-            return frameCollection;
-        });
+    for (let i = 0; i < overallFramesHalfTime; ++i) {
+        frames[i] = NavigationDisplayRenderer.clipNavigationDisplayMap(pixeldata, mapData, mapData.Columns, mapData.Rows, widthStep * i, true);
+    }
+    for (let i = 0; i < overallFramesHalfTime; ++i) {
+        frames[i + overallFramesHalfTime] = NavigationDisplayRenderer.clipNavigationDisplayMap(pixeldata, mapData, mapData.Columns, mapData.Rows, heightStep * i, false);
+    }
+    if ((overallFrames - overallFramesHalfTime) * heightStep !== mapData.Rows) {
+        frames[overallFrames + 1] = NavigationDisplayRenderer.clipNavigationDisplayMap(pixeldata, mapData, mapData.Columns, mapData.Rows, mapData.Rows, false);
+    }
 
     const frameKeys = Object.keys(frames);
     mapData.ImageSequence = await Promise.all(frameKeys.map((frame) => frames[frame]));
