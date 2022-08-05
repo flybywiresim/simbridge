@@ -191,10 +191,10 @@ class NavigationDisplayRenderer {
         return retval;
     }
 
-    private fillPixel(viewConfig: NavigationDisplayViewDto, image: Uint8ClampedArray, x: number, y: number, color: { r: number, g: number, b: number }) {
-        image[(y * viewConfig.mapWidth + x) * 3 + 0] = color.r;
-        image[(y * viewConfig.mapWidth + x) * 3 + 1] = color.g;
-        image[(y * viewConfig.mapWidth + x) * 3 + 2] = color.b;
+    private fillPixel(viewConfig: NavigationDisplayViewDto, image: Uint8ClampedArray, x: number, y: number, r: number, g: number, b: number) {
+        image[(y * viewConfig.mapWidth + x) * 3 + 0] = r;
+        image[(y * viewConfig.mapWidth + x) * 3 + 1] = g;
+        image[(y * viewConfig.mapWidth + x) * 3 + 2] = b;
     }
 
     private findCorrectPattern(viewConfig: NavigationDisplayViewDto, densityPatterns: { angleRanges: number[][],
@@ -251,50 +251,51 @@ class NavigationDisplayRenderer {
         let y = 0;
         let x = 0;
         localMapData.ElevationMap.forEach((elevation) => {
+            this.fillPixel(viewConfig, image, x, y, 4, 4, 5);
             if (elevation !== InvalidElevation) {
                 if (!Number.isFinite(elevation)) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 255, g: 148, b: 255 });
+                        this.fillPixel(viewConfig, image, x, y, 255, 148, 255);
                     }
                 } else if (elevation === WaterElevation) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 255 });
+                        this.fillPixel(viewConfig, image, x, y, 0, 255, 255);
                     }
                 } else if (localMapData.DisplayPeaksMode) {
                     if (localMapData.SolidDensityRangeThreshold <= elevation) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                         localMapData.RenderedNonCriticalAreas = true;
                     } else if (localMapData.HigherDensityRangeThreshold <= elevation && localMapData.SolidDensityRangeThreshold > elevation) {
                         if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                            this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                            this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                             localMapData.RenderedNonCriticalAreas = true;
                         }
                     } else if (localMapData.LowerDensityRangeThreshold <= elevation && elevation < localMapData.HigherDensityRangeThreshold) {
                         if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                            this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                            this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                             localMapData.RenderedNonCriticalAreas = true;
                         }
                     }
                 } else if (elevation >= localMapData.HighDensityRedThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 255, g: 0, b: 0 });
+                        this.fillPixel(viewConfig, image, x, y, 255, 0, 0);
                     }
                 } else if (elevation >= localMapData.HighDensityYellowThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 255, g: 255, b: 50 });
+                        this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
                     }
                 } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                         localMapData.RenderedNonCriticalAreas = true;
                     }
                 } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 255, g: 255, b: 50 });
+                        this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
                     }
                 } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
                     if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                        this.fillPixel(viewConfig, image, x, y, { r: 0, g: 255, b: 0 });
+                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                         localMapData.RenderedNonCriticalAreas = true;
                     }
                 }
