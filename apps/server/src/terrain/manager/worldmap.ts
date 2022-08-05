@@ -47,8 +47,6 @@ export class Worldmap {
 
     private tileLoadingInProgress: boolean = false;
 
-    private startTime: number = 0;
-
     private ndRenderingLeftInProgress: boolean = false;
 
     private ndRendererWorkerLeft: Worker;
@@ -112,7 +110,6 @@ export class Worldmap {
         this.ndRendererWorkerLeft.on('message', (result: NavigationDisplayData) => {
             this.displays.L.data = result;
             this.ndRenderingLeftInProgress = false;
-            console.log(`Rendering: ${new Date().getTime() - this.startTime}`);
         });
 
         this.ndRendererWorkerRight = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
@@ -180,7 +177,6 @@ export class Worldmap {
         if (id in this.displays) {
             if (this.displays[id].viewConfig !== undefined && this.displays[id].viewConfig.active === true) {
                 const timestamp = new Date().getTime();
-                this.startTime = timestamp;
 
                 // get all relevant tiles
                 const rangeMeters = this.displays[id].viewConfig.mapWidth * 0.5 * this.displays[id].viewConfig.meterPerPixel;
