@@ -16,18 +16,40 @@ const InvalidElevation = 32767;
 const WaterElevation = -1;
 
 class NavigationDisplayRenderer {
+    private data: RenderingData;
+
     private centerPixelX: number = 0;
 
-    private grid: Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>;
+    private grid: Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>> = null;
 
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
-    constructor(private data: RenderingData) {
-        // create the local grid
-        this.grid = new Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>(data.gridDefinition.rows)
-            .fill(new Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>(data.gridDefinition.columns)
-                .fill({ southwest: { latitude: 0, longitude: 0 }, tileIndex: 0, elevationmap: undefined }));
-        data.tiles.forEach((tile) => {
+    public updateWorldGrid(renderingData: RenderingData) {
+        this.data = renderingData;
+
+        if (this.grid === null) {
+            // create the local grid
+            this.grid = new Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>(this.data.gridDefinition.rows);
+            for (let y = 0; y < this.data.gridDefinition.rows; ++y) {
+                this.grid[y] = new Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>(this.data.gridDefinition.columns);
+                for (let x = 0; x < this.data.gridDefinition.columns; ++x) {
+                    this.grid[y][x] = {
+                        southwest: { latitude: this.data.gridDefinition.latitudeStep * y - 90, longitude: this.data.gridDefinition.longitudeStep * x - 180 },
+                        tileIndex: -1,
+                        elevationmap: undefined,
+                    };
+                }
+            }
+        }
+
+        this.grid.forEach((row) => {
+            row.forEach((cell) => {
+                cell.elevationmap = undefined;
+            });
+        });
+
+        renderingData.tiles.forEach((tile) => {
+            this.grid[tile.row][tile.column].tileIndex = 0;
             this.grid[tile.row][tile.column].elevationmap = tile.grid;
         });
     }
@@ -369,8 +391,10 @@ class NavigationDisplayRenderer {
     }
 }
 
+const renderer = new NavigationDisplayRenderer();
+
 async function createNavigationDisplayMaps(data: RenderingData) {
-    const renderer = new NavigationDisplayRenderer(data);
+    renderer.updateWorldGrid(data);
     const mapData = renderer.render(data.viewConfig, data.position);
 
     const pixeldata = new Uint8ClampedArray(mapData.Pixeldata);
