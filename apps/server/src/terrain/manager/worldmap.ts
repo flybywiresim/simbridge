@@ -152,6 +152,12 @@ export class Worldmap {
         const northeast = WGS84.project(position.latitude, position.longitude, rangeInNM * 1852, 45);
         const tiles: TileLoadingData = { whitelist: [], loadlist: [] };
 
+        // correct the borders to catch all tiles
+        southwest.latitude = Math.floor((southwest.latitude + 90) / this.gridData.latitudeStep) - 90;
+        southwest.longitude = Math.floor((southwest.longitude + 180) / this.gridData.longitudeStep) - 180;
+        northeast.latitude = Math.ceil((northeast.latitude + 90) / this.gridData.latitudeStep) - 90;
+        northeast.longitude = Math.ceil((northeast.longitude + 180) / this.gridData.longitudeStep) - 180;
+
         // wrap around at 180°
         if (southwest.longitude > northeast.longitude) {
             for (let lat = southwest.latitude; lat < northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
