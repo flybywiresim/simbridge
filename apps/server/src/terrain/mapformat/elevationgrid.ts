@@ -26,11 +26,12 @@ export class ElevationGrid {
     public static worldToGridIndices(grid: ElevationGrid, coordinate: { latitude: number, longitude: number }): { row: number, column: number } {
         const latRange = grid.northeast.latitude - grid.southwest.latitude;
         const latDelta = coordinate.latitude - grid.southwest.latitude;
-        const row = grid.Rows - Math.floor((latDelta / latRange) * grid.Rows) - 1;
+        const row = Math.min(grid.Rows - Math.floor((latDelta / latRange) * grid.Rows), grid.Rows) - 1;
 
         const lonRange = grid.northeast.longitude - grid.southwest.longitude;
         const lonDelta = coordinate.longitude - grid.southwest.longitude;
-        const column = Math.floor((lonDelta / lonRange) * grid.Columns);
+        // console.log(grid.southwest.longitude, coordinate.longitude, lonDelta);
+        const column = Math.min(Math.floor((lonDelta / lonRange) * grid.Columns), grid.Columns - 1);
 
         return { row, column };
     }
