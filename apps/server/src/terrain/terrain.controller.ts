@@ -116,7 +116,7 @@ export class TerrainController {
         type: Boolean,
     })
     ndMapAvailable(@Query('display') display, @Query('timestamp') timestamp) {
-        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager !== undefined) {
+        if (this.terrainService.Terrainmap !== undefined && this.terrainService.MapManager !== undefined) {
             return this.terrainService.MapManager.ndMap(display, parseInt(timestamp)) !== null;
         }
         return false;
