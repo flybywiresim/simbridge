@@ -78,7 +78,7 @@ class NavigationDisplayRenderer {
         }
 
         const distancePixels = Math.sqrt(distancePixelsSqrt);
-        const distanceMeters = distancePixels * viewConfig.meterPerPixel;
+        const distanceMeters = distancePixels * (viewConfig.meterPerPixel / 2);
         const angle = Math.acos((viewConfig.mapHeight - y) / distancePixels) * (180 / Math.PI);
         const heading = NavigationDisplayRenderer.normalizeHeading((x > this.centerPixelX ? angle : (360 - angle)) + position.heading);
         this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
