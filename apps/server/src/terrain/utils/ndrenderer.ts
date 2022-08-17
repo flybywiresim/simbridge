@@ -324,7 +324,7 @@ class NavigationDisplayRenderer {
     }
 
     public render(viewConfig: NavigationDisplayViewDto, position: PositionDto): NavigationDisplayData {
-        if (this.data.tiles.length === 0 || position === undefined) {
+        if (position === undefined) {
             return null;
         }
 

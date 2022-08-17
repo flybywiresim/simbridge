@@ -21,7 +21,6 @@ export interface GridDefinition {
 export interface RenderingData {
     gridDefinition: GridDefinition,
     viewConfig: NavigationDisplayViewDto,
-    tiles: { row: number, column: number, grid: ElevationGrid | undefined }[],
     position: PositionDto,
     timestamp: number
 }
@@ -188,22 +187,9 @@ export class Worldmap {
             if (this.displays[id].viewConfig !== undefined && this.displays[id].viewConfig.active === true) {
                 const timestamp = new Date().getTime();
 
-                // get all relevant tiles
-                const rangeMeters = this.displays[id].viewConfig.mapWidth * 0.5 * this.displays[id].viewConfig.meterPerPixel;
-                const tileIndices = this.findRelevantTiles(this.presentPosition, Math.round(rangeMeters * 0.000539957 + 0.5));
-                const tiles: { row: number, column: number, grid: ElevationGrid | undefined }[] = [];
-                tileIndices.whitelist.forEach((index) => {
-                    tiles.push({
-                        row: index.row,
-                        column: index.column,
-                        grid: this.tiles.grid[index.row][index.column].elevationmap,
-                    });
-                });
-
                 const workerContent: RenderingData = {
                     gridDefinition: this.gridData,
                     viewConfig: this.displays[id].viewConfig,
-                    tiles,
                     position: this.presentPosition,
                     timestamp,
                 };
