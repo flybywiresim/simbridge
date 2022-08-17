@@ -125,7 +125,7 @@ export class Worldmap {
     private findTileIndices(latitude: number, longitude0: number, longitude1: number): { row: number, column: number }[] {
         const indices: { row: number, column: number }[] = [];
 
-        for (let lon = longitude0; lon < longitude1; lon += this.terrainData.AngularSteps.longitude) {
+        for (let lon = longitude0; lon <= longitude1; lon += this.terrainData.AngularSteps.longitude) {
             const index = Worldmap.worldMapIndices(this.gridData, latitude, lon);
             if (index !== undefined && Worldmap.validTile(this.terrainData, this.tiles.grid, index) === true) {
                 indices.push(index);
@@ -163,7 +163,7 @@ export class Worldmap {
 
         // wrap around at 180°
         if (southwest.longitude > northeast.longitude) {
-            for (let lat = southwest.latitude; lat < northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
+            for (let lat = southwest.latitude; lat <= northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
                 let indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwest.longitude, 180));
                 tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
                 tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
@@ -172,7 +172,7 @@ export class Worldmap {
                 tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
             }
         } else {
-            for (let lat = southwest.latitude; lat < northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
+            for (let lat = southwest.latitude; lat <= northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
                 const indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwest.longitude, northeast.longitude));
                 tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
                 tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
