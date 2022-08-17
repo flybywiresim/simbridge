@@ -30,7 +30,6 @@ export class ElevationGrid {
 
         const lonRange = grid.northeast.longitude - grid.southwest.longitude;
         const lonDelta = coordinate.longitude - grid.southwest.longitude;
-        // console.log(grid.southwest.longitude, coordinate.longitude, lonDelta);
         const column = Math.min(Math.floor((lonDelta / lonRange) * grid.Columns), grid.Columns - 1);
 
         return { row, column };
