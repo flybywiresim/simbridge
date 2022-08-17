@@ -21,27 +21,17 @@ class NavigationDisplayRenderer {
 
     private centerPixelX: number = 0;
 
-    private grid: Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>> = null;
+    private grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
 
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
-    public updateWorldGrid(renderingData: RenderingData) {
-        this.data = renderingData;
+    public defineWorldMap(world: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][]) {
+        // create the local grid
+        this.grid = world;
+    }
 
-        if (this.grid === null) {
-            // create the local grid
-            this.grid = new Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>(this.data.gridDefinition.rows);
-            for (let y = 0; y < this.data.gridDefinition.rows; ++y) {
-                this.grid[y] = new Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>(this.data.gridDefinition.columns);
-                for (let x = 0; x < this.data.gridDefinition.columns; ++x) {
-                    this.grid[y][x] = {
-                        southwest: { latitude: this.data.gridDefinition.latitudeStep * y - 90, longitude: this.data.gridDefinition.longitudeStep * x - 180 },
-                        tileIndex: -1,
-                        elevationmap: undefined,
-                    };
-                }
-            }
-        }
+    public updateRenderingData(renderingData: RenderingData) {
+        this.data = renderingData;
 
         this.grid.forEach((row) => {
             row.forEach((cell) => {
@@ -50,7 +40,6 @@ class NavigationDisplayRenderer {
         });
 
         renderingData.tiles.forEach((tile) => {
-            this.grid[tile.row][tile.column].tileIndex = 0;
             this.grid[tile.row][tile.column].elevationmap = tile.grid;
         });
     }
@@ -396,7 +385,7 @@ class NavigationDisplayRenderer {
 const renderer = new NavigationDisplayRenderer();
 
 async function createNavigationDisplayMaps(data: RenderingData) {
-    renderer.updateWorldGrid(data);
+    renderer.updateRenderingData(data);
     const mapData = renderer.render(data.viewConfig, data.position);
 
     const pixeldata = new Uint8ClampedArray(mapData.Pixeldata);
@@ -424,6 +413,10 @@ async function createNavigationDisplayMaps(data: RenderingData) {
     parentPort.postMessage(mapData);
 }
 
-parentPort.on('message', (data: RenderingData) => {
-    createNavigationDisplayMaps(data);
+parentPort.on('message', (data: { type: string, instance: any }) => {
+    if (data.type === 'WORLD') {
+        renderer.defineWorldMap(data.instance as { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][]);
+    } else if (data.type === 'RENDERING') {
+        createNavigationDisplayMaps(data.instance as RenderingData);
+    }
 });

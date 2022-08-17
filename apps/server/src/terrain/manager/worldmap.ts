@@ -107,12 +107,14 @@ export class Worldmap {
         });
 
         this.ndRendererWorkerLeft = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
+        this.ndRendererWorkerLeft.postMessage({ type: 'WORLD', instance: this.grid });
         this.ndRendererWorkerLeft.on('message', (result: NavigationDisplayData) => {
             this.displays.L.data = result;
             this.ndRenderingLeftInProgress = false;
         });
 
         this.ndRendererWorkerRight = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
+        this.ndRendererWorkerRight.postMessage({ type: 'WORLD', instance: this.grid });
         this.ndRendererWorkerRight.on('message', (result: NavigationDisplayData) => {
             this.displays.R.data = result;
             this.ndRenderingRightInProgress = false;
@@ -206,11 +208,11 @@ export class Worldmap {
 
                 if (id === 'L') {
                     if (this.ndRenderingLeftInProgress === false) {
-                        this.ndRendererWorkerLeft.postMessage(workerContent);
+                        this.ndRendererWorkerLeft.postMessage({ type: 'RENDERING', instance: workerContent });
                         return timestamp;
                     }
                 } else if (this.ndRenderingRightInProgress === false) {
-                    this.ndRendererWorkerRight.postMessage(workerContent);
+                    this.ndRendererWorkerRight.postMessage({ type: 'RENDERING', instance: workerContent });
                     return timestamp;
                 }
 
