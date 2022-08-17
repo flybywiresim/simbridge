@@ -8,7 +8,9 @@ import { WaterPattern } from './waterpattern';
 import { HighDensityPattern } from './highdensitypattern';
 import { LowDensityPattern } from './lowdensitypattern';
 import { ElevationGrid } from '../mapformat/elevationgrid';
+import { TerrainMap } from '../mapformat/terrainmap';
 import { TerrainLevelMode, NavigationDisplayData } from '../manager/navigationdisplaydata';
+import { TileManager } from '../manager/tilemanager';
 
 const sharp = require('sharp');
 
@@ -17,30 +19,30 @@ const UnknownElevation = 32766;
 const WaterElevation = -1;
 
 class NavigationDisplayRenderer {
-    private data: RenderingData;
+    public data: RenderingData;
 
     private centerPixelX: number = 0;
 
-    private grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];
+    private tiles: TileManager = null;
 
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
-    public defineWorldMap(world: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][]) {
-        this.grid = world;
+    public initialize(terrainmap: TerrainMap): void {
+        this.tiles = new TileManager(terrainmap);
     }
 
-    public updateRenderingData(renderingData: RenderingData) {
-        this.data = renderingData;
-
-        this.grid.forEach((row) => {
-            row.forEach((cell) => {
-                cell.elevationmap = undefined;
-            });
+    public updateTileData(whitelist: { row: number, column: number }[], loadedTiles: { row: number, column: number, grid: ElevationGrid }[]): void {
+        loadedTiles.forEach((tile) => {
+            if (tile.grid !== null) {
+                this.tiles.setElevationMap({ row: tile.row, column: tile.column }, tile.grid);
+            }
         });
 
-        renderingData.tiles.forEach((tile) => {
-            this.grid[tile.row][tile.column].elevationmap = tile.grid;
-        });
+        this.tiles.cleanupElevationCache(whitelist);
+    }
+
+    public updateRenderingData(data: RenderingData): void {
+        this.data = data;
     }
 
     private static normalizeHeading(heading: number): number {
@@ -85,7 +87,7 @@ class NavigationDisplayRenderer {
         const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
         const worldIdx = Worldmap.worldMapIndices(this.data.gridDefinition, projected.latitude, projected.longitude);
-        const tile = this.grid[worldIdx.row][worldIdx.column];
+        const tile = this.tiles.grid[worldIdx.row][worldIdx.column];
         let elevation = 0;
 
         if (tile.tileIndex === -1) {
@@ -413,8 +415,11 @@ async function createNavigationDisplayMaps(data: RenderingData) {
 }
 
 parentPort.on('message', (data: { type: string, instance: any }) => {
-    if (data.type === 'WORLD') {
-        renderer.defineWorldMap(data.instance as { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][]);
+    if (data.type === 'INITIALIZATION') {
+        console.log('init');
+        renderer.initialize(data.instance as TerrainMap);
+    } else if (data.type === 'TILES') {
+        renderer.updateTileData(data.instance.whitelist, data.instance.loadedTiles);
     } else if (data.type === 'RENDERING') {
         createNavigationDisplayMaps(data.instance as RenderingData);
     }

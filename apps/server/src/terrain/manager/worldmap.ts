@@ -93,19 +93,30 @@ export class Worldmap {
                 }
             });
 
+            const rendererData = {
+                type: 'TILES',
+                instance: {
+                    whitelist: this.tileLoaderWhitelist,
+                    loadedTiles: result,
+                },
+            };
+
+            this.ndRendererWorkerLeft.postMessage(rendererData);
+            this.ndRendererWorkerRight.postMessage(rendererData);
+
             this.tiles.cleanupElevationCache(this.tileLoaderWhitelist);
             this.tileLoadingInProgress = false;
         });
 
         this.ndRendererWorkerLeft = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
-        this.ndRendererWorkerLeft.postMessage({ type: 'WORLD', instance: this.tiles.grid });
+        this.ndRendererWorkerLeft.postMessage({ type: 'INITIALIZATION', instance: this.terrainData });
         this.ndRendererWorkerLeft.on('message', (result: NavigationDisplayData) => {
             this.displays.L.data = result;
             this.ndRenderingLeftInProgress = false;
         });
 
         this.ndRendererWorkerRight = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
-        this.ndRendererWorkerRight.postMessage({ type: 'WORLD', instance: this.tiles.grid });
+        this.ndRendererWorkerRight.postMessage({ type: 'INITIALIZATION', instance: this.terrainData });
         this.ndRendererWorkerRight.on('message', (result: NavigationDisplayData) => {
             this.displays.R.data = result;
             this.ndRenderingRightInProgress = false;
