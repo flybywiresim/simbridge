@@ -13,6 +13,7 @@ import { TerrainLevelMode, NavigationDisplayData } from '../manager/navigationdi
 const sharp = require('sharp');
 
 const InvalidElevation = 32767;
+const UnknownElevation = 32766;
 const WaterElevation = -1;
 
 class NavigationDisplayRenderer {
@@ -105,7 +106,7 @@ class NavigationDisplayRenderer {
             const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
             elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
         } else {
-            elevation = Infinity;
+            elevation = UnknownElevation;
         }
 
         return elevation;
@@ -135,7 +136,7 @@ class NavigationDisplayRenderer {
                 elevation = this.extractElevation(viewConfig, position, x, y);
             }
 
-            if (Number.isFinite(elevation) && elevation !== WaterElevation && elevation !== InvalidElevation) {
+            if (elevation !== WaterElevation && elevation !== InvalidElevation && elevation !== UnknownElevation) {
                 maxElevation = Math.max(elevation, maxElevation);
                 minElevation = Math.min(elevation, minElevation);
                 validElevations.push(elevation);
@@ -249,7 +250,7 @@ class NavigationDisplayRenderer {
         let pattern = null;
 
         if (highDensity) {
-            if (elevation === WaterElevation || !Number.isFinite(elevation)) {
+            if (elevation === WaterElevation) {
                 pattern = this.findCorrectPattern(viewConfig, WaterPattern, x, y);
             } else {
                 pattern = this.findCorrectPattern(viewConfig, HighDensityPattern, x, y);
@@ -274,12 +275,8 @@ class NavigationDisplayRenderer {
         let x = 0;
         localMapData.ElevationMap.forEach((elevation) => {
             this.fillPixel(viewConfig, image, x, y, 4, 4, 5);
-            if (elevation !== InvalidElevation) {
-                if (!Number.isFinite(elevation)) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 148, 255);
-                    }
-                } else if (elevation === WaterElevation) {
+            if (elevation !== InvalidElevation && elevation !== UnknownElevation) {
+                if (elevation === WaterElevation) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
                         this.fillPixel(viewConfig, image, x, y, 0, 255, 255);
                     }
@@ -320,6 +317,11 @@ class NavigationDisplayRenderer {
                         this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
                         localMapData.RenderedNonCriticalAreas = true;
                     }
+                }
+            } else if (elevation === UnknownElevation) {
+                if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                    this.fillPixel(viewConfig, image, x, y, 255, 148, 255);
+                    localMapData.RenderedNonCriticalAreas = true;
                 }
             }
 
