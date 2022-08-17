@@ -26,7 +26,6 @@ class NavigationDisplayRenderer {
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
     public defineWorldMap(world: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][]) {
-        // create the local grid
         this.grid = world;
     }
 
