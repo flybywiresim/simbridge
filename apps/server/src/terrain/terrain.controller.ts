@@ -102,7 +102,7 @@ export class TerrainController {
         description: 'Invalid display settings set',
     })
     renderTerrainMap(@Query('display') display) {
-        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager !== undefined) {
+        if (this.terrainService.Terrainmap !== undefined && this.terrainService.MapManager !== undefined) {
             return this.terrainService.MapManager.renderNdMap(display);
         }
         return -1;
