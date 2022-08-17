@@ -416,7 +416,6 @@ async function createNavigationDisplayMaps(data: RenderingData) {
 
 parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
-        console.log('init');
         renderer.initialize(data.instance as TerrainMap);
     } else if (data.type === 'TILES') {
         renderer.updateTileData(data.instance.whitelist, data.instance.loadedTiles);
