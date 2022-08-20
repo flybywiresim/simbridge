@@ -36,7 +36,8 @@
 		"no-empty-function": "off",
 
 		// Annoying shit
-		"linebreak-style": ["error", "unix"],
+		"linebreak-style": "off",
+		// "linebreak-style": ["error", "unix"],
 		"no-await-in-loop":"off",
 		"strict": "off",
 		"jsx-a11y/click-events-have-key-events": "off",
