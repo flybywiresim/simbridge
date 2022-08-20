@@ -1,6 +1,6 @@
 {
 	"server": {
-		"port": 8080,
+		"port": 3838,
 		"hidden": true
 	},
 	"printer": {
