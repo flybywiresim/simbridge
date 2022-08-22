@@ -8,28 +8,41 @@ import { WaterPattern } from './waterpattern';
 import { HighDensityPattern } from './highdensitypattern';
 import { LowDensityPattern } from './lowdensitypattern';
 import { ElevationGrid } from '../mapformat/elevationgrid';
+import { TerrainMap } from '../mapformat/terrainmap';
 import { TerrainLevelMode, NavigationDisplayData } from '../manager/navigationdisplaydata';
+import { TileManager } from '../manager/tilemanager';
 
 const sharp = require('sharp');
 
 const InvalidElevation = 32767;
+const UnknownElevation = 32766;
 const WaterElevation = -1;
 
 class NavigationDisplayRenderer {
+    public data: RenderingData;
+
     private centerPixelX: number = 0;
 
-    private grid: Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>;
+    private tiles: TileManager = null;
 
     private distanceHeadingLut: Array<{ distancePixels: number, orientation: number }> = [];
 
-    constructor(private data: RenderingData) {
-        // create the local grid
-        this.grid = new Array<Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>>(data.gridDefinition.rows)
-            .fill(new Array<{ southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }>(data.gridDefinition.columns)
-                .fill({ southwest: { latitude: 0, longitude: 0 }, tileIndex: 0, elevationmap: undefined }));
-        data.tiles.forEach((tile) => {
-            this.grid[tile.row][tile.column].elevationmap = tile.grid;
+    public initialize(terrainmap: TerrainMap): void {
+        this.tiles = new TileManager(terrainmap);
+    }
+
+    public updateTileData(whitelist: { row: number, column: number }[], loadedTiles: { row: number, column: number, grid: ElevationGrid }[]): void {
+        loadedTiles.forEach((tile) => {
+            if (tile.grid !== null) {
+                this.tiles.setElevationMap({ row: tile.row, column: tile.column }, tile.grid);
+            }
         });
+
+        this.tiles.cleanupElevationCache(whitelist);
+    }
+
+    public updateRenderingData(data: RenderingData): void {
+        this.data = data;
     }
 
     private static normalizeHeading(heading: number): number {
@@ -65,7 +78,7 @@ class NavigationDisplayRenderer {
         }
 
         const distancePixels = Math.sqrt(distancePixelsSqrt);
-        const distanceMeters = distancePixels * viewConfig.meterPerPixel;
+        const distanceMeters = distancePixels * (viewConfig.meterPerPixel / 2);
         const angle = Math.acos((viewConfig.mapHeight - y) / distancePixels) * (180 / Math.PI);
         const heading = NavigationDisplayRenderer.normalizeHeading((x > this.centerPixelX ? angle : (360 - angle)) + position.heading);
         this.distanceHeadingLut[y * viewConfig.mapWidth + x].distancePixels = distancePixels;
@@ -74,7 +87,7 @@ class NavigationDisplayRenderer {
         const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
         const worldIdx = Worldmap.worldMapIndices(this.data.gridDefinition, projected.latitude, projected.longitude);
-        const tile = this.grid[worldIdx.row][worldIdx.column];
+        const tile = this.tiles.grid[worldIdx.row][worldIdx.column];
         let elevation = 0;
 
         if (tile.tileIndex === -1) {
@@ -83,7 +96,7 @@ class NavigationDisplayRenderer {
             const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude: projected.latitude, longitude: projected.longitude });
             elevation = tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
         } else {
-            elevation = Infinity;
+            elevation = UnknownElevation;
         }
 
         return elevation;
@@ -113,7 +126,7 @@ class NavigationDisplayRenderer {
                 elevation = this.extractElevation(viewConfig, position, x, y);
             }
 
-            if (Number.isFinite(elevation) && elevation !== WaterElevation && elevation !== InvalidElevation) {
+            if (elevation !== WaterElevation && elevation !== InvalidElevation && elevation !== UnknownElevation) {
                 maxElevation = Math.max(elevation, maxElevation);
                 minElevation = Math.min(elevation, minElevation);
                 validElevations.push(elevation);
@@ -227,7 +240,7 @@ class NavigationDisplayRenderer {
         let pattern = null;
 
         if (highDensity) {
-            if (elevation === WaterElevation || !Number.isFinite(elevation)) {
+            if (elevation === WaterElevation) {
                 pattern = this.findCorrectPattern(viewConfig, WaterPattern, x, y);
             } else {
                 pattern = this.findCorrectPattern(viewConfig, HighDensityPattern, x, y);
@@ -252,12 +265,8 @@ class NavigationDisplayRenderer {
         let x = 0;
         localMapData.ElevationMap.forEach((elevation) => {
             this.fillPixel(viewConfig, image, x, y, 4, 4, 5);
-            if (elevation !== InvalidElevation) {
-                if (!Number.isFinite(elevation)) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 148, 255);
-                    }
-                } else if (elevation === WaterElevation) {
+            if (elevation !== InvalidElevation && elevation !== UnknownElevation) {
+                if (elevation === WaterElevation) {
                     if (this.drawPixel(viewConfig, x, y, elevation, true)) {
                         this.fillPixel(viewConfig, image, x, y, 0, 255, 255);
                     }
@@ -299,6 +308,11 @@ class NavigationDisplayRenderer {
                         localMapData.RenderedNonCriticalAreas = true;
                     }
                 }
+            } else if (elevation === UnknownElevation) {
+                if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                    this.fillPixel(viewConfig, image, x, y, 255, 148, 255);
+                    localMapData.RenderedNonCriticalAreas = true;
+                }
             }
 
             x++;
@@ -310,7 +324,7 @@ class NavigationDisplayRenderer {
     }
 
     public render(viewConfig: NavigationDisplayViewDto, position: PositionDto): NavigationDisplayData {
-        if (this.data.tiles.length === 0 || position === undefined) {
+        if (position === undefined) {
             return null;
         }
 
@@ -369,8 +383,10 @@ class NavigationDisplayRenderer {
     }
 }
 
+const renderer = new NavigationDisplayRenderer();
+
 async function createNavigationDisplayMaps(data: RenderingData) {
-    const renderer = new NavigationDisplayRenderer(data);
+    renderer.updateRenderingData(data);
     const mapData = renderer.render(data.viewConfig, data.position);
 
     const pixeldata = new Uint8ClampedArray(mapData.Pixeldata);
@@ -398,6 +414,12 @@ async function createNavigationDisplayMaps(data: RenderingData) {
     parentPort.postMessage(mapData);
 }
 
-parentPort.on('message', (data: RenderingData) => {
-    createNavigationDisplayMaps(data);
+parentPort.on('message', (data: { type: string, instance: any }) => {
+    if (data.type === 'INITIALIZATION') {
+        renderer.initialize(data.instance as TerrainMap);
+    } else if (data.type === 'TILES') {
+        renderer.updateTileData(data.instance.whitelist, data.instance.loadedTiles);
+    } else if (data.type === 'RENDERING') {
+        createNavigationDisplayMaps(data.instance as RenderingData);
+    }
 });
