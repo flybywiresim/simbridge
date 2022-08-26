@@ -41,9 +41,9 @@ export class CoRouteService {
             fileBuffers.fileNames[index],
         ));
 
-        const foundRoutes = coRoutes
-            .filter((coRoute) => this.coRouteConverter.isCoRouteValid(coRoute, coRoute.name))
-            .filter((validatedCoRoute) => this.isRequestedOrigDest(validatedCoRoute, originIcao, destinationIcao));
+        const foundRoutes = (await Promise.all(coRoutes.map(async (coRoute) => ((await this.coRouteConverter.isCoRouteValid(coRoute, coRoute.name)) ? coRoute : null))))
+            .filter((coRoute) => coRoute)
+            .filter((coRoute) => this.isRequestedOrigDest(coRoute, originIcao, destinationIcao));
 
         return foundRoutes;
     }
