@@ -17,6 +17,7 @@ export class CoRouteConverter {
             const tempNavlog = new Navlog();
             tempCoRouteDto.destination = plainToClass(Airport, parsedObject.OFP.destination);
             tempCoRouteDto.origin = plainToClass(Airport, parsedObject.OFP.origin);
+            tempCoRouteDto.alternate = plainToClass(Airport, parsedObject.OFP.alternate);
             tempCoRouteDto.general = plainToClass(General, parsedObject.OFP.general);
             parsedObject.OFP.navlog.fix.forEach((item: any) => tempNavlog.fix.push(plainToClass(Fix, item)));
             tempCoRouteDto.navlog = tempNavlog;

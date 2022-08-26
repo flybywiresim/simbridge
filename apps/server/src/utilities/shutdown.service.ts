@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { SysTrayService } from 'apps/server/src/utilities/systray.service';
+import { SysTrayService } from './systray.service';
 
 @Injectable()
 export class ShutDownService implements OnApplicationShutdown {

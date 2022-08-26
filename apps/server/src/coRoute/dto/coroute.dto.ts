@@ -19,6 +19,11 @@ export class CoRouteDto {
     @IsDefined()
     destination: Airport;
 
+    @ApiProperty({ description: 'The alternate airport dto' })
+    @ValidateNested()
+    @IsDefined()
+    alternate: Airport;
+
     @ApiProperty({ description: 'General information' })
     @ValidateNested()
     @IsDefined()
