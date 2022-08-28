@@ -1,14 +1,16 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { PathLike, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
-import { join } from 'path';
+import path, { join } from 'path';
 import { pdfToPng } from './pdfConversion';
 
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = join(process.cwd(), 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js');
+
+const PDFS_PATH = 'resources\\pdfs\\';
 
 @Injectable()
 export class FileService {
@@ -18,10 +20,16 @@ export class FileService {
 
     private pngCache = new Map<string, Buffer>();
 
-    async getFileCount(directory: PathLike): Promise<number> {
+    private static sanitize(suffix: string): string {
+        return path.normalize(suffix).replace(/^(\.\.(\/|\\|$))+/, '');
+    }
+
+    async getFileCount(directory: string): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const retrievedDir = await readdir(`${process.cwd()}/${directory}`);
+
+            const retrievedDir = await readdir(path.join(process.cwd(), FileService.sanitize(directory)));
+
             return retrievedDir.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -30,11 +38,11 @@ export class FileService {
         }
     }
 
-    async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
+    async getFiles(directory: string): Promise<{ fileNames: string[]; files: Buffer[]; }> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
 
-            const fileNames = await readdir(`${process.cwd()}/${directory}`);
+            const fileNames = await readdir(path.join(process.cwd(), FileService.sanitize(directory)));
 
             const files: Buffer[] = [];
             for (const fileName of fileNames) {
@@ -49,11 +57,11 @@ export class FileService {
         }
     }
 
-    async getFolderFilenames(directory: PathLike): Promise<string[]> {
+    async getFolderFilenames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = await readdir(`${process.cwd()}/${directory}`);
-            return dir;
+
+            return readdir(path.join(process.cwd(), FileService.sanitize(directory)));
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -61,11 +69,10 @@ export class FileService {
         }
     }
 
-    async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
+    async getFile(directory: string, fileName: string): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const file = await readFile(`${process.cwd()}/${directory}${fileName}`);
-            return file;
+            return await readFile(path.join(process.cwd(), directory, FileService.sanitize(fileName)));
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
             this.logger.error(message, err);
@@ -74,7 +81,7 @@ export class FileService {
     }
 
     async getNumberOfPdfPages(fileName: string): Promise<number> {
-        const retrievedFile = await this.getFile('resources\\pdfs\\', fileName);
+        const retrievedFile = await this.getFile(PDFS_PATH, FileService.sanitize(fileName));
 
         return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
     }
@@ -102,7 +109,7 @@ export class FileService {
         const STANDARD_FONT_DATA_URL = '../../../node_modules/pdfjs-dist/standard_fonts/';
 
         try {
-            const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+            const conversionFilePath = join(process.cwd(), PDFS_PATH, FileService.sanitize(fileName));
 
             this.checkFilePathSafety(conversionFilePath);
 
@@ -142,7 +149,7 @@ export class FileService {
         }
     }
 
-    async getFileStream(directory: PathLike, fileName: PathLike): Promise<StreamableFile> {
+    async getFileStream(directory: string, fileName: string): Promise<StreamableFile> {
         return new StreamableFile(await this.getFile(directory, fileName));
     }
 
