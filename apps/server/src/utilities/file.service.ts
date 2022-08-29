@@ -21,7 +21,9 @@ export class FileService {
     async getFileCount(directory: PathLike): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const retrievedDir = await readdir(`${process.cwd()}/${directory}`);
+            const dir = join(process.cwd(), <string>directory);
+            this.checkFilePathSafety(dir);
+            const retrievedDir = await readdir(dir);
             return retrievedDir.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -33,8 +35,9 @@ export class FileService {
     async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-
-            const fileNames = await readdir(`${process.cwd()}/${directory}`);
+            const dir = join(process.cwd(), <string>directory);
+            this.checkFilePathSafety(dir);
+            const fileNames = await readdir(dir);
 
             const files: Buffer[] = [];
             for (const fileName of fileNames) {
@@ -52,8 +55,10 @@ export class FileService {
     async getFolderFilenames(directory: PathLike): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = await readdir(`${process.cwd()}/${directory}`);
-            return dir;
+            const dir = join(process.cwd(), <string>directory);
+            this.checkFilePathSafety(dir);
+            const names = await readdir(join(process.cwd(), <string>directory));
+            return names;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -64,7 +69,7 @@ export class FileService {
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const file = await readFile(`${process.cwd()}/${directory}${fileName}`);
+            const file = await readFile(join(process.cwd(), <string>directory, <string>fileName));
             return file;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
@@ -102,7 +107,7 @@ export class FileService {
         const STANDARD_FONT_DATA_URL = '../../../node_modules/pdfjs-dist/standard_fonts/';
 
         try {
-            const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+            const conversionFilePath = join(process.cwd(), 'resources', 'pdfs', fileName);
 
             this.checkFilePathSafety(conversionFilePath);
 
