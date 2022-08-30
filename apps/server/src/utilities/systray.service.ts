@@ -1,28 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
 import { join } from 'path';
 import SysTray, { MenuItem } from 'systray2';
+import serverConfig from '../config/server.config';
 
 interface MenuItemClickable extends MenuItem {
     click?: () => void
 }
 
 @Injectable()
-export class SysTrayService {
+export class SysTrayService implements OnApplicationShutdown {
   private readonly logger = new Logger(SysTrayService.name);
 
-  private sysTray;
+  private sysTray: SysTray;
 
-  init(isConsoleHidden: boolean, port) {
-      let hidden = isConsoleHidden;
+  private manageConsole = () => {
+      if (this.serverConf.hidden) showConsole();
+      else hideConsole();
+      this.serverConf.hidden = !this.serverConf.hidden;
+  };
 
-      const manageConsole = () => {
-          if (hidden) showConsole();
-          else hideConsole();
-          hidden = !hidden;
-      };
-
+  constructor(@Inject(serverConfig.KEY) private serverConf: ConfigType<typeof serverConfig>) {
       const remoteDisplayItem = {
           title: 'Remote Displays',
           tooltip: 'Open remote displays',
@@ -31,7 +31,7 @@ export class SysTrayService {
               tooltip: 'Open the MCDU remote display with your default browser',
               enabled: true,
               click: () => {
-                  open(`http://localhost:${port}/interfaces/mcdu`);
+                  open(`http://localhost:${this.serverConf.port}/interfaces/mcdu`);
               },
           }],
       };
@@ -61,7 +61,7 @@ export class SysTrayService {
           tooltip: 'Change console visibility',
           checked: false,
           enabled: true,
-          click: () => manageConsole(),
+          click: () => this.manageConsole(),
       };
 
       this.sysTray = new SysTray({
@@ -88,7 +88,8 @@ export class SysTrayService {
       });
   }
 
-  kill() {
-      this.sysTray.kill();
+  onApplicationShutdown(signal?: string) {
+      this.logger.log(`Systems Tray shutting down with signal: ${signal}`);
+      this.sysTray.kill(false);
   }
 }

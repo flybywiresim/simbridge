@@ -1,15 +1,24 @@
-import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { SysTrayService } from './systray.service';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Subject } from 'rxjs';
 
 @Injectable()
-export class ShutDownService implements OnApplicationShutdown {
-  private readonly logger = new Logger(ShutDownService.name);
+export class ShutDownService implements OnModuleDestroy {
+    private readonly logger = new Logger(ShutDownService.name);
 
-  constructor(private systrayService: SysTrayService) {}
+    private shutdownListener$: Subject<void> = new Subject();
 
-  onApplicationShutdown(signal: string) {
-      this.logger.log(`Application shutting down with signal: ${signal}`);
-      // Handle all graceful kill events
-      this.systrayService.kill();
-  }
+    // Your hook will be executed
+    onModuleDestroy() {
+        this.logger.log('ShutDown Service being destroyed');
+    }
+
+    // Subscribe to the shutdown in your main.ts
+    subscribeToShutdown(shutdownFn: () => void): void {
+        this.shutdownListener$.subscribe(() => shutdownFn());
+    }
+
+    // Emit the shutdown event
+    shutdown() {
+        this.shutdownListener$.next();
+    }
 }

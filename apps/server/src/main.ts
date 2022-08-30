@@ -9,8 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import { address } from 'ip';
 import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
-import { UtilitiesModule } from './utilities/utilities.module';
-import { SysTrayService } from './utilities/systray.service';
+import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
 
 declare const module: any;
@@ -26,6 +25,9 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
 
     app.enableShutdownHooks();
+
+    // Shutdown listener
+    app.get(ShutDownService).subscribeToShutdown(() => app.close());
 
     // Gateway Adapter
     app.useWebSocketAdapter(new WsAdapter(app));
@@ -57,8 +59,6 @@ async function bootstrap() {
 
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
     logger.log(`FlyByWire SimBridge started on: http://${address()}:${port}`, 'NestApplication');
-
-    app.select(UtilitiesModule).get(SysTrayService).init(isConsoleHidden, port);
 
     if (platform() === 'win32' && isConsoleHidden) {
         hideConsole();
