@@ -28,7 +28,7 @@ export class FileService {
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
     }
 
@@ -48,7 +48,7 @@ export class FileService {
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
     }
 
@@ -62,7 +62,7 @@ export class FileService {
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
     }
 
@@ -76,7 +76,7 @@ export class FileService {
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
     }
 
@@ -92,11 +92,11 @@ export class FileService {
      */
     checkFilePathSafety(filePath: string): void {
         if (filePath.indexOf('\0') !== -1) {
-            throw new Error('Unexpected null byte encountered');
+            throw new HttpException('Unexpected null byte encountered', HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
         if (filePath.indexOf(process.cwd()) !== 0) {
-            throw new Error('Unacceptable file path');
+            throw new HttpException('Unacceptable file path', HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
