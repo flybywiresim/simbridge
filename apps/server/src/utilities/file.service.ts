@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { PathLike, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
@@ -18,10 +18,10 @@ export class FileService {
 
     private pngCache = new Map<string, Buffer>();
 
-    async getFileCount(directory: PathLike): Promise<number> {
+    async getFileCount(directory: string): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const dir = join(process.cwd(), <string>directory);
+            const dir = join(process.cwd(), directory);
             this.checkFilePathSafety(dir);
             const retrievedDir = await readdir(dir);
             return retrievedDir.length;
@@ -32,10 +32,10 @@ export class FileService {
         }
     }
 
-    async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
+    async getFiles(directory: string): Promise<{ fileNames: string[]; files: Buffer[]; }> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = join(process.cwd(), <string>directory);
+            const dir = join(process.cwd(), directory);
             this.checkFilePathSafety(dir);
             const fileNames = await readdir(dir);
 
@@ -52,12 +52,12 @@ export class FileService {
         }
     }
 
-    async getFolderFilenames(directory: PathLike): Promise<string[]> {
+    async getFolderFilenames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = join(process.cwd(), <string>directory);
+            const dir = join(process.cwd(), directory);
             this.checkFilePathSafety(dir);
-            const names = await readdir(join(process.cwd(), <string>directory));
+            const names = await readdir(dir);
             return names;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -66,10 +66,10 @@ export class FileService {
         }
     }
 
-    async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
+    async getFile(directory: string, fileName: string): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const file = await readFile(join(process.cwd(), <string>directory, <string>fileName));
+            const file = await readFile(join(process.cwd(), directory, fileName));
             return file;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
@@ -147,7 +147,7 @@ export class FileService {
         }
     }
 
-    async getFileStream(directory: PathLike, fileName: PathLike): Promise<StreamableFile> {
+    async getFileStream(directory: string, fileName: string): Promise<StreamableFile> {
         return new StreamableFile(await this.getFile(directory, fileName));
     }
 
