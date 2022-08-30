@@ -28,7 +28,7 @@ export class FileService {
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
+            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -48,7 +48,7 @@ export class FileService {
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
+            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -62,19 +62,21 @@ export class FileService {
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
+            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
     async getFile(directory: string, fileName: string): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const file = await readFile(join(process.cwd(), directory, fileName));
+            const pth = join(process.cwd(), directory, fileName);
+            this.checkFilePathSafety(pth);
+            const file = await readFile(pth);
             return file;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
             this.logger.error(message, err);
-            throw new HttpException(message, HttpStatus.NOT_FOUND);
+            throw new HttpException(message, HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
