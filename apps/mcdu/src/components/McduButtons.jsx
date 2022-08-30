@@ -27,9 +27,9 @@ const Button = ({ soundEnabled, name }) => {
         if (soundEnabled) {
             new Audio(soundFile).play();
         }
-        socket.sendMessage(`event:${name}`);
+        socket.sendMessage(`event:left:${name}`);
         timeout.current = setTimeout(() => {
-            socket.sendMessage(`event:${name}_Held`);
+            socket.sendMessage(`event:left:${name}_Held`);
         }, buttonHeldTime);
     }
 
