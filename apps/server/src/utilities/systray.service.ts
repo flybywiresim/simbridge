@@ -89,6 +89,7 @@ export class SysTrayService {
   }
 
   kill() {
+      this.logger.log('Systray is being closed');
       this.sysTray.kill();
   }
 }

@@ -8,6 +8,6 @@ import { SysTrayService } from './systray.service';
 @Module({
     controllers: [UtiliyController],
     providers: [FileService, PrinterService, ShutDownService, SysTrayService],
-    exports: [FileService, PrinterService],
+    exports: [FileService, PrinterService, SysTrayService],
 })
 export class UtilitiesModule {}
