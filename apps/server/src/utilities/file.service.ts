@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { PathLike, readFileSync } from 'fs';
+import { PathLike, readFileSync, lstatSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
@@ -21,8 +21,9 @@ export class FileService {
     async getFileCount(directory: PathLike): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const retrievedDir = await readdir(`${process.cwd()}/${directory}`);
-            return retrievedDir.length;
+            const dir = await readdir(`${process.cwd()}/${directory}`, { withFileTypes: true });
+            const fileNames = dir.filter((dir) => dir.isFile()).map((dir) => dir.name);
+            return fileNames.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -34,13 +35,12 @@ export class FileService {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
 
-            const fileNames = await readdir(`${process.cwd()}/${directory}`);
-
+            const dir = await readdir(`${process.cwd()}/${directory}`, { withFileTypes: true });
+            const fileNames = dir.filter((dir) => dir.isFile()).map((dir) => dir.name);
             const files: Buffer[] = [];
             for (const fileName of fileNames) {
                 files.push(await this.getFile(directory, fileName));
             }
-
             return { fileNames, files };
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -52,8 +52,8 @@ export class FileService {
     async getFolderFilenames(directory: PathLike): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = await readdir(`${process.cwd()}/${directory}`);
-            return dir;
+            const dir = await readdir(`${process.cwd()}/${directory}`, { withFileTypes: true });
+            return dir.filter((dir) => dir.isFile()).map((dir) => dir.name);
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -63,8 +63,12 @@ export class FileService {
 
     async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
         try {
-            this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const file = await readFile(`${process.cwd()}/${directory}${fileName}`);
+            this.logger.debug(`Retrieving file: ${fileName} in folder: ${directory}`);
+            const path = `${process.cwd()}/${directory}${fileName}`;
+            if (!lstatSync(path).isFile()) {
+                return Promise.reject(new Error(`${path} is not a file`));
+            }
+            const file = await readFile(path);
             return file;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
@@ -75,7 +79,6 @@ export class FileService {
 
     async getNumberOfPdfPages(fileName: string): Promise<number> {
         const retrievedFile = await this.getFile('resources\\pdfs\\', fileName);
-
         return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
     }
 

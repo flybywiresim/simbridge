@@ -5,7 +5,7 @@ import { FileService } from './file.service';
 
 @ApiTags('UTILITIES')
 @Controller('api/v1/utility')
-export class UtiliyController {
+export class UtilityController {
     constructor(private fileService: FileService) {}
 
     @Get('pdf')
