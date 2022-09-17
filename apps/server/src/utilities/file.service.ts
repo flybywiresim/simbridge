@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { PathLike, readFileSync, lstatSync } from 'fs';
+import { readFileSync, lstatSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
@@ -18,11 +18,13 @@ export class FileService {
 
     private pngCache = new Map<string, Buffer>();
 
-    async getFileCount(directory: PathLike): Promise<number> {
+    async getFileCount(directory: string): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const dir = await readdir(`${process.cwd()}/${directory}`, { withFileTypes: true });
-            const fileNames = dir.filter((dir) => dir.isFile()).map((dir) => dir.name);
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            const retrievedDir = await readdir(dir, { withFileTypes: true });
+            const fileNames = retrievedDir.filter((dir) => dir.isFile()).map((dir) => dir.name);
             return fileNames.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -31,12 +33,14 @@ export class FileService {
         }
     }
 
-    async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
+    async getFiles(directory: string): Promise<{ fileNames: string[]; files: Buffer[]; }> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
 
-            const dir = await readdir(`${process.cwd()}/${directory}`, { withFileTypes: true });
-            const fileNames = dir.filter((dir) => dir.isFile()).map((dir) => dir.name);
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            const fileNames = (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isFile()).map((dir) => dir.name);
+
             const files: Buffer[] = [];
             for (const fileName of fileNames) {
                 files.push(await this.getFile(directory, fileName));
@@ -49,11 +53,12 @@ export class FileService {
         }
     }
 
-    async getFolderFilenames(directory: PathLike): Promise<string[]> {
+    async getFolderFilenames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = await readdir(`${process.cwd()}/${directory}`, { withFileTypes: true });
-            return dir.filter((dir) => dir.isFile()).map((dir) => dir.name);
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            return (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isFile()).map((dir) => dir.name);
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -61,10 +66,13 @@ export class FileService {
         }
     }
 
-    async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
+    async getFile(directory: string, fileName: string): Promise<Buffer> {
         try {
             this.logger.debug(`Retrieving file: ${fileName} in folder: ${directory}`);
-            const path = `${process.cwd()}/${directory}${fileName}`;
+
+            const path = join(process.cwd(), directory, fileName);
+            this.checkFilePathSafety(path);
+
             if (!lstatSync(path).isFile()) {
                 return Promise.reject(new Error(`${path} is not a file`));
             }
@@ -88,11 +96,11 @@ export class FileService {
      */
     checkFilePathSafety(filePath: string): void {
         if (filePath.indexOf('\0') !== -1) {
-            throw new Error('Unexpected null byte encountered');
+            throw new HttpException('Unexpected null byte encountered', HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
         if (filePath.indexOf(process.cwd()) !== 0) {
-            throw new Error('Unacceptable file path');
+            throw new HttpException('Unacceptable file path', HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -105,7 +113,7 @@ export class FileService {
         const STANDARD_FONT_DATA_URL = '../../../node_modules/pdfjs-dist/standard_fonts/';
 
         try {
-            const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+            const conversionFilePath = join(process.cwd(), 'resources', 'pdfs', fileName);
 
             this.checkFilePathSafety(conversionFilePath);
 
@@ -145,7 +153,7 @@ export class FileService {
         }
     }
 
-    async getFileStream(directory: PathLike, fileName: PathLike): Promise<StreamableFile> {
+    async getFileStream(directory: string, fileName: string): Promise<StreamableFile> {
         return new StreamableFile(await this.getFile(directory, fileName));
     }
 
