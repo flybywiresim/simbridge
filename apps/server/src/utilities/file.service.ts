@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
-import { PathLike, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
@@ -18,10 +18,12 @@ export class FileService {
 
     private pngCache = new Map<string, Buffer>();
 
-    async getFileCount(directory: PathLike): Promise<number> {
+    async getFileCount(directory: string): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const retrievedDir = await readdir(`${process.cwd()}/${directory}`);
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            const retrievedDir = await readdir(dir);
             return retrievedDir.length;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
@@ -30,11 +32,12 @@ export class FileService {
         }
     }
 
-    async getFiles(directory: PathLike): Promise<{ fileNames: string[]; files: Buffer[]; }> {
+    async getFiles(directory: string): Promise<{ fileNames: string[]; files: Buffer[]; }> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-
-            const fileNames = await readdir(`${process.cwd()}/${directory}`);
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            const fileNames = await readdir(dir);
 
             const files: Buffer[] = [];
             for (const fileName of fileNames) {
@@ -49,11 +52,13 @@ export class FileService {
         }
     }
 
-    async getFolderFilenames(directory: PathLike): Promise<string[]> {
+    async getFolderFilenames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = await readdir(`${process.cwd()}/${directory}`);
-            return dir;
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            const names = await readdir(dir);
+            return names;
         } catch (err) {
             const message = `Error reading directory: ${directory}`;
             this.logger.error(message, err);
@@ -61,10 +66,12 @@ export class FileService {
         }
     }
 
-    async getFile(directory: PathLike, fileName: PathLike): Promise<Buffer> {
+    async getFile(directory: string, fileName: string): Promise<Buffer> {
         try {
             this.logger.debug(`Retreiving file: ${fileName} in folder: ${directory}`);
-            const file = await readFile(`${process.cwd()}/${directory}${fileName}`);
+            const pth = join(process.cwd(), directory, fileName);
+            this.checkFilePathSafety(pth);
+            const file = await readFile(pth);
             return file;
         } catch (err) {
             const message = `Error retrieving file: ${fileName} in folder:${directory}`;
@@ -85,11 +92,11 @@ export class FileService {
      */
     checkFilePathSafety(filePath: string): void {
         if (filePath.indexOf('\0') !== -1) {
-            throw new Error('Unexpected null byte encountered');
+            throw new HttpException('Unexpected null byte encountered', HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
         if (filePath.indexOf(process.cwd()) !== 0) {
-            throw new Error('Unacceptable file path');
+            throw new HttpException('Unacceptable file path', HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -102,7 +109,7 @@ export class FileService {
         const STANDARD_FONT_DATA_URL = '../../../node_modules/pdfjs-dist/standard_fonts/';
 
         try {
-            const conversionFilePath = join(`${process.cwd()}\\resources\\pdfs\\`, fileName);
+            const conversionFilePath = join(process.cwd(), 'resources', 'pdfs', fileName);
 
             this.checkFilePathSafety(conversionFilePath);
 
@@ -142,7 +149,7 @@ export class FileService {
         }
     }
 
-    async getFileStream(directory: PathLike, fileName: PathLike): Promise<StreamableFile> {
+    async getFileStream(directory: string, fileName: string): Promise<StreamableFile> {
         return new StreamableFile(await this.getFile(directory, fileName));
     }
 
