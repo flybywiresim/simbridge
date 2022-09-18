@@ -1,0 +1,27 @@
+# Changelog
+
+# ⚠⚠ Please follow the format provided ⚠⚠
+#  - name: version number
+#    changes:
+#      - title: Title of changes
+#        categories: [CHANGED AREA]
+#        authors: [YourName]
+
+releases:
+  - name: 0.3.16
+    changes:
+      -title: Graceful shutdown for Systray
+        categories: [Logic]
+        authors: [vivekbharatha]
+      -title: Alternate Airport in DTO
+        categories: [Logic]
+        authors: [Lucky38i]
+      -title: Add Side to remote MCDU events
+        categories: [Display]
+        authors: [tracernz]
+      -title: Address inproper path joining
+        categories: [Logic]
+        authors: [leon332157]
+      -title: File filtering
+        categories: [Logic]
+        authors: [frankkopp]
