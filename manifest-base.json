@@ -1,0 +1,14 @@
+{
+	"creator": "FlyByWire Simulations",
+	"release_notes": {
+		"neutral": {
+			"LastUpdate": "",
+			"OlderHistory": ""
+		}
+	},
+	"title": "SimBridge",
+	"dependencies": [],
+	"content_type": "TOOL",
+	"minimum_game_version": "1.27.21.0",
+	"manufacturer": "FlyByWire Simulations"
+}
