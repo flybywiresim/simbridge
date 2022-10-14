@@ -16,6 +16,7 @@ module.exports = {
             'node_modules/canvas/**/*.*',
             'node_modules/pdfkit/js/data/Helvetica.afm',
             'node_modules/swagger-ui-dist/**/*.*',
+            'node_modules/pdfjs-dist/**/*.*',
             'dist/mcdu/**/*',
             'dist/assets/**/*',
             'dist/terrain/manager/maploader.js',
