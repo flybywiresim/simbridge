@@ -106,11 +106,11 @@ export class FileService {
 
     async getConvertedPdfFile(fileName: string, pageNumber: number, scale: number = 4): Promise<StreamableFile> {
         // Some PDFs need external cmaps.
-        const CMAP_URL = '../../../node_modules/pdfjs-dist/cmaps/';
+        const CMAP_URL = `${join(process.cwd(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
         const CMAP_PACKED = true;
 
         // Where the standard fonts are located.
-        const STANDARD_FONT_DATA_URL = '../../../node_modules/pdfjs-dist/standard_fonts/';
+        const STANDARD_FONT_DATA_URL = `${join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
 
         try {
             const conversionFilePath = join(process.cwd(), 'resources', 'pdfs', fileName);
