@@ -2,7 +2,7 @@ import { Inject, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { OnGatewayConnection, OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, WebSocket } from 'ws';
-import { address } from 'ip';
+import { getPrivateIp } from '../utilities/ip';
 import { PrinterService } from '../utilities/printer.service';
 import serverConfig from '../config/server.config';
 
@@ -23,7 +23,7 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     afterInit(server: Server) {
         this.server = server;
         this.logger.log('Remote MCDU websocket initialised');
-        this.logger.log(`Initialised on http://${address()}:${this.serverConf.port}${server.path}`);
+        this.logger.log(`Initialised on http://${getPrivateIp()}:${this.serverConf.port}${server.path}`);
     }
 
     handleConnection(client: WebSocket) {

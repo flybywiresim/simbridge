@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
-import { join } from 'path';
 import SysTray, { MenuItem } from 'systray2';
+import { join } from 'path';
+import { getPrivateIp } from './ip';
 
 interface MenuItemClickable extends MenuItem {
     click?: () => void
@@ -31,7 +32,7 @@ export class SysTrayService {
               tooltip: 'Open the MCDU remote display with your default browser',
               enabled: true,
               click: () => {
-                  open(`http://localhost:${port}/interfaces/mcdu`);
+                  open(`http://${getPrivateIp()}:${port}/interfaces/mcdu`);
               },
           }],
       };
