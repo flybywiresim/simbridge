@@ -12,6 +12,7 @@ import { hideConsole } from 'node-hide-console-window';
 import { UtilitiesModule } from './utilities/utilities.module';
 import { SysTrayService } from './utilities/systray.service';
 import { AppModule } from './app.module';
+import { Msfs } from './utilities/msfs';
 
 declare const module: any;
 
@@ -34,6 +35,7 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
     const port = configService.get('server.port');
     const isConsoleHidden = configService.get('server.hidden');
+    const closeWithMSFS = configService.get('server.closeWithMSFS');
 
     // Pino
     app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
@@ -64,11 +66,34 @@ async function bootstrap() {
         hideConsole();
     }
 
+    // if exitWithMSFS is activated this tracks if MSFS has even been started before closing
+    // the app with MSFS
+    let msfsWasRunning = false;
+    if (closeWithMSFS) {
+        logger.log('Option "Close with MSFS" active.', 'NestApplication');
+        setInterval(() => {
+            Msfs.isRunning()
+                .then((msfsIsRunning: boolean) => {
+                    if (msfsIsRunning) {
+                        msfsWasRunning = true;
+                    } else if (msfsWasRunning) {
+                        logger.log('MSFS closed, closing SimBridge.', 'NestApplication');
+                        msfsWasRunning = false;
+                        app.close();
+                    }
+                })
+                .catch((error) => {
+                    logger.error(error);
+                });
+        }, 5000);
+    }
+
     if (module.hot) {
         module.hot.accept();
         module.hot.dispose(() => app.close());
     }
 }
+
 bootstrap();
 
 function generateResourceFolders() {
