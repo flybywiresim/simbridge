@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { FileService } from '../utilities/file.service';
 import { TerrainMap } from './mapformat/terrainmap';
 import { Worldmap } from './manager/worldmap';
 import { PositionDto } from './dto/position.dto';
 
 @Injectable()
-export class TerrainService {
+export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
     private terrainDirectory = 'terrain/';
@@ -21,6 +21,12 @@ export class TerrainService {
                 this.MapManager = new Worldmap(this.Terrainmap);
             }
         });
+    }
+
+    onApplicationShutdown(_signal?: string) {
+        if (this.MapManager !== undefined) {
+            this.MapManager.shutdown();
+        }
     }
 
     private async readTerrainMap(): Promise<TerrainMap | undefined> {
