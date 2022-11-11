@@ -30,7 +30,14 @@ export class SysTrayService {
           tooltip: 'Open remote displays',
           items: [{
               title: 'Open MCDU',
-              tooltip: 'Open the MCDU remote display with your default browser',
+              tooltip: 'Open the MCDU remote display with your default browser, using localhost',
+              enabled: true,
+              click: () => {
+                  open(`http://localhost:${port}/interfaces/mcdu`);
+              },
+          }, {
+              title: 'Open MCDU (with local IP)',
+              tooltip: 'Open the MCDU remote display with your default browser, using your local IP',
               enabled: true,
               click: () => {
                   open(`http://${getPrivateIp()}:${port}/interfaces/mcdu`);

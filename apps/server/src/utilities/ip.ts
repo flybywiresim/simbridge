@@ -1,7 +1,10 @@
 import { networkInterfaces } from 'os';
 
 /**
- * Returns the private (usually 192.168.x.x) IP of the computer.
+ * Returns the private IP (usually 192.168.x.x) of the computer, or `null` if none is found.
+ *
+ * There's no reliable way to get the private/local IP of the computer, so a heuristic is used
+ * which is not perfect and may return false positives for unusual network configurations.
  */
 export function getPrivateIp() {
     for (const interfaces of Object.values(networkInterfaces())) {
@@ -12,10 +15,9 @@ export function getPrivateIp() {
 
             const parts = iface.address.split('.');
 
-            // Determine whether the given IPv4 address is a part of a private netowrk.
-            // Source: https://en.wikipedia.org/wiki/Private_network#Private_IPv4_addresses
+            // Heuristic based on private IPv4 address ranges (https://en.wikipedia.org/wiki/Private_network).
+            // 172.16.0.0/12 is excluded because it seems to be often used by services such as Docker or Hyper-V.
             if (parts[0] === '10' // 10.0.0.0/8
-                || (parts[0] === '172' && parts[1] >= '16' && parts[1] <= '31') // 172.16.0.0/12
                 || (parts[0] === '192' && parts[1] === '168') // 192.168.0.0/16
             ) {
                 return iface.address;
