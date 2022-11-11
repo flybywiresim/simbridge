@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional } from 'class-validator';
 
 export class NavigationDisplayViewDto {
     @ApiProperty({ description: 'Indicates if the ND map needs to be rendered', example: 'true' })
@@ -33,4 +33,9 @@ export class NavigationDisplayViewDto {
     @ApiProperty({ description: 'Indicates if the gear is down', example: 'true' })
     @IsBoolean()
     gearDown: boolean
+
+    @ApiProperty({ description: 'The runway elevation of the departure or landing runway in feet', example: 1289 })
+    @IsOptional()
+    @IsNumber()
+    runwayElevation?: number;
 }
