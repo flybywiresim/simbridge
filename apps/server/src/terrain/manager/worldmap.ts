@@ -217,6 +217,10 @@ export class Worldmap {
     }
 
     public configureNd(display: string, config: NavigationDisplayViewDto) {
+        if (config.runwayElevation === undefined) {
+            config.runwayElevation = 0;
+        }
+
         if (!(display in this.displays)) {
             this.displays[display] = {
                 viewConfig: config,
