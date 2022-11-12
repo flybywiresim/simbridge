@@ -47,10 +47,10 @@ export class NavigationDisplayViewDto {
     @ApiProperty({ description: 'The lower border of the elevation filter', example: 200 })
     @IsOptional()
     @IsNumber()
-    cutOffAltitudeMinimimum?: number;
+    cutOffAltitudeMinimimum?: number
 
     @ApiProperty({ description: 'The upper border of the elevation filter', example: 400 })
     @IsOptional()
     @IsNumber()
-    cutOffAltitudeMaximum?: number;
+    cutOffAltitudeMaximum?: number
 }
