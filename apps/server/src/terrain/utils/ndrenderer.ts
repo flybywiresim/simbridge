@@ -102,6 +102,25 @@ class NavigationDisplayRenderer {
         return elevation;
     }
 
+    private landingElevation(latitude: number | undefined, longitude: number | undefined): number | undefined {
+        if (latitude === undefined || longitude === undefined) return undefined;
+
+        const worldIdx = Worldmap.worldMapIndices(this.data.gridDefinition, latitude, longitude);
+        const tile = this.tiles.grid[worldIdx.row][worldIdx.column];
+
+        if (tile.tileIndex === -1) {
+            // is marked as water, but this is impossible -> use  sea level
+            return 0;
+        }
+
+        if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
+            const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude, longitude });
+            return tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+        }
+
+        return undefined;
+    }
+
     private createLocalElevationMap(viewConfig: NavigationDisplayViewDto, position: PositionDto, referenceAltitude: number): LocalMap {
         this.centerPixelX = Math.round(viewConfig.mapWidth / 2);
 
