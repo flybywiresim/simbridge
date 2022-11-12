@@ -160,8 +160,7 @@ class NavigationDisplayRenderer {
             }
         });
 
-        // calculate the peak-mode percentils
-        validElevations.sort((a, b) => a - b);
+        const normalMode = maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500);
 
         const retval = new LocalMap();
         retval.ElevationMap = Int16Array.from(elevationMap);
@@ -173,7 +172,7 @@ class NavigationDisplayRenderer {
         const percentile85th = NavigationDisplayRenderer.percentile(validElevations, 0.85);
 
         // normal mode
-        if (maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500)) {
+        if (normalMode) {
             retval.DisplayPeaksMode = false;
             retval.LowDensityGreenThreshold = referenceAltitude - 2000 <= minElevation ? minElevation + 200 : referenceAltitude - 2000;
             retval.HighDensityGreenThreshold = referenceAltitude - 1000 <= minElevation ? minElevation + 200 : referenceAltitude - 1000;
