@@ -34,10 +34,15 @@ export class NavigationDisplayViewDto {
     @IsBoolean()
     gearDown: boolean
 
-    @ApiProperty({ description: 'The runway elevation of the departure or landing runway in feet', example: 1289 })
+    @ApiProperty({ description: 'The latitude of the destination', example: 52.3923 })
     @IsOptional()
     @IsNumber()
-    runwayElevation?: number;
+    destinationLatitude?: number
+
+    @ApiProperty({ description: 'The longitude of the destination', example: 14.2424 })
+    @IsOptional()
+    @IsNumber()
+    destinationLongitude?: number
 
     @ApiProperty({ description: 'The lower border of the elevation filter', example: 200 })
     @IsOptional()
