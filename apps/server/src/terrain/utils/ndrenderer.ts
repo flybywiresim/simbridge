@@ -126,7 +126,7 @@ class NavigationDisplayRenderer {
 
         // initialize the local map and LUT
         const elevationMap: Int16Array = new Int16Array(viewConfig.mapWidth * viewConfig.mapHeight);
-        const validElevations: number[] = [];
+        let validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
         this.distanceHeadingLut = [...Array(viewConfig.mapHeight * viewConfig.mapWidth)].map(() => ({ distancePixels: 0, heading: 0, orientation: 0 }));
@@ -162,11 +162,58 @@ class NavigationDisplayRenderer {
 
         const normalMode = maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500);
 
+        /*
+         * activate the absolute cut off altitude (ACOA)
+         * this filter follows the Honeywell documenation
+         */
+        if (normalMode) {
+            const landingElevation = this.landingElevation(viewConfig.destinationLatitude, viewConfig.destinationLongitude);
+            if (landingElevation !== undefined) {
+                let cutOffAltitude = viewConfig.cutOffAltitudeMaximum;
+
+                // calculate the distance
+                const distance = WGS84.distance(position.latitude, position.longitude, viewConfig.destinationLatitude, viewConfig.destinationLongitude);
+                if (distance <= 4.0) {
+                    // calculate the glide until touchdown
+                    const opposite = position.altitude - landingElevation;
+                    let angleRadians = 0.0;
+                    if (opposite > 0 && distance > 0) {
+                        angleRadians = Math.atan(opposite / distance);
+                    }
+
+                    // check if the glide is greater or equal 3°
+                    if (angleRadians < 0.0523599) {
+                        if (distance <= 1.0 || angleRadians === 0.0) {
+                            // use the minimum value close to the airport
+                            cutOffAltitude = viewConfig.cutOffAltitudeMinimimum;
+                        } else {
+                            // use a linear model from max to min for 4 nm to 1 nm
+                            const slope = (viewConfig.cutOffAltitudeMinimimum - viewConfig.cutOffAltitudeMaximum) / 3.0;
+                            cutOffAltitude = Math.round(slope * (distance - 1.0) + viewConfig.cutOffAltitudeMaximum);
+
+                            // ensure that we are not below the minimum and not above the maximum
+                            cutOffAltitude = Math.max(cutOffAltitude, viewConfig.cutOffAltitudeMinimimum);
+                            cutOffAltitude = Math.min(cutOffAltitude, viewConfig.cutOffAltitudeMaximum);
+                        }
+                    }
+                }
+
+                // estimate the elevation filter between 200ft and 400ft
+                const elevationFilter = landingElevation + cutOffAltitude;
+
+                // adapt the collected information
+                validElevations = validElevations.filter((elevation) => elevation >= elevationFilter);
+                minElevation = elevationFilter;
+            }
+        }
+
         const retval = new LocalMap();
-        retval.ElevationMap = Int16Array.from(elevationMap);
+        retval.ElevationMap = elevationMap;
         retval.MaximumElevation = maxElevation;
         retval.TerrainMapMaxElevation = retval.MaximumElevation;
 
+        // sort the elevations for the percentile calculation and calculate it
+        validElevations.sort((a, b) => a - b);
         const flatEarth = retval.MaximumElevation - minElevation <= 100;
         const halfElevation = retval.MaximumElevation * 0.5;
         const percentile85th = NavigationDisplayRenderer.percentile(validElevations, 0.85);
