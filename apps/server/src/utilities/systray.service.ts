@@ -3,7 +3,7 @@ import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
 import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
-import { getPrivateIp } from './ip';
+import { getLocalIp } from './ip';
 
 interface MenuItemClickable extends MenuItem {
     click?: () => void;
@@ -30,17 +30,10 @@ export class SysTrayService {
           tooltip: 'Open remote displays',
           items: [{
               title: 'Open MCDU',
-              tooltip: 'Open the MCDU remote display with your default browser, using localhost',
-              enabled: true,
-              click: () => {
-                  open(`http://localhost:${port}/interfaces/mcdu`);
-              },
-          }, {
-              title: 'Open MCDU (with local IP)',
               tooltip: 'Open the MCDU remote display with your default browser, using your local IP',
               enabled: true,
               click: async () => {
-                  open(`http://${await getPrivateIp()}:${port}/interfaces/mcdu`);
+                  open(`http://${await getLocalIp()}:${port}/interfaces/mcdu`);
               },
           }],
       };

@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
-import { getPrivateIp } from './utilities/ip';
+import { getLocalIp } from './utilities/ip';
 import { UtilitiesModule } from './utilities/utilities.module';
 import { SysTrayService } from './utilities/systray.service';
 import { AppModule } from './app.module';
@@ -58,7 +58,7 @@ async function bootstrap() {
     await app.listen(port);
 
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    logger.log(`FlyByWire SimBridge started on: http://${await getPrivateIp()}:${port}`, 'NestApplication');
+    logger.log(`FlyByWire SimBridge started on: http://${await getLocalIp()}:${port}`, 'NestApplication');
 
     app.select(UtilitiesModule).get(SysTrayService).init(isConsoleHidden, port);
 

@@ -2,11 +2,11 @@ import { networkInterfaces } from 'os';
 import { AddressInfo, createConnection } from 'net';
 
 /**
- * Returns the private IP (usually 192.168.x.x) of the computer, or `localhost` if none is found.
+ * Returns the local IP (usually 192.168.x.x) of the computer, or `localhost` if none is found.
  */
-export async function getPrivateIp() {
+export async function getLocalIp() {
     return new Promise<string>((resolve) => {
-        // It's hard to reliably find the private IP so we try using 2 different methods.
+        // It's hard to reliably find the local IP so we try using 2 different methods.
         // First, we try to connect to api.flybywiresim.com:443 and see if we can extract the IP
         // from the socket connection.
         const conn = createConnection({ host: 'api.flybywiresim.com', port: 443, timeout: 1000 });
