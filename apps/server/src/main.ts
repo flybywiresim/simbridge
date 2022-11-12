@@ -58,7 +58,7 @@ async function bootstrap() {
     await app.listen(port);
 
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    logger.log(`FlyByWire SimBridge started on: http://${getPrivateIp()}:${port}`, 'NestApplication');
+    logger.log(`FlyByWire SimBridge started on: http://${await getPrivateIp()}:${port}`, 'NestApplication');
 
     app.select(UtilitiesModule).get(SysTrayService).init(isConsoleHidden, port);
 
