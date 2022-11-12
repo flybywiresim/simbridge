@@ -161,6 +161,7 @@ class NavigationDisplayRenderer {
         });
 
         const normalMode = maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500);
+        const retval = new LocalMap();
 
         /*
          * activate the absolute cut off altitude (ACOA)
@@ -198,16 +199,14 @@ class NavigationDisplayRenderer {
                     }
                 }
 
-                // estimate the elevation filter between 200ft and 400ft
-                const elevationFilter = landingElevation + cutOffAltitude;
+                retval.AbsoluteCutOffAltitude = landingElevation + cutOffAltitude;
 
                 // adapt the collected information
-                validElevations = validElevations.filter((elevation) => elevation >= elevationFilter);
-                minElevation = elevationFilter;
+                validElevations = validElevations.filter((elevation) => elevation >= retval.AbsoluteCutOffAltitude);
+                minElevation = retval.AbsoluteCutOffAltitude;
             }
         }
 
-        const retval = new LocalMap();
         retval.ElevationMap = elevationMap;
         retval.MaximumElevation = maxElevation;
         retval.TerrainMapMaxElevation = retval.MaximumElevation;
