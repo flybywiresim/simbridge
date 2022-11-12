@@ -44,7 +44,7 @@ fbw-build-*/
 release/
 
 # If you plan to run the server from the console and need the terrain map
-terrain/
+/terrain/
 
 # Dependency directories
 node_modules/
