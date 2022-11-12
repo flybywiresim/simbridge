@@ -349,27 +349,29 @@ class NavigationDisplayRenderer {
                             localMapData.RenderedNonCriticalAreas = true;
                         }
                     }
-                } else if (elevation >= localMapData.HighDensityRedThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 0, 0);
-                    }
-                } else if (elevation >= localMapData.HighDensityYellowThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
-                    }
-                } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
-                        localMapData.RenderedNonCriticalAreas = true;
-                    }
-                } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
-                    }
-                } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
-                        localMapData.RenderedNonCriticalAreas = true;
+                } else if (elevation >= localMapData.AbsoluteCutOffAltitude) {
+                    if (elevation >= localMapData.HighDensityRedThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                            this.fillPixel(viewConfig, image, x, y, 255, 0, 0);
+                        }
+                    } else if (elevation >= localMapData.HighDensityYellowThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                            this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
+                        }
+                    } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                            this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
+                            localMapData.RenderedNonCriticalAreas = true;
+                        }
+                    } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, false)) {
+                            this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
+                        }
+                    } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, false)) {
+                            this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
+                            localMapData.RenderedNonCriticalAreas = true;
+                        }
                     }
                 }
             } else if (elevation === UnknownElevation) {
