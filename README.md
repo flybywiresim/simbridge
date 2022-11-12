@@ -22,7 +22,7 @@ NodeJS 14 - [Homepage](https://nodejs.org/en/)
 $ npm install
 
 # Build all packages
-npm run build
+$ npm run build
 
 # Start Server, to use interfaces you need to build them beforehand
 $ npm run start
