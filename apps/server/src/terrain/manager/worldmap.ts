@@ -217,8 +217,10 @@ export class Worldmap {
     }
 
     public configureNd(display: string, config: NavigationDisplayViewDto) {
-        if (config.runwayElevation === undefined) {
-            config.runwayElevation = 0;
+        // ensure that the values are set
+        if (config.cutOffAltitudeMinimimum === undefined || config.cutOffAltitudeMaximum === undefined) {
+            config.cutOffAltitudeMinimimum = 200;
+            config.cutOffAltitudeMaximum = 400;
         }
 
         if (!(display in this.displays)) {
