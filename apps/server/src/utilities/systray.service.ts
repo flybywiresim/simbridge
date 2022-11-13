@@ -1,11 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
-import { join } from 'path';
 import SysTray, { MenuItem } from 'systray2';
+import { join } from 'path';
+import { getLocalIp } from './ip';
 
 interface MenuItemClickable extends MenuItem {
-    click?: () => void
+    click?: () => void;
+    items?: MenuItemClickable[];
 }
 
 @Injectable()
@@ -23,20 +25,20 @@ export class SysTrayService {
           hidden = !hidden;
       };
 
-      const remoteDisplayItem = {
+      const remoteDisplayItem: MenuItemClickable = {
           title: 'Remote Displays',
           tooltip: 'Open remote displays',
           items: [{
               title: 'Open MCDU',
-              tooltip: 'Open the MCDU remote display with your default browser',
+              tooltip: 'Open the MCDU remote display with your default browser, using your local IP',
               enabled: true,
-              click: () => {
-                  open(`http://localhost:${port}/interfaces/mcdu`);
+              click: async () => {
+                  open(`http://${await getLocalIp()}:${port}/interfaces/mcdu`);
               },
           }],
       };
 
-      const resourcesFolderItem = {
+      const resourcesFolderItem: MenuItemClickable = {
           title: 'Open Resources Folder',
           tooltip: 'Open resource folder in your file explorer',
           enabled: true,
@@ -45,7 +47,7 @@ export class SysTrayService {
           },
       };
 
-      const exitItem : MenuItemClickable = {
+      const exitItem: MenuItemClickable = {
           title: 'Exit',
           tooltip: 'Kill the server',
           checked: false,
@@ -56,7 +58,7 @@ export class SysTrayService {
           },
       };
 
-      const consoleVisibleItem : MenuItemClickable = {
+      const consoleVisibleItem: MenuItemClickable = {
           title: 'Show/Hide',
           tooltip: 'Change console visibility',
           checked: false,
