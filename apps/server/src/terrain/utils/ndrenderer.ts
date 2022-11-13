@@ -87,6 +87,8 @@ class NavigationDisplayRenderer {
         const projected = WGS84.project(position.latitude, position.longitude, distanceMeters, heading);
 
         const worldIdx = Worldmap.worldMapIndices(this.data.gridDefinition, projected.latitude, projected.longitude);
+        if (worldIdx === undefined) return UnknownElevation;
+
         const tile = this.tiles.grid[worldIdx.row][worldIdx.column];
         let elevation = 0;
 

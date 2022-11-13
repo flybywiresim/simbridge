@@ -122,6 +122,12 @@ export class Worldmap {
         });
     }
 
+    public shutdown(): void {
+        this.tileLoaderWorker.terminate();
+        this.ndRendererWorkerLeft.terminate();
+        this.ndRendererWorkerRight.terminate();
+    }
+
     private findTileIndices(latitude: number, longitude0: number, longitude1: number): { row: number, column: number }[] {
         const indices: { row: number, column: number }[] = [];
 
