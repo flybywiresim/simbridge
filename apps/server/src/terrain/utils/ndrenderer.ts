@@ -14,6 +14,8 @@ import { TileManager } from '../manager/tilemanager';
 
 const sharp = require('sharp');
 
+const FeetPerNauticalMile = 6076.12;
+const ThreeNauticalMilesInFeet = 18228.3;
 const InvalidElevation = 32767;
 const UnknownElevation = 32766;
 const WaterElevation = -1;
@@ -175,22 +177,26 @@ class NavigationDisplayRenderer {
                 // calculate the distance
                 const distance = WGS84.distance(position.latitude, position.longitude, viewConfig.destinationLatitude, viewConfig.destinationLongitude);
                 if (distance <= 4.0) {
+                    const distanceFeet = distance * FeetPerNauticalMile;
+
                     // calculate the glide until touchdown
                     const opposite = position.altitude - landingElevation;
-                    let angleRadians = 0.0;
+                    let glideRadian = 0.0;
                     if (opposite > 0 && distance > 0) {
-                        angleRadians = Math.atan(opposite / distance);
+                        // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
+                        glideRadian = Math.atan(opposite / distanceFeet);
                     }
+                    console.log(`${opposite}, ${distanceFeet}, ${glideRadian}`);
 
                     // check if the glide is greater or equal 3°
-                    if (angleRadians < 0.0523599) {
-                        if (distance <= 1.0 || angleRadians === 0.0) {
+                    if (glideRadian < 0.0523599) {
+                        if (distance <= 1.0 || glideRadian === 0.0) {
                             // use the minimum value close to the airport
                             cutOffAltitude = viewConfig.cutOffAltitudeMinimimum;
                         } else {
                             // use a linear model from max to min for 4 nm to 1 nm
-                            const slope = (viewConfig.cutOffAltitudeMinimimum - viewConfig.cutOffAltitudeMaximum) / 3.0;
-                            cutOffAltitude = Math.round(slope * (distance - 1.0) + viewConfig.cutOffAltitudeMaximum);
+                            const slope = (viewConfig.cutOffAltitudeMinimimum - viewConfig.cutOffAltitudeMaximum) / ThreeNauticalMilesInFeet;
+                            cutOffAltitude = Math.round(slope * (distanceFeet - FeetPerNauticalMile) + viewConfig.cutOffAltitudeMaximum);
 
                             // ensure that we are not below the minimum and not above the maximum
                             cutOffAltitude = Math.max(cutOffAltitude, viewConfig.cutOffAltitudeMinimimum);
