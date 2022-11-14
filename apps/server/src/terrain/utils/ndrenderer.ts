@@ -14,6 +14,8 @@ import { TileManager } from '../manager/tilemanager';
 
 const sharp = require('sharp');
 
+const FeetPerNauticalMile = 6076.12;
+const ThreeNauticalMilesInFeet = 18228.3;
 const InvalidElevation = 32767;
 const UnknownElevation = 32766;
 const WaterElevation = -1;
@@ -104,12 +106,31 @@ class NavigationDisplayRenderer {
         return elevation;
     }
 
+    private landingElevation(latitude: number | undefined, longitude: number | undefined): number | undefined {
+        if (latitude === undefined || longitude === undefined) return undefined;
+
+        const worldIdx = Worldmap.worldMapIndices(this.data.gridDefinition, latitude, longitude);
+        const tile = this.tiles.grid[worldIdx.row][worldIdx.column];
+
+        if (tile.tileIndex === -1) {
+            // is marked as water, but this is impossible -> use  sea level
+            return 0;
+        }
+
+        if (tile.elevationmap !== undefined && tile.elevationmap.MapLoaded) {
+            const mapIdx = ElevationGrid.worldToGridIndices(tile.elevationmap, { latitude, longitude });
+            return tile.elevationmap.ElevationMap[mapIdx.row * tile.elevationmap.Columns + mapIdx.column];
+        }
+
+        return undefined;
+    }
+
     private createLocalElevationMap(viewConfig: NavigationDisplayViewDto, position: PositionDto, referenceAltitude: number): LocalMap {
         this.centerPixelX = Math.round(viewConfig.mapWidth / 2);
 
         // initialize the local map and LUT
         const elevationMap: Int16Array = new Int16Array(viewConfig.mapWidth * viewConfig.mapHeight);
-        const validElevations: number[] = [];
+        let validElevations: number[] = [];
         let maxElevation = -10000;
         let minElevation = 10000;
         this.distanceHeadingLut = [...Array(viewConfig.mapHeight * viewConfig.mapWidth)].map(() => ({ distancePixels: 0, heading: 0, orientation: 0 }));
@@ -143,20 +164,69 @@ class NavigationDisplayRenderer {
             }
         });
 
-        // calculate the peak-mode percentils
-        validElevations.sort((a, b) => a - b);
-
+        const normalMode = maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500);
         const retval = new LocalMap();
-        retval.ElevationMap = Int16Array.from(elevationMap);
+
+        /*
+         * activate the absolute cut off altitude (ACOA)
+         * this filter follows the Honeywell documenation
+         */
+        if (normalMode) {
+            const landingElevation = this.landingElevation(viewConfig.destinationLatitude, viewConfig.destinationLongitude);
+            if (landingElevation !== undefined) {
+                let cutOffAltitude = viewConfig.cutOffAltitudeMaximum;
+
+                // calculate the distance
+                const distance = WGS84.distance(position.latitude, position.longitude, viewConfig.destinationLatitude, viewConfig.destinationLongitude);
+                if (distance <= 4.0) {
+                    const distanceFeet = distance * FeetPerNauticalMile;
+
+                    // calculate the glide until touchdown
+                    const opposite = position.altitude - landingElevation;
+                    let glideRadian = 0.0;
+                    if (opposite > 0 && distance > 0) {
+                        // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
+                        glideRadian = Math.atan(opposite / distanceFeet);
+                    }
+                    console.log(`${opposite}, ${distanceFeet}, ${glideRadian}`);
+
+                    // check if the glide is greater or equal 3°
+                    if (glideRadian < 0.0523599) {
+                        if (distance <= 1.0 || glideRadian === 0.0) {
+                            // use the minimum value close to the airport
+                            cutOffAltitude = viewConfig.cutOffAltitudeMinimimum;
+                        } else {
+                            // use a linear model from max to min for 4 nm to 1 nm
+                            const slope = (viewConfig.cutOffAltitudeMinimimum - viewConfig.cutOffAltitudeMaximum) / ThreeNauticalMilesInFeet;
+                            cutOffAltitude = Math.round(slope * (distanceFeet - FeetPerNauticalMile) + viewConfig.cutOffAltitudeMaximum);
+
+                            // ensure that we are not below the minimum and not above the maximum
+                            cutOffAltitude = Math.max(cutOffAltitude, viewConfig.cutOffAltitudeMinimimum);
+                            cutOffAltitude = Math.min(cutOffAltitude, viewConfig.cutOffAltitudeMaximum);
+                        }
+                    }
+                }
+
+                retval.AbsoluteCutOffAltitude = landingElevation + cutOffAltitude;
+
+                // adapt the collected information
+                validElevations = validElevations.filter((elevation) => elevation >= retval.AbsoluteCutOffAltitude);
+                minElevation = retval.AbsoluteCutOffAltitude;
+            }
+        }
+
+        retval.ElevationMap = elevationMap;
         retval.MaximumElevation = maxElevation;
         retval.TerrainMapMaxElevation = retval.MaximumElevation;
 
+        // sort the elevations for the percentile calculation and calculate it
+        validElevations.sort((a, b) => a - b);
         const flatEarth = retval.MaximumElevation - minElevation <= 100;
         const halfElevation = retval.MaximumElevation * 0.5;
         const percentile85th = NavigationDisplayRenderer.percentile(validElevations, 0.85);
 
         // normal mode
-        if (maxElevation >= referenceAltitude - (viewConfig.gearDown ? 250 : 500)) {
+        if (normalMode) {
             retval.DisplayPeaksMode = false;
             retval.LowDensityGreenThreshold = referenceAltitude - 2000 <= minElevation ? minElevation + 200 : referenceAltitude - 2000;
             retval.HighDensityGreenThreshold = referenceAltitude - 1000 <= minElevation ? minElevation + 200 : referenceAltitude - 1000;
@@ -287,27 +357,29 @@ class NavigationDisplayRenderer {
                             localMapData.RenderedNonCriticalAreas = true;
                         }
                     }
-                } else if (elevation >= localMapData.HighDensityRedThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 0, 0);
-                    }
-                } else if (elevation >= localMapData.HighDensityYellowThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
-                    }
-                } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, true)) {
-                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
-                        localMapData.RenderedNonCriticalAreas = true;
-                    }
-                } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                        this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
-                    }
-                } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
-                    if (this.drawPixel(viewConfig, x, y, elevation, false)) {
-                        this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
-                        localMapData.RenderedNonCriticalAreas = true;
+                } else if (elevation >= localMapData.AbsoluteCutOffAltitude) {
+                    if (elevation >= localMapData.HighDensityRedThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                            this.fillPixel(viewConfig, image, x, y, 255, 0, 0);
+                        }
+                    } else if (elevation >= localMapData.HighDensityYellowThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                            this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
+                        }
+                    } else if (elevation >= localMapData.HighDensityGreenThreshold && elevation < localMapData.LowDensityYellowThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, true)) {
+                            this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
+                            localMapData.RenderedNonCriticalAreas = true;
+                        }
+                    } else if (elevation >= localMapData.LowDensityYellowThreshold && elevation < localMapData.HighDensityYellowThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, false)) {
+                            this.fillPixel(viewConfig, image, x, y, 255, 255, 50);
+                        }
+                    } else if (elevation >= localMapData.LowDensityGreenThreshold && elevation < localMapData.HighDensityGreenThreshold) {
+                        if (this.drawPixel(viewConfig, x, y, elevation, false)) {
+                            this.fillPixel(viewConfig, image, x, y, 0, 255, 0);
+                            localMapData.RenderedNonCriticalAreas = true;
+                        }
                     }
                 }
             } else if (elevation === UnknownElevation) {

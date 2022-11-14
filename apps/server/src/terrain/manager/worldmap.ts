@@ -223,6 +223,12 @@ export class Worldmap {
     }
 
     public configureNd(display: string, config: NavigationDisplayViewDto) {
+        // ensure that the cut off values are set
+        if (config.cutOffAltitudeMinimimum === undefined || config.cutOffAltitudeMaximum === undefined) {
+            config.cutOffAltitudeMinimimum = 200;
+            config.cutOffAltitudeMaximum = 400;
+        }
+
         if (!(display in this.displays)) {
             this.displays[display] = {
                 viewConfig: config,

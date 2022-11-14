@@ -17,6 +17,8 @@ export class LocalMap {
 
     public MaximumElevation: number = 0;
 
+    public AbsoluteCutOffAltitude: number = 0;
+
     public LowerDensityRangeThreshold: number = 0;
 
     public HigherDensityRangeThreshold: number = 0;
