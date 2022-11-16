@@ -25,6 +25,12 @@ export interface RenderingData {
     timestamp: number
 }
 
+export interface TileData {
+    row: number,
+    column: number,
+    grid: ElevationGrid,
+}
+
 interface TileLoadingData {
     whitelist: { row: number, column: number }[];
 
@@ -55,11 +61,15 @@ export class Worldmap {
 
     private ndRendererWorkerRight: Worker;
 
+    private webGlTest: Worker;
+
+    private webGlTestInProgress: boolean = false;
+
     private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: NavigationDisplayData } } = {};
 
     private presentPosition: PositionDto | undefined = undefined;
 
-    private visibilityRange: number = 400;
+    private visibilityRange: number = 700;
 
     public static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
         for (let i = 0; i < tiles.length; ++i) {
@@ -101,6 +111,7 @@ export class Worldmap {
             };
 
             this.ndRendererWorkerLeft.postMessage(rendererData);
+            this.webGlTest.postMessage(rendererData);
             this.ndRendererWorkerRight.postMessage(rendererData);
 
             this.tiles.cleanupElevationCache(this.tileLoaderWhitelist);
@@ -112,6 +123,13 @@ export class Worldmap {
         this.ndRendererWorkerLeft.on('message', (result: NavigationDisplayData) => {
             this.displays.L.data = result;
             this.ndRenderingLeftInProgress = false;
+        });
+
+        this.webGlTest = new Worker(path.resolve(__dirname, '../utils/webgl.js'));
+        this.webGlTest.postMessage({ type: 'INITIALIZATION', instance: this.terrainData });
+        this.webGlTest.on('message', (result: NavigationDisplayData) => {
+            this.displays.L.data = result;
+            this.webGlTestInProgress = false;
         });
 
         this.ndRendererWorkerRight = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
@@ -201,10 +219,14 @@ export class Worldmap {
                 };
 
                 if (id === 'L') {
-                    if (this.ndRenderingLeftInProgress === false) {
-                        this.ndRendererWorkerLeft.postMessage({ type: 'RENDERING', instance: workerContent });
+                    if (this.webGlTestInProgress === false) {
+                        this.webGlTest.postMessage({ type: 'RENDERING', instance: workerContent });
                         return timestamp;
                     }
+                    // if (this.ndRenderingLeftInProgress === false) {
+                    //    this.ndRendererWorkerLeft.postMessage({ type: 'RENDERING', instance: workerContent });
+                    //    return timestamp;
+                    // }
                 } else if (this.ndRenderingRightInProgress === false) {
                     this.ndRendererWorkerRight.postMessage({ type: 'RENDERING', instance: workerContent });
                     return timestamp;
