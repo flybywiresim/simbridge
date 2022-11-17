@@ -42,6 +42,8 @@ export interface NavigationDisplayConstants {
     histogramBinRange: number,
     histogramMinimumElevation: number,
     flatEarthThreshold: number,
+    maxAirportDistance: number,
+    invalidElevation: number,
 }
 
 export type NavigationDisplayParameters = {
