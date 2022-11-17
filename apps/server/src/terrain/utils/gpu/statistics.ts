@@ -3,21 +3,18 @@ import { HistogramParameters } from './interfaces';
 
 export function createElevationHistogram(
     this: HistogramParameters,
-    elevations: number[][],
-    width: number,
-    height: number,
+    elevations: number[],
+    size: number,
 ): number {
     const lowerElevation = this.thread.x * this.constants.binRange + this.constants.minimumElevation;
-    const upperElevation = lowerElevation + this.constants.binRange - 1;
+    const upperElevation = lowerElevation + this.constants.binRange;
     let count: number = 0;
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const elevation = elevations[y][x];
-            if (elevation !== this.constants.waterElevation && elevation !== this.constants.invalidElevation && elevation !== this.constants.unknownElevation) {
-                if (elevation >= lowerElevation && elevation < upperElevation) {
-                    count += 1;
-                }
+    for (let i = 0; i < size; i++) {
+        const elevation = elevations[i];
+        if (elevation !== this.constants.waterElevation && elevation !== this.constants.invalidElevation && elevation !== this.constants.unknownElevation) {
+            if (elevation >= lowerElevation && elevation < upperElevation) {
+                count += 1;
             }
         }
     }
@@ -25,69 +22,76 @@ export function createElevationHistogram(
     return count;
 }
 
-function histogramTotalFrequency(histogram: number[], binCount: number): number {
+function histogramTotalFrequency(histogram: number[], binCount: number, cutOffAltitudeBin: number): number {
     let totalFrequency = 0;
 
-    for (let bin = 0; bin < binCount; bin++) {
+    for (let bin = cutOffAltitudeBin; bin < binCount; bin++) {
         totalFrequency += histogram[bin];
     }
 
     return totalFrequency;
 }
 
+export function maximumElevation(histogram: number[]) {
+    let elevationBin = 0;
+
+    for (let bin = 0; bin < this.constants.histogramBinCount; bin++) {
+        if (histogram[bin] > 0) {
+            elevationBin = bin;
+        }
+    }
+
+    // use the worst case of the bin -> next bin - 1
+    elevationBin += 1;
+
+    return elevationBin * this.constants.histogramBinRange + this.constants.histogramMinimumElevation - 1;
+}
+
 export function elevationStatistics(
     histogram: number[],
-    binCount: number,
-    lowerPercentile: number,
-    upperPercentile: number,
-    binRange: number,
-    minimumElevation: number,
-): [number, number, number, number] {
-    const totalFrequency = histogramTotalFrequency(histogram, binCount);
+    cutOffAltitude: number,
+): [number, number, number] {
+    const cutOffAltitudeBin = Math.floor((cutOffAltitude - this.constants.histogramMinimumElevation) / this.constants.histogramBinRange);
+    const totalFrequency = histogramTotalFrequency(histogram, this.constants.histogramBinCount, cutOffAltitudeBin);
     let minElevationBin = -1;
-    let maxElevationBin = -1;
-    let lowerBin = binCount + 1;
+    let lowerBin = this.constants.histogramBinCount + 1;
     let upperBin = -1;
 
     let currentPercentile = 0;
     const factor = 100.0 / totalFrequency;
-    for (let bin = 0; bin < binCount; bin++) {
+    for (let bin = cutOffAltitudeBin; bin < this.constants.histogramBinCount; bin++) {
         if (totalFrequency > 0) {
             const ratio = histogram[bin] / totalFrequency;
             currentPercentile += ratio * factor;
-            if (currentPercentile >= lowerPercentile) {
+            if (currentPercentile >= this.constants.lowerPercentile) {
                 lowerBin = bin;
             }
-            if (currentPercentile >= upperPercentile) {
+            if (currentPercentile >= this.constants.upperPercentile) {
                 upperBin = bin;
             }
         }
 
         if (histogram[bin] > 0) {
             if (minElevationBin < 0) minElevationBin = bin;
-            maxElevationBin = bin;
         }
     }
 
-    if (lowerBin > binCount) {
-        lowerBin = binCount - 1;
+    if (lowerBin > this.constants.histogramBinCount) {
+        lowerBin = this.constants.histogramBinCount - 1;
     }
     if (upperBin < 0) {
-        upperBin = binCount - 1;
+        upperBin = this.constants.histogramBinCount - 1;
     }
 
     let minElevation = -1;
-    let maxElevation = 0;
     if (minElevationBin >= 0) {
-        minElevation = minElevationBin * binRange + minimumElevation;
-        maxElevation = maxElevationBin * binRange + minimumElevation;
+        minElevation = minElevationBin * this.constants.histogramBinRange + this.constants.histogramMinimumElevation;
     }
 
     return [
         minElevation,
-        maxElevation,
-        lowerBin * binRange + minimumElevation,
-        upperBin * binRange + minimumElevation,
+        lowerBin * this.constants.histogramBinRange + this.constants.histogramMinimumElevation,
+        upperBin * this.constants.histogramBinRange + this.constants.histogramMinimumElevation,
     ];
 }
 
@@ -96,18 +100,19 @@ export const registerStatisticsFunctions = (gpu: GPU): void => {
         argumentTypes: {
             histogram: 'Array',
             binCount: 'Integer',
+            cutOffAltitudeBin: 'Integer',
         },
+        returnType: 'Integer',
+    });
+    gpu.addFunction(maximumElevation, {
+        argumentTypes: { histogram: 'Array' },
         returnType: 'Integer',
     });
     gpu.addFunction(elevationStatistics, {
         argumentTypes: {
             histogram: 'Array',
-            binCount: 'Integer',
-            lowerPercentile: 'Integer',
-            upperPercentile: 'Integer',
-            binRange: 'Integer',
-            minimumElevation: 'Integer',
+            cutOffAltitude: 'Float',
         },
-        returnType: 'Array(4)',
+        returnType: 'Array(3)',
     });
 };
