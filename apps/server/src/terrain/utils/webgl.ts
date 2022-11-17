@@ -160,6 +160,7 @@ class NavigationDisplayRenderer {
                 strictIntegers: true,
                 tactic: 'speed',
             })
+            .setLoopMaxIterations(500000)
             .setConstants<HistogramConstants>({
                 minimumElevation: MinimumElevation,
                 invalidElevation: InvalidElevation,
