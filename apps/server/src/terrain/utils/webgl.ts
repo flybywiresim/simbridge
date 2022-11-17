@@ -297,7 +297,6 @@ class NavigationDisplayRenderer {
                     maxElevation = Math.max(entry, maxElevation);
                     minElevation = Math.min(entry, minElevation);
                 });
-                console.log(`${minElevation} ${maxElevation}`);
 
                 const image = new Uint8ClampedArray(elevations.length);
                 elevations.forEach((entry, index) => {
