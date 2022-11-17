@@ -373,7 +373,16 @@ class NavigationDisplayRenderer {
             console.log(`Histogram: ${performance.now() - start}`);
 
             if (DebugHistogram) {
-                (histogram.toArray() as number[]).forEach((entry) => console.log(entry));
+                let entryCount = 0;
+                (histogram.toArray() as number[]).forEach((entry, index) => {
+                    if (entry !== 0) {
+                        const lowerElevation = index * HistogramBinRange + MinimumElevation;
+                        const upperElevation = (index + 1) * HistogramBinRange + MinimumElevation;
+                        console.log(`[${lowerElevation}, ${upperElevation}[ = ${entry}`);
+                        entryCount += entry;
+                    }
+                });
+                console.log(`${entryCount} of ${pixelCount} px`);
             }
         }
     }
