@@ -1,7 +1,8 @@
 import { IKernelFunctionThis } from 'gpu.js';
 
 export interface LocalElevationMapConstants {
-    angleStepPerTile: [number, number],
+    latitudeStepPerTile: number,
+    longitudeStepPerTile: number,
     worldGridElementCount: number,
     invalidDataValue: number,
     invalidElevation: number,

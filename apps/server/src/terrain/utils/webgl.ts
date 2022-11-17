@@ -1,8 +1,9 @@
 import { parentPort } from 'worker_threads';
-import { GPU, IKernelRunShortcut, KernelOutput } from 'gpu.js';
+import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
+import { registerNavigationDisplayFunctions } from './gpu/navigationdisplay';
 import { RenderingData, TileData } from '../manager/worldmap';
 import { TerrainMap } from '../mapformat/terrainmap';
-import { createLocalElevationMap } from './gpu/elevationmap';
+import { createLocalElevationMap, extractElevation } from './gpu/elevationmap';
 import { registerHelperFunctions } from './gpu/helper';
 import { HistogramConstants, LocalElevationMapConstants } from './gpu/interfaces';
 import { createElevationHistogram, registerStatisticsFunctions } from './gpu/statistics';
@@ -45,20 +46,23 @@ class NavigationDisplayRenderer {
         indices: number[],
         tiles: number[][],
         offsets: number[],
+        buffer: number[],
         bufferLength: number,
     } = null;
 
     private gpuInstance: GPU = null;
 
-    private uploadTextureToGPU: IKernelRunShortcut = null;
+    private uploadWorldGridToGPU: IKernelRunShortcut = null;
+
+    private uploadTileBufferToGPU: IKernelRunShortcut = null;
 
     private localElevationMap: IKernelRunShortcut = null;
 
     private elevationHistogram: IKernelRunShortcut = null;
 
-    private gpuWorldGridBuffer: KernelOutput = null;
+    private gpuWorldGridBuffer: Texture = null;
 
-    private gpuTileBuffer: KernelOutput = null;
+    private gpuTileBuffer: Texture = null;
 
     private static fastFlatten<T>(arr: T[][]): T[] {
         const numElementsUptoIndex = Array(arr.length);
@@ -86,6 +90,7 @@ class NavigationDisplayRenderer {
             indices: [],
             tiles: [],
             offsets: [],
+            buffer: [],
             bufferLength: 0,
         };
 
@@ -108,8 +113,21 @@ class NavigationDisplayRenderer {
         this.gpuInstance = new GPU({ mode: 'gpu' });
         registerHelperFunctions(this.gpuInstance);
         registerStatisticsFunctions(this.gpuInstance);
+        registerNavigationDisplayFunctions(this.gpuInstance);
 
-        this.uploadTextureToGPU = this.gpuInstance
+        this.uploadWorldGridToGPU = this.gpuInstance
+            .createKernel(uploadTexture, {
+                argumentTypes: { texture: 'Array' },
+                dynamicArguments: true,
+                pipeline: true,
+                immutable: false,
+                precision: 'single',
+                strictIntegers: true,
+                tactic: 'speed',
+            })
+            .setOutput([this.flattenedGridData.grid.length]);
+
+        this.uploadTileBufferToGPU = this.gpuInstance
             .createKernel(uploadTexture, {
                 argumentTypes: { texture: 'Array' },
                 dynamicArguments: true,
@@ -125,7 +143,7 @@ class NavigationDisplayRenderer {
             .createKernel(createLocalElevationMap, {
                 dynamicArguments: true,
                 dynamicOutput: true,
-                pipeline: !DebugElevationMap,
+                pipeline: true,
                 immutable: true,
                 precision: 'single',
                 strictIntegers: true,
@@ -136,8 +154,7 @@ class NavigationDisplayRenderer {
         this.elevationHistogram = this.gpuInstance
             .createKernel(createElevationHistogram, {
                 dynamicArguments: true,
-                dynamicOutput: true,
-                pipeline: !DebugHistogram,
+                pipeline: true,
                 immutable: true,
                 precision: 'single',
                 strictIntegers: true,
@@ -232,46 +249,86 @@ class NavigationDisplayRenderer {
         // update the GPU data
         this.flattenedTileData.offsets = tileData;
 
-        if (this.uploadTextureToGPU !== null) {
+        if (this.uploadWorldGridToGPU !== null && this.uploadTileBufferToGPU !== null) {
             // upload the world grid
             let start = performance.now();
-            this.uploadTextureToGPU = this.uploadTextureToGPU.setOutput([this.flattenedGridData.grid.length]);
-            this.gpuWorldGridBuffer = this.uploadTextureToGPU(this.flattenedGridData.grid);
+            this.gpuWorldGridBuffer = this.uploadWorldGridToGPU(this.flattenedGridData.grid) as Texture;
             console.log(`World upload: ${performance.now() - start}`);
 
             // upload the cached tiles
             start = performance.now();
-            const buffer = NavigationDisplayRenderer.fastFlatten(this.flattenedTileData.tiles);
-            this.uploadTextureToGPU = this.uploadTextureToGPU.setOutput([buffer.length]);
-            this.gpuTileBuffer = this.uploadTextureToGPU(buffer);
+            this.flattenedTileData.buffer = NavigationDisplayRenderer.fastFlatten(this.flattenedTileData.tiles);
+
+            if (this.uploadTileBufferToGPU.output === null || this.flattenedTileData.buffer.length !== this.uploadTileBufferToGPU.output[0]) {
+                this.uploadTileBufferToGPU = this.uploadTileBufferToGPU.setOutput([this.flattenedTileData.buffer.length]);
+            }
+
+            this.gpuTileBuffer = this.uploadTileBufferToGPU(this.flattenedTileData.buffer) as Texture;
             console.log(`Tile upload: ${performance.now() - start}`);
 
-            this.flattenedTileData.bufferLength = buffer.length;
+            this.flattenedTileData.bufferLength = this.flattenedTileData.buffer.length;
         }
     }
 
     public async render(data: RenderingData): Promise<void> {
         if (this.localElevationMap !== null) {
-            let start = performance.now();
-            this.localElevationMap = this.localElevationMap
-                .setConstants<LocalElevationMapConstants>({
-                    angleStepPerTile: [1, 1],
-                    worldGridElementCount: this.flattenedGridData.tileCount,
-                    invalidDataValue: InvalidDataValue,
-                    invalidElevation: InvalidElevation,
-                    unknownElevation: UnknownElevation,
-                    waterElevation: WaterElevation,
-                    gridRowIndex: FlattenGridRowIndex,
-                    gridColumnIndex: FlattenGridColumnIndex,
-                    gridTileIndex: FlattenGridTileIndex,
-                    gridRowCount: FlattenGridRowCount,
-                    gridColumnCount: FlattenGridColumnCount,
-                    gridEntryCount: FlattenGridEntryCount,
-                    flattenTileIndex: FlattenTileIndex,
-                    flattenTileOffset: FlattenTileOffset,
-                    flattenTileEntryCount: FlattenTileEntryCount,
-                })
-                .setOutput([data.viewConfig.mapWidth, data.viewConfig.mapHeight]);
+            const pixelCount = data.viewConfig.mapWidth * data.viewConfig.mapHeight;
+            let destinationElevation = InvalidElevation;
+            let start = 0;
+
+            if (data.viewConfig.destinationLatitude !== undefined && data.viewConfig.destinationLongitude !== undefined) {
+                destinationElevation = extractElevation(
+                    {
+                        latitudeStepPerTile: 1,
+                        longitudeStepPerTile: 1,
+                        worldGridElementCount: this.flattenedGridData.tileCount,
+                        invalidDataValue: InvalidDataValue,
+                        invalidElevation: InvalidElevation,
+                        unknownElevation: UnknownElevation,
+                        waterElevation: WaterElevation,
+                        gridRowIndex: FlattenGridRowIndex,
+                        gridColumnIndex: FlattenGridColumnIndex,
+                        gridTileIndex: FlattenGridTileIndex,
+                        gridRowCount: FlattenGridRowCount,
+                        gridColumnCount: FlattenGridColumnCount,
+                        gridEntryCount: FlattenGridEntryCount,
+                        flattenTileIndex: FlattenTileIndex,
+                        flattenTileOffset: FlattenTileOffset,
+                        flattenTileEntryCount: FlattenTileEntryCount,
+                    },
+                    data.viewConfig.destinationLatitude,
+                    data.viewConfig.destinationLongitude,
+                    this.flattenedGridData.grid,
+                    this.flattenedTileData.indices.length,
+                    this.flattenedTileData.offsets,
+                    this.flattenedTileData.buffer,
+                    this.flattenedTileData.bufferLength,
+                );
+            }
+
+            start = performance.now();
+            if (this.localElevationMap.output === null || pixelCount !== this.localElevationMap.output[0]) {
+                this.localElevationMap = this.localElevationMap
+                    .setConstants<LocalElevationMapConstants>({
+                        latitudeStepPerTile: 1,
+                        longitudeStepPerTile: 1,
+                        worldGridElementCount: this.flattenedGridData.tileCount,
+                        invalidDataValue: InvalidDataValue,
+                        invalidElevation: InvalidElevation,
+                        unknownElevation: UnknownElevation,
+                        waterElevation: WaterElevation,
+                        gridRowIndex: FlattenGridRowIndex,
+                        gridColumnIndex: FlattenGridColumnIndex,
+                        gridTileIndex: FlattenGridTileIndex,
+                        gridRowCount: FlattenGridRowCount,
+                        gridColumnCount: FlattenGridColumnCount,
+                        gridEntryCount: FlattenGridEntryCount,
+                        flattenTileIndex: FlattenTileIndex,
+                        flattenTileOffset: FlattenTileOffset,
+                        flattenTileEntryCount: FlattenTileEntryCount,
+                    })
+                    .setOutput([pixelCount]);
+            }
             console.log(`Compilation (render): ${performance.now() - start}`);
 
             start = performance.now();
@@ -286,11 +343,11 @@ class NavigationDisplayRenderer {
                 this.flattenedTileData.offsets,
                 this.gpuTileBuffer,
                 this.flattenedTileData.bufferLength,
-            );
+            ) as Texture;
             console.log(`Elevation map: ${performance.now() - start}`);
 
             if (DebugElevationMap) {
-                const elevations = NavigationDisplayRenderer.fastFlatten(elevationGrid as number[][]);
+                const elevations = elevationGrid.toArray() as number[];
                 let maxElevation = 0;
                 let minElevation = 1000;
                 elevations.forEach((entry) => {
@@ -304,25 +361,19 @@ class NavigationDisplayRenderer {
                     image[index] = gray;
                 });
 
-                const base64 = await sharp(image, { raw: { width: data.viewConfig.mapWidth, height: data.viewConfig.mapHeight, channels: 1 } })
+                await sharp(image, { raw: { width: data.viewConfig.mapWidth, height: data.viewConfig.mapHeight, channels: 1 } })
                     .png()
-                    .toBuffer()
-                    .then((clipped) => Buffer.from(new Uint8Array(clipped)).toString('base64'));
-                console.log(base64);
+                    .toFile('tmp.png');
 
                 return;
             }
 
             start = performance.now();
-            const histogram = this.elevationHistogram(
-                elevationGrid,
-                data.viewConfig.mapWidth,
-                data.viewConfig.mapHeight,
-            );
+            const histogram = this.elevationHistogram(elevationGrid, pixelCount) as Texture;
             console.log(`Histogram: ${performance.now() - start}`);
 
             if (DebugHistogram) {
-                (histogram as number[]).forEach((entry) => console.log(entry));
+                (histogram.toArray() as number[]).forEach((entry) => console.log(entry));
             }
         }
     }
