@@ -306,7 +306,6 @@ class NavigationDisplayRenderer {
                 );
             }
 
-            start = performance.now();
             if (this.localElevationMap.output === null || pixelCount !== this.localElevationMap.output[0]) {
                 this.localElevationMap = this.localElevationMap
                     .setConstants<LocalElevationMapConstants>({
@@ -329,7 +328,6 @@ class NavigationDisplayRenderer {
                     })
                     .setOutput([pixelCount]);
             }
-            console.log(`Compilation (render): ${performance.now() - start}`);
 
             start = performance.now();
             const elevationGrid = this.localElevationMap(
