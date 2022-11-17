@@ -111,6 +111,7 @@ class NavigationDisplayRenderer {
 
         this.uploadTextureToGPU = this.gpuInstance
             .createKernel(uploadTexture, {
+                argumentTypes: { texture: 'Array' },
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
