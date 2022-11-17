@@ -34,8 +34,8 @@ const HistogramBinRange = 100;
 const MinimumElevation = -500; // some areas in the world are below water level
 const MaximumElevation = 29040; // mount everest
 
-function uploadTexture(worldGridBuffer: number[]): number {
-    return worldGridBuffer[this.thread.x];
+function uploadTexture(texture: number[]): number {
+    return texture[this.thread.x];
 }
 
 class NavigationDisplayRenderer {
