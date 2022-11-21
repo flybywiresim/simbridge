@@ -142,7 +142,10 @@ export class Worldmap {
 
     public shutdown(): void {
         this.tileLoaderWorker.terminate();
-        this.ndRendererWorkerLeft.terminate();
+        this.ndRendererWorkerLeft.postMessage({ type: 'SHUTDOWN' });
+        this.ndRendererWorkerLeft.on('message', () => {
+            this.ndRendererWorkerLeft.terminate();
+        });
         this.ndRendererWorkerRight.terminate();
     }
 
