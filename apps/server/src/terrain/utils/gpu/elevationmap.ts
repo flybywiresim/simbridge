@@ -5,8 +5,8 @@ import {
     findTileOffset,
     normalizeHeading,
     projectWgs84,
-    rad2deg,
 } from './helper';
+import { rad2deg } from '../generic/helper';
 import { LocalElevationMapConstants, LocalElevationMapParameters } from './interfaces';
 
 export function extractElevation(
@@ -92,18 +92,15 @@ export function createLocalElevationMap(
     tilesBuffer: number[],
     tilesBufferLength: number,
 ): number {
-    const pixelY = Math.floor(this.thread.x / mapDimension[0]);
-    const pixelX = this.thread.x % mapDimension[0];
-
     const centerX = mapDimension[0] / 2.0;
-    const delta = [pixelX - centerX, mapDimension[1] - pixelY];
+    const delta = [this.thread.x - centerX, mapDimension[1] - this.thread.y];
 
     // calculate distance and bearing for the projection
     const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
     const distance = distancePixels * (meterPerPixel / 2.0);
     const angle = rad2deg(Math.acos(delta[1] / distancePixels));
     let bearing = 0.0;
-    if (pixelX > centerX) {
+    if (this.thread.x > centerX) {
         bearing = angle;
     } else {
         bearing = 360.0 - angle;

@@ -1,19 +1,21 @@
 import { parentPort } from 'worker_threads';
-import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
-import { registerNavigationDisplayFunctions } from './gpu/navigationdisplay';
+import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import { RenderingData, TileData } from '../manager/worldmap';
 import { TerrainMap } from '../mapformat/terrainmap';
 import { createLocalElevationMap, extractElevation } from './gpu/elevationmap';
 import { registerHelperFunctions } from './gpu/helper';
-import { HistogramConstants, LocalElevationMapConstants } from './gpu/interfaces';
-import { createElevationHistogram, registerStatisticsFunctions } from './gpu/statistics';
+import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
+import { registerNavigationDisplayFunctions, renderNavigationDisplay } from './gpu/navigationdisplay';
+import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { TileManager } from '../manager/tilemanager';
+import { calculateAbsoluteCutOffAltitude } from './generic/statistics';
 
 const sharp = require('sharp');
 
 // debug configuration
-const DebugElevationMap = false;
+const DebugElevationMap = true;
 const DebugHistogram = false;
+const DebugRendering = true;
 
 // elevation map constants
 const InvalidDataValue = -1;
@@ -32,8 +34,22 @@ const FlattenTileEntryCount = 2;
 
 // histogram parameters
 const HistogramBinRange = 100;
-const MinimumElevation = -500; // some areas in the world are below water level
-const MaximumElevation = 29040; // mount everest
+const HistogramMinimumElevation = -500; // some areas in the world are below water level
+const HistogramMaximumElevation = 29040; // mount everest
+const HistogramBinCount = Math.ceil((HistogramMaximumElevation - HistogramMinimumElevation + 1) / HistogramBinRange);
+const HistogramPatchSize = 128;
+
+// rendering parameters
+const RenderingLowerPercentile = 0.85;
+const RenderingUpperPercentile = 0.95;
+const RenderingFlatEarthThreshold = 100;
+const RenderingMaxAirportDistance = 4.0;
+const RenderingNormalModeLowDensityGreenOffset = 2000;
+const RenderingNormalModeHighDensityGreenOffset = 1000;
+const RenderingNormalModeHighDensityYellowOffset = 1000;
+const RenderingNormalModeHighDensityRedOffset = 2000;
+const RenderingGearDownOffset = 250;
+const RenderingNonGearDownOffset = 500;
 
 function uploadTexture(texture: number[]): number {
     return texture[this.thread.x];
@@ -58,7 +74,11 @@ class NavigationDisplayRenderer {
 
     private localElevationMap: IKernelRunShortcut = null;
 
+    private localElevationHistogram: IKernelRunShortcut = null;
+
     private elevationHistogram: IKernelRunShortcut = null;
+
+    private navigationDisplayRendering: IKernelRunShortcut = null;
 
     private gpuWorldGridBuffer: Texture = null;
 
@@ -112,7 +132,6 @@ class NavigationDisplayRenderer {
         // prepare the GPU environment
         this.gpuInstance = new GPU({ mode: 'gpu' });
         registerHelperFunctions(this.gpuInstance);
-        registerStatisticsFunctions(this.gpuInstance);
         registerNavigationDisplayFunctions(this.gpuInstance);
 
         this.uploadWorldGridToGPU = this.gpuInstance
@@ -120,7 +139,6 @@ class NavigationDisplayRenderer {
                 argumentTypes: { texture: 'Array' },
                 dynamicArguments: true,
                 pipeline: true,
-                immutable: false,
                 precision: 'single',
                 strictIntegers: true,
                 tactic: 'speed',
@@ -133,7 +151,6 @@ class NavigationDisplayRenderer {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
-                immutable: true,
                 precision: 'single',
                 strictIntegers: true,
                 tactic: 'speed',
@@ -144,31 +161,96 @@ class NavigationDisplayRenderer {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
-                immutable: true,
                 precision: 'single',
                 strictIntegers: true,
                 tactic: 'speed',
             })
+            .setConstants<LocalElevationMapConstants>({
+                latitudeStepPerTile: 1,
+                longitudeStepPerTile: 1,
+                worldGridElementCount: this.flattenedGridData.tileCount,
+                invalidDataValue: InvalidDataValue,
+                invalidElevation: InvalidElevation,
+                unknownElevation: UnknownElevation,
+                waterElevation: WaterElevation,
+                gridRowIndex: FlattenGridRowIndex,
+                gridColumnIndex: FlattenGridColumnIndex,
+                gridTileIndex: FlattenGridTileIndex,
+                gridRowCount: FlattenGridRowCount,
+                gridColumnCount: FlattenGridColumnCount,
+                gridEntryCount: FlattenGridEntryCount,
+                flattenTileIndex: FlattenTileIndex,
+                flattenTileOffset: FlattenTileOffset,
+                flattenTileEntryCount: FlattenTileEntryCount,
+            })
             .setLoopMaxIterations(this.flattenedGridData.tileCount); // number of tiles in the world
+
+        this.localElevationHistogram = this.gpuInstance
+            .createKernel(createLocalElevationHistogram, {
+                dynamicArguments: true,
+                dynamicOutput: true,
+                pipeline: true,
+                precision: 'single',
+                strictIntegers: true,
+                tactic: 'speed',
+            })
+            .setLoopMaxIterations(1000)
+            .setConstants<HistogramConstants>({
+                minimumElevation: HistogramMinimumElevation,
+                invalidElevation: InvalidElevation,
+                unknownElevation: UnknownElevation,
+                waterElevation: WaterElevation,
+                binRange: HistogramBinRange,
+                binCount: HistogramBinCount,
+                patchSize: HistogramPatchSize,
+            });
 
         this.elevationHistogram = this.gpuInstance
             .createKernel(createElevationHistogram, {
                 dynamicArguments: true,
                 pipeline: true,
-                immutable: true,
                 precision: 'single',
                 strictIntegers: true,
                 tactic: 'speed',
             })
-            .setLoopMaxIterations(500000)
-            .setConstants<HistogramConstants>({
-                minimumElevation: MinimumElevation,
+            .setLoopMaxIterations(500)
+            .setOutput([HistogramBinCount]);
+
+        this.navigationDisplayRendering = this.gpuInstance
+            .createKernel(renderNavigationDisplay, {
+                dynamicArguments: true,
+                dynamicOutput: true,
+                pipeline: false,
+                immutable: false,
+                precision: 'single',
+                strictIntegers: true,
+                tactic: 'speed',
+            })
+            .setConstants<NavigationDisplayConstants>({
+                histogramBinRange: HistogramBinRange,
+                histogramMinElevation: HistogramMinimumElevation,
+                histogramBinCount: HistogramBinCount,
+                lowerPercentile: RenderingLowerPercentile,
+                upperPercentile: RenderingUpperPercentile,
+                flatEarthThreshold: RenderingFlatEarthThreshold,
                 invalidElevation: InvalidElevation,
                 unknownElevation: UnknownElevation,
                 waterElevation: WaterElevation,
-                binRange: HistogramBinRange,
-            })
-            .setOutput([Math.ceil((MaximumElevation - MinimumElevation + 1) / HistogramBinRange)]);
+                normalModeLowDensityGreenOffset: RenderingNormalModeLowDensityGreenOffset,
+                normalModeHighDensityGreenOffset: RenderingNormalModeHighDensityGreenOffset,
+                normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
+                normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
+            });
+    }
+
+    public shutdown(): void {
+        if (this.uploadWorldGridToGPU !== null) this.uploadWorldGridToGPU.destroy();
+        if (this.uploadTileBufferToGPU !== null) this.uploadTileBufferToGPU.destroy();
+        if (this.localElevationMap !== null) this.localElevationMap.destroy();
+        if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
+        if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
+        if (this.navigationDisplayRendering !== null) this.navigationDisplayRendering.destroy();
+        if (this.gpuInstance !== null) this.gpuInstance.destroy();
     }
 
     private findFlattenGridDataOffset(row: number, column: number): number {
@@ -273,8 +355,7 @@ class NavigationDisplayRenderer {
 
     public async render(data: RenderingData): Promise<void> {
         if (this.localElevationMap !== null) {
-            const pixelCount = data.viewConfig.mapWidth * data.viewConfig.mapHeight;
-            let destinationElevation = InvalidElevation;
+            let destinationElevation = HistogramMinimumElevation;
             let start = 0;
 
             if (data.viewConfig.destinationLatitude !== undefined && data.viewConfig.destinationLongitude !== undefined) {
@@ -307,27 +388,12 @@ class NavigationDisplayRenderer {
                 );
             }
 
-            if (this.localElevationMap.output === null || pixelCount !== this.localElevationMap.output[0]) {
+            if (this.localElevationMap.output === null
+                || data.viewConfig.mapWidth !== this.localElevationMap.output[0]
+                || data.viewConfig.mapHeight !== this.localElevationMap.output[1]
+            ) {
                 this.localElevationMap = this.localElevationMap
-                    .setConstants<LocalElevationMapConstants>({
-                        latitudeStepPerTile: 1,
-                        longitudeStepPerTile: 1,
-                        worldGridElementCount: this.flattenedGridData.tileCount,
-                        invalidDataValue: InvalidDataValue,
-                        invalidElevation: InvalidElevation,
-                        unknownElevation: UnknownElevation,
-                        waterElevation: WaterElevation,
-                        gridRowIndex: FlattenGridRowIndex,
-                        gridColumnIndex: FlattenGridColumnIndex,
-                        gridTileIndex: FlattenGridTileIndex,
-                        gridRowCount: FlattenGridRowCount,
-                        gridColumnCount: FlattenGridColumnCount,
-                        gridEntryCount: FlattenGridEntryCount,
-                        flattenTileIndex: FlattenTileIndex,
-                        flattenTileOffset: FlattenTileOffset,
-                        flattenTileEntryCount: FlattenTileEntryCount,
-                    })
-                    .setOutput([pixelCount]);
+                    .setOutput([data.viewConfig.mapWidth, data.viewConfig.mapHeight]);
             }
 
             start = performance.now();
@@ -346,7 +412,7 @@ class NavigationDisplayRenderer {
             console.log(`Elevation map: ${performance.now() - start}`);
 
             if (DebugElevationMap) {
-                const elevations = elevationGrid.toArray() as number[];
+                const elevations = NavigationDisplayRenderer.fastFlatten(elevationGrid.toArray() as number[][]);
                 let maxElevation = 0;
                 let minElevation = 1000;
                 elevations.forEach((entry) => {
@@ -362,26 +428,86 @@ class NavigationDisplayRenderer {
 
                 await sharp(image, { raw: { width: data.viewConfig.mapWidth, height: data.viewConfig.mapHeight, channels: 1 } })
                     .png()
-                    .toFile('tmp.png');
+                    .toFile('elevationmap.png');
+            }
 
-                return;
+            const patchesInX = Math.floor(data.viewConfig.mapWidth / HistogramPatchSize);
+            const patchesInY = Math.floor(data.viewConfig.mapHeight / HistogramPatchSize);
+            const patchCount = patchesInX * patchesInY;
+            if (this.localElevationHistogram.output === null
+                || this.localElevationHistogram.output[1] !== patchCount
+            ) {
+                this.localElevationHistogram = this.localElevationHistogram
+                    .setOutput([HistogramBinCount, patchCount]);
             }
 
             start = performance.now();
-            const histogram = this.elevationHistogram(elevationGrid, pixelCount) as Texture;
+            const localHistograms = this.localElevationHistogram(
+                elevationGrid,
+                data.viewConfig.mapWidth,
+                data.viewConfig.mapHeight,
+            ) as Texture;
+            const histogram = this.elevationHistogram(
+                localHistograms,
+                patchCount,
+            ) as Texture;
             console.log(`Histogram: ${performance.now() - start}`);
 
             if (DebugHistogram) {
                 let entryCount = 0;
                 (histogram.toArray() as number[]).forEach((entry, index) => {
                     if (entry !== 0) {
-                        const lowerElevation = index * HistogramBinRange + MinimumElevation;
-                        const upperElevation = (index + 1) * HistogramBinRange + MinimumElevation;
+                        const lowerElevation = index * HistogramBinRange + HistogramMinimumElevation;
+                        const upperElevation = (index + 1) * HistogramBinRange + HistogramMinimumElevation;
                         console.log(`[${lowerElevation}, ${upperElevation}[ = ${entry}`);
                         entryCount += entry;
                     }
                 });
-                console.log(`${entryCount} of ${pixelCount} px`);
+                console.log(`${entryCount} of ${data.viewConfig.mapHeight * data.viewConfig.mapWidth} px`);
+            }
+
+            /* calculate the statistics */
+            start = performance.now();
+            const cutOffAltitude = calculateAbsoluteCutOffAltitude(
+                data.position.latitude,
+                data.position.longitude,
+                data.position.altitude,
+                data.viewConfig.destinationLatitude,
+                data.viewConfig.destinationLongitude,
+                destinationElevation,
+                RenderingMaxAirportDistance,
+                HistogramMinimumElevation,
+                data.viewConfig.cutOffAltitudeMinimimum,
+                data.viewConfig.cutOffAltitudeMaximum,
+                InvalidElevation,
+            );
+            console.log(`Statistics: ${performance.now() - start}`);
+
+            if (this.navigationDisplayRendering.output === null
+                || data.viewConfig.mapWidth * 4 !== this.navigationDisplayRendering.output[0]
+                || data.viewConfig.mapHeight !== this.navigationDisplayRendering.output[1]
+            ) {
+                this.navigationDisplayRendering = this.navigationDisplayRendering
+                    .setOutput([data.viewConfig.mapWidth * 4, data.viewConfig.mapHeight]);
+            }
+
+            start = performance.now();
+            const terrainmap = this.navigationDisplayRendering(
+                elevationGrid,
+                histogram,
+                data.viewConfig.mapWidth,
+                data.position.altitude,
+                data.position.verticalSpeed,
+                data.viewConfig.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
+                cutOffAltitude,
+            ) as KernelOutput;
+            console.log(`Rendering: ${performance.now() - start}`);
+
+            if (DebugRendering) {
+                const image = new Uint8ClampedArray(NavigationDisplayRenderer.fastFlatten(terrainmap as number[][]));
+                await sharp(image, { raw: { width: data.viewConfig.mapWidth, height: data.viewConfig.mapHeight, channels: 4 } })
+                    .png()
+                    .toFile('rendered.png');
             }
         }
     }
@@ -407,5 +533,8 @@ parentPort.on('message', (data: { type: string, instance: any }) => {
         renderer.updateTileData(data.instance.whitelist, data.instance.loadedTiles);
     } else if (data.type === 'RENDERING') {
         createNavigationDisplayMaps(data.instance as RenderingData);
+    } else if (data.type === 'SHUTDOWN') {
+        renderer.shutdown();
+        parentPort.postMessage(undefined);
     }
 });

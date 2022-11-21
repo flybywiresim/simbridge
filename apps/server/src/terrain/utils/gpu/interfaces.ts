@@ -29,6 +29,8 @@ export interface HistogramConstants {
     unknownElevation: number,
     waterElevation: number,
     binRange: number,
+    binCount: number,
+    patchSize: number,
 }
 
 export type HistogramParameters = {
@@ -36,14 +38,19 @@ export type HistogramParameters = {
 } & IKernelFunctionThis;
 
 export interface NavigationDisplayConstants {
+    histogramBinRange: number,
+    histogramMinElevation: number,
+    histogramBinCount: number,
     lowerPercentile: number,
     upperPercentile: number,
-    histogramBinCount: number,
-    histogramBinRange: number,
-    histogramMinimumElevation: number,
     flatEarthThreshold: number,
-    maxAirportDistance: number,
     invalidElevation: number,
+    unknownElevation: number,
+    waterElevation: number,
+    normalModeLowDensityGreenOffset: number,
+    normalModeHighDensityGreenOffset: number,
+    normalModeHighDensityYellowOffset: number,
+    normalModeHighDensityRedOffset: number,
 }
 
 export type NavigationDisplayParameters = {
