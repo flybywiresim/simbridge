@@ -177,52 +177,6 @@ function renderPeaksMode(
     return [0, 0, 0, 0];
 }
 
-/* export function renderNavigationDisplay(
-    this: NavigationDisplayParameters,
-    elevationMap: number[][],
-    width: number,
-    altitude: number,
-    verticalSpeed: number,
-    gearDownAltitudeOffset: number,
-    minElevation: number,
-    maxElevation: number,
-    lowerPercentileElevation: number,
-    upperPercentileElevation: number,
-    cutOffAltitude: number,
-): number {
-    // predict 30 seconds -> half of the vertical speed (feet per minute)
-    const referenceAltitude = altitude + (verticalSpeed <= -1000 ? verticalSpeed * 0.5 : 0);
-
-    // define some rendering thresholds
-    const flatEarth = this.constants.flatEarthThreshold - (maxElevation - minElevation);
-    const halfElevation = maxElevation * 0.5;
-
-    const colorChannel = this.thread.x % 4;
-    const pixelElevation = elevationMap[this.thread.y][this.thread.x];
-
-    if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {
-        return renderNormalMode(
-            pixelElevation,
-            referenceAltitude,
-            minElevation,
-            flatEarth,
-            gearDownAltitudeOffset,
-            lowerPercentileElevation,
-            halfElevation,
-            cutOffAltitude,
-        )[colorChannel];
-    }
-
-    return renderPeaksMode(
-        pixelElevation,
-        lowerPercentileElevation,
-        upperPercentileElevation,
-        halfElevation,
-        minElevation,
-        maxElevation,
-    )[colorChannel];
-} */
-
 export function renderNavigationDisplay(
     this: NavigationDisplayParameters,
     elevationGrid: number[][],
