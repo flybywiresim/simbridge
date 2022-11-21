@@ -33,7 +33,7 @@ const execute = async () => {
             });
         } else {
             // Terrain map is cached, link it to the build folder
-            console.log(`Terrain map already exists in the cache, delete ${TERRAIN_MAP_CACHE_PATH} to update (DEVS ONLY)`);
+            console.log(`Terrain map already exists in the cache, copying it to the build folder. Delete ${TERRAIN_MAP_CACHE_PATH} to update (DEVS ONLY)`);
 
             fs.linkSync(TERRAIN_MAP_CACHE_PATH, TERRAIN_MAP_PATH);
         }
