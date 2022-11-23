@@ -35,7 +35,7 @@ export class TerrainService implements OnApplicationShutdown {
                 this.terrainDirectory,
                 'terrain.map',
             );
-            this.logger.log(`Read MB of terrainmap: ${Buffer.byteLength(buffer) / (1024 * 1024)}`);
+            this.logger.log(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
 
             return new TerrainMap(buffer);
         } catch (err) {

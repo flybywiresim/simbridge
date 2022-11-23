@@ -46,6 +46,9 @@ release/
 # If you plan to run the server from the console and need the terrain map
 /terrain/
 
+# Cache for terrain etc.
+/cache/
+
 # Dependency directories
 node_modules/
 jspm_packages/

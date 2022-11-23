@@ -15,25 +15,25 @@ This repo contains the source code to SimBridge
 
 Please make sure you have:
 
-NodeJS 14 - [Homepage](https://nodejs.org/en/)
+NodeJS 16 - [Homepage](https://nodejs.org/en/)
 
 ```bash
-# install all dependencies
+# Install all dependencies
 $ npm install
 
 # Build all packages
 $ npm run build
 
-# Start Server, to use interfaces you need to build them beforehand
+# Start server, to use interfaces you need to build them beforehand
 $ npm run start
 
-# Wipe dist folder, build all packages, package to exe and copy dependencies/resources to build folder
+# Wipe build/ and dist/ folders, build all packages, package to exe and copy dependencies/resources to build folder
 $ npm run build:exec
 
-# Package built dist to exe
+# Package to exe and copy dependencies/resources to build folder, without rebuilding
 $ npm run install:exec
 
 ```
 
 ## Documentation
-Start the server and direct to `localhost:3838/api` for API documentation
+Start the server and direct to `localhost:8380/api` for API documentation
