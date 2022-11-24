@@ -6,6 +6,7 @@ import {
     HttpHealthIndicator,
     HealthCheck,
 } from '@nestjs/terminus';
+import { ShutDownService } from '../utilities/shutdown.service';
 import serverConfig from '../config/server.config';
 
 @ApiTags('HEALTH')
@@ -15,6 +16,7 @@ export class HealthController {
     @Inject(serverConfig.KEY) private serverConf: ConfigType<typeof serverConfig>,
     private health: HealthCheckService,
     private http: HttpHealthIndicator,
+    private shutdownService: ShutDownService,
     ) {}
 
     private readonly logger = new Logger(HealthController.name);
@@ -37,6 +39,6 @@ export class HealthController {
     })
     killApp() {
         this.logger.log('Server shutting down via endpoint call');
-        process.exit();
+        this.shutdownService.shutdown();
     }
 }

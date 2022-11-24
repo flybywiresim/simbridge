@@ -33,19 +33,21 @@ export class MsfsService {
 
     private readonly logger = new Logger(MsfsService.name)
 
-    private isRunning = async () => new Promise((resolve, reject) => {
-        try {
-            const socket = connect(500);
-            socket.on('connect', () => {
-                resolve(true);
-                socket.destroy();
-            });
-            socket.on('error', () => {
-                resolve(false);
-                socket.destroy();
-            });
-        } catch (e) {
-            reject(new Error(`Error while establishing MSFS state, see exception above: ${e}`));
-        }
-    })
+    private async isRunning(): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            try {
+                const socket = connect(500);
+                socket.on('connect', () => {
+                    resolve(true);
+                    socket.destroy();
+                });
+                socket.on('error', () => {
+                    resolve(false);
+                    socket.destroy();
+                });
+            } catch (e) {
+                reject(new Error(`Error while establishing MSFS state, see exception above: ${e}`));
+            }
+        });
+    }
 }

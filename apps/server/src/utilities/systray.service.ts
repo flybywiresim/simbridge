@@ -6,6 +6,7 @@ import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
 import { IpService } from './ip.service';
 import serverConfig from '../config/server.config';
+import { ShutDownService } from './shutdown.service';
 
 interface MenuItemClickable extends MenuItem {
     click?: () => void;
@@ -18,6 +19,7 @@ export class SysTrayService implements OnApplicationShutdown {
         @Inject(serverConfig.KEY)
         private serverConf: ConfigType<typeof serverConfig>,
         private ipService: IpService,
+        private shutdownService: ShutDownService,
     ) {
         this.sysTray = new SysTray({
             menu: {
@@ -78,7 +80,7 @@ export class SysTrayService implements OnApplicationShutdown {
         enabled: true,
         click: () => {
             this.logger.log('Exiting via Tray', 'Systems Tray');
-            this.sysTray.kill(true);
+            this.shutdownService.shutdown();
         },
     };
 
@@ -91,13 +93,13 @@ export class SysTrayService implements OnApplicationShutdown {
 
     };
 
-    private manageConsole = () => {
+    private manageConsole() {
         if (this.hidden) showConsole();
         else hideConsole();
         this.hidden = !this.hidden;
-    };
+    }
 
-    onApplicationShutdown = (signal?: string) => {
+    onApplicationShutdown(signal?: string) {
         this.logger.log(`Shutdown signal: ${signal} received, Shutting down Systray Service`);
         this.sysTray.kill(false);
     }
