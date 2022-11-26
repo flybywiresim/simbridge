@@ -1,6 +1,6 @@
 {
 	"name": "fbw-simbridge",
-	"version": "0.3.18",
+	"version": "0.3.19",
 	"description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
 	"author": "",
 	"private": false,
@@ -38,7 +38,7 @@
 		"start:debug": "nest start --debug --watch",
 		"start:prod": "node dist/main",
 		"lint": "eslint  --cache **/*.{js,mjs,jsx,ts,ts,tsx}",
-        "lint:fix": "npm run lint -- --fix",
+		"lint:fix": "npm run lint -- --fix",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage",
