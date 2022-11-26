@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { IpService } from './ip.service';
+import { NetworkService } from './network.service';
 import { UtilityController } from './utilities.controller';
 import { FileService } from './file.service';
 import { PrinterService } from './printer.service';
@@ -15,8 +15,8 @@ import { ShutDownService } from './shutdown.service';
         SysTrayService,
         MsfsService,
         ShutDownService,
-        IpService,
+        NetworkService,
     ],
-    exports: [FileService, PrinterService, ShutDownService, IpService],
+    exports: [FileService, PrinterService, ShutDownService, NetworkService],
 })
 export class UtilitiesModule {}

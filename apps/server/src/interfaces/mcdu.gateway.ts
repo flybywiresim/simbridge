@@ -4,7 +4,7 @@ import { OnGatewayConnection, OnGatewayInit, WebSocketGateway, WebSocketServer }
 import { Server, WebSocket } from 'ws';
 import { PrinterService } from '../utilities/printer.service';
 import serverConfig from '../config/server.config';
-import { IpService } from '../utilities/ip.service';
+import { NetworkService } from '../utilities/network.service';
 
 @WebSocketGateway({
     cors: { origin: '*' },
@@ -14,7 +14,7 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     constructor(
         @Inject(serverConfig.KEY) private serverConf: ConfigType<typeof serverConfig>,
         private printerService: PrinterService,
-        private ipService: IpService,
+        private networkService: NetworkService,
     ) {}
 
     private readonly logger = new Logger(McduGateway.name);
@@ -24,7 +24,7 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     async afterInit(server: Server) {
         this.server = server;
         this.logger.log('Remote MCDU websocket initialised');
-        this.logger.log(`Initialised on http://${await this.ipService.getLocalIp()}:${this.serverConf.port}${server.path}`);
+        this.logger.log(`Initialised on http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}${server.path}`);
     }
 
     handleConnection(client: WebSocket) {
