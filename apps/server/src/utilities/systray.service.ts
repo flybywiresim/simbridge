@@ -99,8 +99,8 @@ export class SysTrayService implements OnApplicationShutdown {
         this.hidden = !this.hidden;
     }
 
-    onApplicationShutdown(signal?: string) {
-        this.logger.log(`Shutdown signal: ${signal} received, Shutting down Systray Service`);
+    onApplicationShutdown(_signal?: string) {
+        this.logger.log(`Destroying ${SysTrayService.name}`);
         this.sysTray.kill(false);
     }
 }

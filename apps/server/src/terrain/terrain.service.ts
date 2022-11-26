@@ -25,6 +25,7 @@ export class TerrainService implements OnApplicationShutdown {
 
     onApplicationShutdown(_signal?: string) {
         if (this.MapManager !== undefined) {
+            this.logger.log(`Destroying ${TerrainService.name}`);
             this.MapManager.shutdown();
         }
     }
