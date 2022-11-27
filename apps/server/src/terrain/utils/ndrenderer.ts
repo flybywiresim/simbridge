@@ -188,7 +188,6 @@ class NavigationDisplayRenderer {
                         // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
                         glideRadian = Math.atan(opposite / distanceFeet);
                     }
-                    console.log(`${opposite}, ${distanceFeet}, ${glideRadian}`);
 
                     // check if the glide is greater or equal 3°
                     if (glideRadian < 0.0523599) {
