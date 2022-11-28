@@ -54,6 +54,7 @@
 .fullscreen .screen {
   left: 0;
   width: 100%;
+  transform: scaleX(1.35);
 }
 
 .label {
