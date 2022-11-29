@@ -1,13 +1,17 @@
 import { AddressInfo, createConnection } from 'net';
 import { platform } from 'os';
 import { execSync } from 'child_process';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import * as createMDNSServer from 'multicast-dns';
+import { MulticastDNS, QueryPacket } from 'multicast-dns';
 import { StringAnswer } from 'dns-packet';
+import { RemoteInfo } from 'dgram';
 
 @Injectable()
-export class NetworkService {
+export class NetworkService implements OnApplicationShutdown {
     private readonly logger = new Logger(NetworkService.name);
+
+    private mDNSServer: MulticastDNS | undefined;
 
     constructor() {
         this.createMDNSServer();
@@ -18,74 +22,95 @@ export class NetworkService {
 
         if (!localIp) {
             this.logger.warn('Couldn\'t determine local IP, mDNS server won\'t be started and simbridge.local will not be available');
+            return;
         }
 
-        const mDNSServer = createMDNSServer({
+        this.logger.log(`Local IP is ${localIp}`);
+
+        this.mDNSServer = createMDNSServer({
             interface: localIp,
             multicast: true,
             reuseAddr: true,
         });
 
-        // First, make an announcement, if we have a local IP (https://www.rfc-editor.org/rfc/rfc6762.html#section-8.3)
-        mDNSServer.respond([{
+        this.mDNSServer.on('error', (error) => {
+            this.logger.warn(`mDNS server couldn't be started. Error: ${error.message}`);
+        });
+
+        this.mDNSServer.on('warning', (error) => {
+            this.logger.warn(`mDNS server warning: ${error.message}`);
+        });
+
+        this.mDNSServer.on('ready', () => {
+            this.makeAnnouncement(localIp);
+        });
+
+        this.mDNSServer.on('query', (query, client) => {
+            this.onMDNSQuery(query, client);
+        });
+    }
+
+    makeAnnouncement(localIp: string) {
+        this.logger.log('mDNS server started, simbridge.local is available');
+
+        // First, make two announcements, one second apart (https://www.rfc-editor.org/rfc/rfc6762.html#section-8.3)
+        this.mDNSServer.respond([{
             name: 'simbridge.local',
             type: 'A',
-            ttl: 1, // TODO
+            ttl: 1,
             flush: true,
             data: localIp,
         }]);
 
-        // RFC: The Multicast DNS responder MUST send at least two unsolicited responses, one second apart
         setTimeout(() => {
-            mDNSServer.respond([{
+            this.mDNSServer.respond([{
                 name: 'simbridge.local',
                 type: 'A',
-                ttl: 1, // TODO
+                ttl: 1,
                 flush: true,
                 data: localIp,
             }]);
         }, 1000);
+    }
 
-        mDNSServer.on('query', async (query, client) => {
-            // TODO: Handle AAAA (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.2) or use NSEC (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.1)
-            if (query.questions.some((q) => q.type === 'A' && q.name === 'simbridge.local')) {
-                this.logger.log(`mDNS query from ${client.address}:${client.port}`);
+    async onMDNSQuery(query: QueryPacket, client: RemoteInfo) {
+        // TODO: Handle AAAA records (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.2) or send NSEC (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.1)
+        if (query.questions.some((q) => q.type === 'A' && q.name === 'simbridge.local')) {
+            this.logger.log(`mDNS query from ${client.address}:${client.port}`);
 
-                // Make sure that the IP is always up-to-date despite DHCP shenanigans
-                const localIp = await this.getLocalIp();
+            // Make sure that the IP is always up-to-date despite DHCP shenanigans
+            const localIp = await this.getLocalIp();
 
-                if (!localIp) {
-                    return;
-                }
+            if (!localIp) {
+                this.logger.warn('Couldn\'t determine the local IP address, no mDNS answer will be sent');
+                return;
+            }
 
-                // Whether this is a simple mDNS resolver or not (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.7)
-                const isSimpleResolver = client.port !== 5353;
+            // Whether this is a simple mDNS resolver or not (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.7)
+            const isSimpleResolver = client.port !== 5353;
 
-                const answer: StringAnswer = {
-                    name: 'simbridge.local',
-                    type: 'A',
-                    ttl: 1, // TODO: must be <10 sec for simple resolvers, otherwise 120 sec
-                    data: localIp,
+            const answer: StringAnswer = {
+                name: 'simbridge.local',
+                type: 'A',
+                ttl: isSimpleResolver ? 10 : 120,
+                data: localIp,
+            };
+
+            if (isSimpleResolver) {
+                // Simple resolvers require the ID and questions be included in the response, and the response to be sent via unicast
+                const response = {
+                    id: query.id,
+                    questions: query.questions,
+                    answers: [answer],
                 };
 
-                if (isSimpleResolver) {
-                    // Simple resolvers require the ID and questions be included in the response, and the response to be sent via unicast
-                    const response = {
-                        id: query.id,
-                        questions: query.questions,
-                        answers: [answer],
-                    };
+                this.mDNSServer.respond(response, client);
+            } else {
+                const response = { answers: [answer] };
 
-                    mDNSServer.respond(response, client);
-                } else {
-                    const response = { answers: [answer] };
-
-                    mDNSServer.respond(response);
-                }
+                this.mDNSServer.respond(response);
             }
-        });
-
-        this.logger.log('mDNS server started, simbridge.local is available');
+        }
     }
 
     /**
@@ -107,6 +132,14 @@ export class NetworkService {
                     resolve(this.getLocalIpFallback(defaultToLocalhost));
                 });
         });
+    }
+
+    onApplicationShutdown(_signal?: string) {
+        this.logger.log(`Destroying ${NetworkService.name}`);
+
+        if (this.mDNSServer) {
+            this.mDNSServer.destroy();
+        }
     }
 
     private getLocalIpFallback(defaultToLocalhost = true) {
