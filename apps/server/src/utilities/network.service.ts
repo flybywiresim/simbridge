@@ -14,10 +14,10 @@ export class NetworkService implements OnApplicationShutdown {
     private mDNSServer: MulticastDNS | undefined;
 
     constructor() {
-        this.createMDNSServer();
+        this.startMDNSServer();
     }
 
-    async createMDNSServer() {
+    async startMDNSServer() {
         const localIp = await this.getLocalIp();
 
         if (!localIp) {
@@ -76,8 +76,6 @@ export class NetworkService implements OnApplicationShutdown {
     async onMDNSQuery(query: QueryPacket, client: RemoteInfo) {
         // TODO: Handle AAAA records (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.2) or send NSEC (https://www.rfc-editor.org/rfc/rfc6762.html#section-6.1)
         if (query.questions.some((q) => q.type === 'A' && q.name === 'simbridge.local')) {
-            this.logger.log(`mDNS query from ${client.address}:${client.port}`);
-
             // Make sure that the IP is always up-to-date despite DHCP shenanigans
             const localIp = await this.getLocalIp();
 
@@ -150,7 +148,7 @@ export class NetworkService implements OnApplicationShutdown {
             try {
                 lines = execSync('route print 0.0.0.0', { encoding: 'utf-8', stdio: 'pipe' }).split('\n');
             } catch (e) {
-                throw Error(`Couldn't execute \`route\`. This is probably a bug. Details: ${e.stderr.trim()}`);
+                this.logger.warn(`Couldn't execute \`route\`. This is probably a bug. Details: ${e.stderr.trim()}`);
             }
 
             for (const [i, line] of lines.entries()) {
@@ -171,7 +169,7 @@ export class NetworkService implements OnApplicationShutdown {
             try {
                 parts = execSync('ip -4 route get to 1', { encoding: 'utf-8', stdio: 'pipe' }).split('\n')[0].split(' ');
             } catch (e) {
-                throw Error(`Couldn't execute \`ip\`. Make sure the \`iproute2\` (or equivalent) package is installed. Details: '${e.stderr.trim()}'`);
+                this.logger.warn(`Couldn't execute \`ip\`. Make sure the \`iproute2\` (or equivalent) package is installed. Details: '${e.stderr.trim()}'`);
             }
 
             const ip = parts[parts.indexOf('src') + 1].trim();
