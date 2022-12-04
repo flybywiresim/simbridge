@@ -1,33 +1,30 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import * as path from 'path';
+import { Worker } from 'worker_threads';
 import { FileService } from '../utilities/file.service';
-import { TerrainMap } from './mapformat/terrainmap';
-import { Worldmap } from './manager/worldmap';
+import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
 import { PositionDto } from './dto/position.dto';
+import { TerrainMap } from './mapformat/terrainmap';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
+    private mapHandler: Worker = null;
+
     private terrainDirectory = 'terrain/';
 
-    public Terrainmap: TerrainMap | undefined = undefined;
-
-    public MapManager: Worldmap | undefined = undefined;
-
     constructor(private fileService: FileService) {
+        this.mapHandler = new Worker(path.resolve(__dirname, './utils/maphandler.js'));
+
         this.readTerrainMap().then((map) => {
-            this.Terrainmap = map;
-            if (map !== undefined) {
-                this.MapManager = new Worldmap(this.Terrainmap);
-            }
+            this.mapHandler.postMessage({ type: 'INITIALIZATION', instance: map });
         });
     }
 
     onApplicationShutdown(_signal?: string) {
-        if (this.MapManager !== undefined) {
-            this.logger.log(`Destroying ${TerrainService.name}`);
-            this.MapManager.shutdown();
-        }
+        this.mapHandler.postMessage({ type: 'SHUTDOWN' });
+        this.mapHandler.on('message', () => this.mapHandler.terminate());
     }
 
     private async readTerrainMap(): Promise<TerrainMap | undefined> {
@@ -47,8 +44,20 @@ export class TerrainService implements OnApplicationShutdown {
     }
 
     public updatePosition(position: PositionDto): void {
-        if (this.MapManager !== undefined) {
-            this.MapManager.updatePosition(position);
-        }
+        this.mapHandler.postMessage({ type: 'POSITION', instance: position });
+    }
+
+    public configureNavigationDisplay(side: string, config: NavigationDisplayViewDto): void {
+        this.mapHandler.postMessage({
+            type: 'NDCONFIGURATION',
+            instance: {
+                side,
+                config,
+            },
+        });
+    }
+
+    public renderNavigationDisplay(side: string): void {
+        this.mapHandler.postMessage({ type: 'NDRENDER', instance: side });
     }
 }

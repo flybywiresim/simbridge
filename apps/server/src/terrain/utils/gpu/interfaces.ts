@@ -1,22 +1,7 @@
 import { IKernelFunctionThis } from 'gpu.js';
 
 export interface LocalElevationMapConstants {
-    latitudeStepPerTile: number,
-    longitudeStepPerTile: number,
-    worldGridElementCount: number,
-    invalidDataValue: number,
-    invalidElevation: number,
     unknownElevation: number,
-    waterElevation: number,
-    gridRowIndex: number,
-    gridColumnIndex: number,
-    gridTileIndex: number,
-    gridRowCount: number,
-    gridColumnCount: number,
-    gridEntryCount: number,
-    flattenTileIndex: number,
-    flattenTileOffset: number,
-    flattenTileEntryCount: number,
 }
 
 export type LocalElevationMapParameters = {
@@ -51,6 +36,7 @@ export interface NavigationDisplayConstants {
     normalModeHighDensityGreenOffset: number,
     normalModeHighDensityYellowOffset: number,
     normalModeHighDensityRedOffset: number,
+    densityPatchSize: number,
 }
 
 export type NavigationDisplayParameters = {

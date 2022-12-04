@@ -7,14 +7,14 @@ export function createLocalElevationHistogram(
     height: number,
 ): number {
     // get the patch
-    const threadsInX = Math.floor(width / this.constants.patchSize);
-    const row = Math.ceil(this.thread.y / threadsInX);
-    const column = this.thread.y % threadsInX;
+    const patchesInX = Math.ceil(width / this.constants.patchSize);
+    const patchY = Math.floor(this.thread.y / patchesInX);
+    const patchX = this.thread.y % patchesInX;
 
     // get the patch borders
-    const xStart = column * this.constants.patchSize;
+    const xStart = patchX * this.constants.patchSize;
     const xEnd = Math.min(width, xStart + this.constants.patchSize);
-    const yStart = row * this.constants.patchSize;
+    const yStart = patchY * this.constants.patchSize;
     const yEnd = Math.min(height, yStart + this.constants.patchSize);
 
     // create the local histogram

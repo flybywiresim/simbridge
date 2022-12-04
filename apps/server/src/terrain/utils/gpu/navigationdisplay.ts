@@ -1,4 +1,7 @@
 import { GPU } from 'gpu.js';
+import { drawHighDensityPixel } from './highdensitypixel';
+import { drawLowDensityPixel } from './lowdensitypixel';
+import { drawWaterDensityPixel } from './waterpixel';
 import { NavigationDisplayParameters } from './interfaces';
 
 function calculateNormalModeGreenThresholds(
@@ -73,6 +76,10 @@ function calculatePeaksModeThresholds(
 
 function renderNormalMode(
     elevation: number,
+    pixelX: number,
+    pixelY: number,
+    height: number,
+    centerCoordinateX: number,
     referenceAltitude: number,
     minimumElevation: number,
     flatEarth: number,
@@ -100,33 +107,49 @@ function renderNormalMode(
         );
 
         if (elevation >= warningThresholds[2]) {
-            // high density
-            return [255, 0, 0, 255];
+            return drawHighDensityPixel([255, 0, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= warningThresholds[1]) {
-            // high density
-            return [255, 255, 50, 255];
+            return drawHighDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= greenThresholds[1] && elevation < warningThresholds[0]) {
-            // low density
-            return [0, 255, 0, 255];
+            return drawLowDensityPixel(
+                [0, 255, 0, 255],
+                pixelX,
+                pixelY,
+                centerCoordinateX,
+            );
         }
         if (elevation >= warningThresholds[0] && elevation < warningThresholds[1]) {
-            // low density
-            return [255, 255, 50, 255];
+            return drawLowDensityPixel(
+                [255, 255, 50, 255],
+                pixelX,
+                pixelY,
+                centerCoordinateX,
+            );
         }
         if (elevation >= greenThresholds[0] && elevation < greenThresholds[1]) {
-            // low density
-            return [0, 255, 0, 255];
+            return drawLowDensityPixel(
+                [0, 255, 0, 255],
+                pixelX,
+                pixelY,
+                centerCoordinateX,
+            );
         }
 
         return [0, 0, 0, 0];
     }
     if (elevation === this.constants.waterElevation) {
-        return [0, 255, 255, 255];
+        return drawWaterDensityPixel(
+            [0, 255, 255, 255],
+            pixelX,
+            pixelY,
+            height,
+            centerCoordinateX,
+        );
     }
     if (elevation === this.constants.unknownElevation) {
-        return [255, 148, 255, 255];
+        return drawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
     }
 
     return [0, 0, 0, 0];
@@ -134,6 +157,10 @@ function renderNormalMode(
 
 function renderPeaksMode(
     elevation: number,
+    pixelX: number,
+    pixelY: number,
+    height: number,
+    centerCoordinateX: number,
     lowerPercentile: number,
     upperPercentile: number,
     halfElevation: number,
@@ -157,21 +184,19 @@ function renderPeaksMode(
             return [0, 255, 0, 255];
         }
         if (thresholds[1] <= elevation) {
-            // high density
-            return [0, 255, 0, 255];
+            return drawHighDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (thresholds[0] <= elevation) {
-            // low density
-            return [0, 255, 0, 255];
+            return drawLowDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
 
         return [0, 0, 0, 0];
     }
     if (elevation === this.constants.waterElevation) {
-        return [0, 255, 255, 255];
+        return drawWaterDensityPixel([0, 255, 255, 255], pixelX, pixelY, height, centerCoordinateX);
     }
     if (elevation === this.constants.unknownElevation) {
-        return [255, 148, 255, 255];
+        return drawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
     }
 
     return [0, 0, 0, 0];
@@ -182,6 +207,7 @@ export function renderNavigationDisplay(
     elevationGrid: number[][],
     histogram: number[],
     width: number,
+    height: number,
     altitude: number,
     verticalSpeed: number,
     gearDownAltitudeOffset: number,
@@ -244,12 +270,18 @@ export function renderNavigationDisplay(
     const flatEarth = this.constants.flatEarthThreshold - (maxElevation - minElevation);
     const halfElevation = maxElevation * 0.5;
 
+    const centerCoordinateX = width / 2;
+    const pixelX = Math.ceil(this.thread.x / 4);
     const colorChannel = this.thread.x % 4;
-    const pixelElevation = elevationGrid[this.thread.y][Math.ceil(this.thread.x / 4)];
+    const pixelElevation = elevationGrid[this.thread.y][pixelX];
 
     if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {
         return renderNormalMode(
             pixelElevation,
+            pixelX,
+            this.thread.y,
+            height,
+            centerCoordinateX,
             referenceAltitude,
             minElevation,
             flatEarth,
@@ -262,6 +294,10 @@ export function renderNavigationDisplay(
 
     return renderPeaksMode(
         pixelElevation,
+        pixelX,
+        this.thread.y,
+        height,
+        centerCoordinateX,
         lowerPercentileElevation,
         upperPercentileElevation,
         halfElevation,
@@ -299,9 +335,41 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(3)',
     });
+    gpu.addFunction(drawLowDensityPixel, {
+        argumentTypes: {
+            color: 'Array(4)',
+            pixelX: 'Integer',
+            pixelY: 'Integer',
+            centerCoordinateX: 'Float',
+        },
+        returnType: 'Array(4)',
+    });
+    gpu.addFunction(drawHighDensityPixel, {
+        argumentTypes: {
+            color: 'Array(4)',
+            pixelX: 'Integer',
+            pixelY: 'Integer',
+            centerCoordinateX: 'Float',
+        },
+        returnType: 'Array(4)',
+    });
+    gpu.addFunction(drawWaterDensityPixel, {
+        argumentTypes: {
+            color: 'Array(4)',
+            pixelX: 'Integer',
+            pixelY: 'Integer',
+            height: 'Integer',
+            centerCoordinateX: 'Float',
+        },
+        returnType: 'Array(4)',
+    });
     gpu.addFunction(renderNormalMode, {
         argumentTypes: {
             elevation: 'Integer',
+            pixelX: 'Integer',
+            pixelY: 'Integer',
+            height: 'Integer',
+            centerCoordinateX: 'Float',
             referenceAltitude: 'Float',
             minimumElevation: 'Float',
             flatEarth: 'Integer',
@@ -315,6 +383,10 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
     gpu.addFunction(renderPeaksMode, {
         argumentTypes: {
             elevation: 'Integer',
+            pixelX: 'Integer',
+            pixelY: 'Integer',
+            height: 'Integer',
+            centerCoordinateX: 'Float',
             lowerPercentile: 'Float',
             upperPercentile: 'Float',
             halfElevation: 'Float',

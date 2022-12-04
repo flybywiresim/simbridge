@@ -1,5 +1,3 @@
-import { Worker } from 'worker_threads';
-import * as path from 'path';
 import { WGS84 } from '../utils/wgs84';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { TerrainMap } from '../mapformat/terrainmap';
@@ -18,13 +16,6 @@ export interface GridDefinition {
     longitudeStep: number,
 }
 
-export interface RenderingData {
-    gridDefinition: GridDefinition,
-    viewConfig: NavigationDisplayViewDto,
-    position: PositionDto,
-    timestamp: number
-}
-
 export interface TileData {
     row: number,
     column: number,
@@ -38,38 +29,18 @@ interface TileLoadingData {
 }
 
 export class Worldmap {
-    private gridData: GridDefinition = {
+    public GridData: GridDefinition = {
         rows: 0,
         columns: 0,
         latitudeStep: 0,
         longitudeStep: 0,
     }
 
-    private tiles: TileManager = null;
-
-    private tileLoaderWhitelist: { row: number, column: number }[] = [];
-
-    private tileLoaderWorker: Worker;
-
-    private tileLoadingInProgress: boolean = false;
-
-    private ndRenderingLeftInProgress: boolean = false;
-
-    private ndRendererWorkerLeft: Worker;
-
-    private ndRenderingRightInProgress: boolean = false;
-
-    private ndRendererWorkerRight: Worker;
-
-    private webGlTest: Worker;
-
-    private webGlTestInProgress: boolean = false;
+    public TileManager: TileManager = null;
 
     private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: NavigationDisplayData } } = {};
 
-    private presentPosition: PositionDto | undefined = undefined;
-
-    private visibilityRange: number = 700;
+    public VisibilityRange: number = 700;
 
     public static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
         for (let i = 0; i < tiles.length; ++i) {
@@ -82,79 +53,21 @@ export class Worldmap {
     }
 
     constructor(private terrainData: TerrainMap) {
-        this.tiles = new TileManager(terrainData);
+        this.TileManager = new TileManager(terrainData);
 
         // create the grid-metadata
-        this.gridData.rows = this.tiles.grid.length;
-        this.gridData.columns = this.tiles.grid[0].length;
-        this.gridData.latitudeStep = this.terrainData.AngularSteps.latitude;
-        this.gridData.longitudeStep = this.terrainData.AngularSteps.longitude;
-
-        this.tileLoaderWorker = new Worker(path.resolve(__dirname, './maploader.js'));
-        this.tileLoaderWorker.postMessage({ type: 'MAP', instance: this.terrainData });
-        this.tileLoaderWorker.on('message', (result) => {
-            const loadedTiles: { row: number, column: number }[] = [];
-
-            result.forEach((tile) => {
-                loadedTiles.push({ row: tile.row, column: tile.column });
-                if (tile.grid !== null) {
-                    this.tiles.setElevationMap(loadedTiles[loadedTiles.length - 1], tile.grid);
-                }
-            });
-
-            const rendererData = {
-                type: 'TILES',
-                instance: {
-                    whitelist: this.tileLoaderWhitelist,
-                    loadedTiles: result,
-                },
-            };
-
-            this.ndRendererWorkerLeft.postMessage(rendererData);
-            this.webGlTest.postMessage(rendererData);
-            this.ndRendererWorkerRight.postMessage(rendererData);
-
-            this.tiles.cleanupElevationCache(this.tileLoaderWhitelist);
-            this.tileLoadingInProgress = false;
-        });
-
-        this.ndRendererWorkerLeft = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
-        this.ndRendererWorkerLeft.postMessage({ type: 'INITIALIZATION', instance: this.terrainData });
-        this.ndRendererWorkerLeft.on('message', (result: NavigationDisplayData) => {
-            this.displays.L.data = result;
-            this.ndRenderingLeftInProgress = false;
-        });
-
-        this.webGlTest = new Worker(path.resolve(__dirname, '../utils/webgl.js'));
-        this.webGlTest.postMessage({ type: 'INITIALIZATION', instance: this.terrainData });
-        this.webGlTest.on('message', (result: NavigationDisplayData) => {
-            this.displays.L.data = result;
-            this.webGlTestInProgress = false;
-        });
-
-        this.ndRendererWorkerRight = new Worker(path.resolve(__dirname, '../utils/ndrenderer.js'));
-        this.ndRendererWorkerRight.postMessage({ type: 'INITIALIZATION', instance: this.terrainData });
-        this.ndRendererWorkerRight.on('message', (result: NavigationDisplayData) => {
-            this.displays.R.data = result;
-            this.ndRenderingRightInProgress = false;
-        });
-    }
-
-    public shutdown(): void {
-        this.tileLoaderWorker.terminate();
-        this.ndRendererWorkerLeft.postMessage({ type: 'SHUTDOWN' });
-        this.ndRendererWorkerLeft.on('message', () => {
-            this.ndRendererWorkerLeft.terminate();
-        });
-        this.ndRendererWorkerRight.terminate();
+        this.GridData.rows = this.TileManager.grid.length;
+        this.GridData.columns = this.TileManager.grid[0].length;
+        this.GridData.latitudeStep = this.terrainData.AngularSteps.latitude;
+        this.GridData.longitudeStep = this.terrainData.AngularSteps.longitude;
     }
 
     private findTileIndices(latitude: number, longitude0: number, longitude1: number): { row: number, column: number }[] {
         const indices: { row: number, column: number }[] = [];
 
         for (let lon = longitude0; lon <= longitude1; lon += this.terrainData.AngularSteps.longitude) {
-            const index = Worldmap.worldMapIndices(this.gridData, latitude, lon);
-            if (index !== undefined && Worldmap.validTile(this.terrainData, this.tiles.grid, index) === true) {
+            const index = this.worldMapIndices(latitude, lon);
+            if (index !== undefined && Worldmap.validTile(this.terrainData, this.TileManager.grid, index) === true) {
                 indices.push(index);
             }
         }
@@ -166,8 +79,8 @@ export class Worldmap {
         let loadlist: { row: number, column: number, tileIndex: number }[] = [];
 
         tileIndices.forEach((index) => {
-            if (this.tiles.grid[index.row][index.column].elevationmap === undefined) {
-                loadlist = loadlist.concat({ row: index.row, column: index.column, tileIndex: this.tiles.grid[index.row][index.column].tileIndex });
+            if (this.TileManager.grid[index.row][index.column].elevationmap === undefined) {
+                loadlist = loadlist.concat({ row: index.row, column: index.column, tileIndex: this.TileManager.grid[index.row][index.column].tileIndex });
             }
         });
 
@@ -183,10 +96,10 @@ export class Worldmap {
         const tiles: TileLoadingData = { whitelist: [], loadlist: [] };
 
         // correct the borders to catch all tiles
-        southwest.latitude = Math.floor((southwest.latitude + 90) / this.gridData.latitudeStep) - 90;
-        southwest.longitude = Math.floor((southwest.longitude + 180) / this.gridData.longitudeStep) - 180;
-        northeast.latitude = Math.ceil((northeast.latitude + 90) / this.gridData.latitudeStep) - 90;
-        northeast.longitude = Math.ceil((northeast.longitude + 180) / this.gridData.longitudeStep) - 180;
+        southwest.latitude = Math.floor((southwest.latitude + 90) / this.GridData.latitudeStep) - 90;
+        southwest.longitude = Math.floor((southwest.longitude + 180) / this.GridData.longitudeStep) - 180;
+        northeast.latitude = Math.ceil((northeast.latitude + 90) / this.GridData.latitudeStep) - 90;
+        northeast.longitude = Math.ceil((northeast.longitude + 180) / this.GridData.longitudeStep) - 180;
 
         // wrap around at 180°
         if (southwest.longitude > northeast.longitude) {
@@ -209,83 +122,25 @@ export class Worldmap {
         return tiles;
     }
 
-    public renderNdMap(id: string): number {
-        if (id in this.displays) {
-            if (this.displays[id].viewConfig !== undefined && this.displays[id].viewConfig.active === true) {
-                const timestamp = new Date().getTime();
+    public updatePosition(position: PositionDto): TileLoadingData {
+        const tiles = this.findRelevantTiles(position, this.VisibilityRange);
 
-                const workerContent: RenderingData = {
-                    gridDefinition: this.gridData,
-                    viewConfig: this.displays[id].viewConfig,
-                    position: this.presentPosition,
-                    timestamp,
-                };
-
-                if (id === 'L') {
-                    if (this.webGlTestInProgress === false) {
-                        this.webGlTest.postMessage({ type: 'RENDERING', instance: workerContent });
-                        return timestamp;
-                    }
-                    // if (this.ndRenderingLeftInProgress === false) {
-                    //    this.ndRendererWorkerLeft.postMessage({ type: 'RENDERING', instance: workerContent });
-                    //    return timestamp;
-                    // }
-                } else if (this.ndRenderingRightInProgress === false) {
-                    this.ndRendererWorkerRight.postMessage({ type: 'RENDERING', instance: workerContent });
-                    return timestamp;
-                }
-
-                if (this.displays[id].data !== null) {
-                    return this.displays[id].data.Timestamp;
-                }
-                return -1;
+        // load all missing tiles
+        tiles.loadlist.forEach((index) => {
+            const map = Tile.loadElevationGrid(this.terrainData.Tiles[index.tileIndex]);
+            if (map !== null) {
+                this.TileManager.setElevationMap(index, map);
             }
+        });
 
-            this.displays[id].data = null;
-        }
-
-        return -1;
+        return tiles;
     }
 
-    public configureNd(display: string, config: NavigationDisplayViewDto) {
-        // ensure that the cut off values are set
-        if (config.cutOffAltitudeMinimimum === undefined || config.cutOffAltitudeMaximum === undefined) {
-            config.cutOffAltitudeMinimimum = 200;
-            config.cutOffAltitudeMaximum = 400;
-        }
+    public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
+        const row = Math.floor((latitude + 90) / this.GridData.latitudeStep);
+        const column = Math.floor((longitude + 180) / this.GridData.longitudeStep);
 
-        if (!(display in this.displays)) {
-            this.displays[display] = {
-                viewConfig: config,
-                data: null,
-            };
-        } else {
-            this.displays[display].viewConfig = config;
-        }
-    }
-
-    public async updatePosition(position: PositionDto): Promise<void> {
-        if (this.tileLoadingInProgress) {
-            return;
-        }
-
-        this.tileLoadingInProgress = true;
-        this.presentPosition = position;
-
-        const tiles = this.findRelevantTiles(position, this.visibilityRange);
-        if (tiles.loadlist.length !== 0) {
-            this.tileLoaderWhitelist = tiles.whitelist;
-            this.tileLoaderWorker.postMessage({ type: 'TILES', instance: tiles.loadlist });
-        } else {
-            this.tileLoadingInProgress = false;
-        }
-    }
-
-    public static worldMapIndices(data: GridDefinition, latitude: number, longitude: number): { row: number, column: number } | undefined {
-        const row = Math.floor((latitude + 90) / data.latitudeStep);
-        const column = Math.floor((longitude + 180) / data.longitudeStep);
-
-        if (row < 0 || row >= data.rows || column < 0 || column >= data.columns) {
+        if (row < 0 || row >= this.GridData.rows || column < 0 || column >= this.GridData.columns) {
             return undefined;
         }
 
@@ -305,16 +160,16 @@ export class Worldmap {
     }
 
     public getTile(latitude: number, longitude: number): Tile | undefined {
-        const index = Worldmap.worldMapIndices(this.gridData, latitude, longitude);
+        const index = this.worldMapIndices(latitude, longitude);
         if (index === undefined) {
             return undefined;
         }
 
-        if (this.tiles.grid[index.row][index.column].tileIndex < 0 || this.tiles.grid[index.row][index.column].tileIndex >= this.terrainData.Tiles.length) {
+        if (this.TileManager.grid[index.row][index.column].tileIndex < 0 || this.TileManager.grid[index.row][index.column].tileIndex >= this.terrainData.Tiles.length) {
             return undefined;
         }
 
-        return this.terrainData.Tiles[this.tiles.grid[index.row][index.column].tileIndex];
+        return this.terrainData.Tiles[this.TileManager.grid[index.row][index.column].tileIndex];
     }
 
     public ndMap(id: string, timestamp: number): NavigationDisplayData {

@@ -1,99 +1,27 @@
-import {
-    coordinate2gridIndex,
-    coordinate2worldIndex,
-    findTileInformation,
-    findTileOffset,
-    normalizeHeading,
-    projectWgs84,
-} from './helper';
+import { normalizeHeading, projectWgs84 } from './helper';
 import { rad2deg } from '../generic/helper';
-import { LocalElevationMapConstants, LocalElevationMapParameters } from './interfaces';
-
-export function extractElevation(
-    constants: LocalElevationMapConstants,
-    latitude: number,
-    longitude: number,
-    worldGridData: number[],
-    tilesCount: number,
-    tilesMetadata: number[],
-    tilesBuffer: number[],
-    tilesBufferLength: number,
-): number {
-    const worldIndex = coordinate2worldIndex(
-        latitude,
-        longitude,
-        constants.latitudeStepPerTile,
-        constants.longitudeStepPerTile,
-    );
-
-    const tileInformation = findTileInformation(
-        constants.gridEntryCount,
-        constants.gridRowIndex,
-        constants.gridColumnIndex,
-        constants.gridTileIndex,
-        constants.gridRowCount,
-        constants.gridColumnCount,
-        worldIndex[0],
-        worldIndex[1],
-        worldGridData,
-        constants.worldGridElementCount,
-        constants.waterElevation,
-    );
-
-    if (tileInformation[0] === constants.waterElevation) {
-        return constants.waterElevation;
-    }
-    if (tileInformation[1] === constants.invalidDataValue || tileInformation[2] < constants.invalidDataValue) {
-        return constants.unknownElevation;
-    }
-
-    const gridIndex = coordinate2gridIndex(
-        latitude,
-        longitude,
-        worldIndex[0],
-        worldIndex[1],
-        constants.latitudeStepPerTile,
-        constants.longitudeStepPerTile,
-        tileInformation[1],
-        tileInformation[2],
-    );
-
-    const tileOffset = findTileOffset(
-        tileInformation[0],
-        tilesCount,
-        tilesMetadata,
-        constants.flattenTileIndex,
-        constants.flattenTileOffset,
-        constants.flattenTileEntryCount,
-    );
-
-    if (tileOffset < 0) {
-        return constants.invalidElevation;
-    }
-
-    const elevationIndex = gridIndex[0] * tileInformation[2] + gridIndex[1];
-    if (tilesBufferLength <= tileOffset + elevationIndex) {
-        return constants.invalidElevation;
-    }
-
-    return tilesBuffer[tileOffset + elevationIndex];
-}
+import { LocalElevationMapParameters } from './interfaces';
 
 export function createLocalElevationMap(
     this: LocalElevationMapParameters,
     latitude: number,
     longitude: number,
     heading: number,
-    mapDimension: [number, number],
+    currentWorldGridX: number,
+    currentWorldGridY: number,
+    worldMap: number[][],
+    worldMapWidth: number,
+    worldMapHeight: number,
+    worldMapSouthwestLat: number,
+    worldMapSouthwestLong: number,
+    worldMapNortheastLat: number,
+    worldMapNortheastLong: number,
+    ndWidth: number,
+    ndHeight: number,
     meterPerPixel: number,
-    worldGridData: number[],
-    tilesCount: number,
-    tilesMetadata: number[],
-    tilesBuffer: number[],
-    tilesBufferLength: number,
 ): number {
-    const centerX = mapDimension[0] / 2.0;
-    const delta = [this.thread.x - centerX, mapDimension[1] - this.thread.y];
+    const centerX = ndWidth / 2.0;
+    const delta = [this.thread.x - centerX, ndHeight - this.thread.y];
 
     // calculate distance and bearing for the projection
     const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
@@ -109,62 +37,19 @@ export function createLocalElevationMap(
 
     const projected = projectWgs84(latitude, longitude, bearing, distance);
 
-    const worldIndex = coordinate2worldIndex(
-        projected[0],
-        projected[1],
-        this.constants.latitudeStepPerTile,
-        this.constants.longitudeStepPerTile,
-    );
-
-    const tileInformation = findTileInformation(
-        this.constants.gridEntryCount,
-        this.constants.gridRowIndex,
-        this.constants.gridColumnIndex,
-        this.constants.gridTileIndex,
-        this.constants.gridRowCount,
-        this.constants.gridColumnCount,
-        worldIndex[0],
-        worldIndex[1],
-        worldGridData,
-        this.constants.worldGridElementCount,
-        this.constants.waterElevation,
-    );
-
-    if (tileInformation[0] === this.constants.waterElevation) {
-        return this.constants.waterElevation;
-    }
-    if (tileInformation[1] === this.constants.invalidDataValue || tileInformation[2] < this.constants.invalidDataValue) {
+    // check if the projected point are out of bounds
+    if (worldMapSouthwestLat > projected[0] || worldMapNortheastLat < projected[0]
+        || worldMapSouthwestLong > projected[1] || worldMapNortheastLong < projected[1]
+    ) {
         return this.constants.unknownElevation;
     }
 
-    const gridIndex = coordinate2gridIndex(
-        projected[0],
-        projected[1],
-        worldIndex[0],
-        worldIndex[1],
-        this.constants.latitudeStepPerTile,
-        this.constants.longitudeStepPerTile,
-        tileInformation[1],
-        tileInformation[2],
-    );
+    // calculate the pixel movement out of the current position
+    const latStep = (worldMapNortheastLat - worldMapSouthwestLat) / worldMapHeight;
+    const longStep = (worldMapNortheastLong - worldMapSouthwestLong) / worldMapWidth;
+    const latPixelDelta = (latitude - projected[0]) / latStep;
+    const longPixelDelta = (projected[1] - longitude) / longStep;
 
-    const tileOffset = findTileOffset(
-        tileInformation[0],
-        tilesCount,
-        tilesMetadata,
-        this.constants.flattenTileIndex,
-        this.constants.flattenTileOffset,
-        this.constants.flattenTileEntryCount,
-    );
-
-    if (tileOffset < 0) {
-        return this.constants.invalidElevation;
-    }
-
-    const elevationIndex = gridIndex[0] * tileInformation[2] + gridIndex[1];
-    if (tilesBufferLength <= tileOffset + elevationIndex) {
-        return this.constants.invalidElevation;
-    }
-
-    return tilesBuffer[tileOffset + elevationIndex];
+    // map everything from the current position
+    return worldMap[currentWorldGridY + latPixelDelta][currentWorldGridX + longPixelDelta];
 }

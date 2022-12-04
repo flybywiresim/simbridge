@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, Put, Res, Query, HttpStatus, HttpException } from '@nestjs/common';
+import { Controller, Get, Patch, Body, BadRequestException, NotFoundException, Put, Query, HttpStatus, HttpException } from '@nestjs/common';
 import { ApiResponse, ApiTags, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
 import { PositionDto } from './dto/position.dto';
@@ -26,9 +26,9 @@ export class TerrainController {
         description: 'The terrainmap is not loaded',
     })
     mapAvailable() {
-        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
-            throw new NotFoundException('System not initialized');
-        }
+        // if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+        //     throw new NotFoundException('System not initialized');
+        // }
     }
 
     @Put('displaysettings')
@@ -41,15 +41,8 @@ export class TerrainController {
         status: 200,
         description: 'Updated the ND display configuration',
     })
-    @ApiResponse({
-        status: 400,
-        description: 'Unable to update the display configuration',
-    })
     configureDisplay(@Query('display') display, @Body() config: NavigationDisplayViewDto): void {
-        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
-            throw new BadRequestException('System not initialized');
-        }
-        this.terrainService.MapManager.configureNd(display, config);
+        this.terrainService.configureNavigationDisplay(display, config);
     }
 
     @Patch('position')
@@ -78,7 +71,7 @@ export class TerrainController {
         description: 'Invalid display or timestamp request',
     })
     async getAllNdMapsBase64(@Query('display') display, @Query('timestamp') timestamp) {
-        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+        /* if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
             throw new HttpException('System not initialized', HttpStatus.BAD_REQUEST);
         }
 
@@ -87,7 +80,7 @@ export class TerrainController {
             throw new HttpException('Invalid timestamp request', HttpStatus.BAD_REQUEST);
         }
 
-        return data.ImageSequence;
+        return data.ImageSequence; */
     }
 
     @Get('renderMap')
@@ -102,10 +95,11 @@ export class TerrainController {
         description: 'Invalid display settings set',
     })
     renderTerrainMap(@Query('display') display) {
-        if (this.terrainService.Terrainmap !== undefined && this.terrainService.MapManager !== undefined) {
+        this.terrainService.renderNavigationDisplay(display);
+        /* if (this.terrainService.Terrainmap !== undefined && this.terrainService.MapManager !== undefined) {
             return this.terrainService.MapManager.renderNdMap(display);
         }
-        return -1;
+        return -1; */
     }
 
     @Get('ndMapAvailable')
@@ -116,10 +110,10 @@ export class TerrainController {
         type: Boolean,
     })
     ndMapAvailable(@Query('display') display, @Query('timestamp') timestamp) {
-        if (this.terrainService.Terrainmap !== undefined && this.terrainService.MapManager !== undefined) {
+        /* if (this.terrainService.Terrainmap !== undefined && this.terrainService.MapManager !== undefined) {
             return this.terrainService.MapManager.ndMap(display, parseInt(timestamp)) !== null;
         }
-        return false;
+        return false; */
     }
 
     @Get('terrainRange')
@@ -135,7 +129,7 @@ export class TerrainController {
         description: 'Invalid display requested',
     })
     getTerrainRange(@Query('display') display, @Query('timestamp') timestamp) {
-        if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
+        /* if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
             throw new HttpException('System not initialized', HttpStatus.BAD_REQUEST);
         }
 
@@ -152,6 +146,6 @@ export class TerrainController {
         retval.maxElevationIsWarning = ndMap.MaximumElevationMode === TerrainLevelMode.Warning;
         retval.maxElevationIsCaution = ndMap.MaximumElevationMode === TerrainLevelMode.Caution;
 
-        return retval;
+        return retval; */
     }
 }
