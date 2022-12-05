@@ -599,6 +599,7 @@ const maphandler = new MapHandler();
 parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
         maphandler.initialize(data.instance as TerrainMap);
+        parentPort.postMessage(undefined);
     } else if (data.type === 'POSITION') {
         maphandler.updatePosition(data.instance as PositionDto, false);
     } else if (data.type === 'NDCONFIGURATION') {

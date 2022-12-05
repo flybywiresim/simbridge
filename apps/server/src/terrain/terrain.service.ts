@@ -10,6 +10,8 @@ import { TerrainMap } from './mapformat/terrainmap';
 export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
+    private mapHandlerReady: boolean = false;
+
     private mapHandler: Worker = null;
 
     private terrainDirectory = 'terrain/';
@@ -18,6 +20,11 @@ export class TerrainService implements OnApplicationShutdown {
         this.mapHandler = new Worker(path.resolve(__dirname, './utils/maphandler.js'));
 
         this.readTerrainMap().then((map) => {
+            this.mapHandler.on('message', () => {
+                this.logger.log('Initialized map management');
+                // TODO add a callback function to handle the created data
+                this.mapHandlerReady = true;
+            });
             this.mapHandler.postMessage({ type: 'INITIALIZATION', instance: map });
         });
     }
@@ -44,20 +51,26 @@ export class TerrainService implements OnApplicationShutdown {
     }
 
     public updatePosition(position: PositionDto): void {
-        this.mapHandler.postMessage({ type: 'POSITION', instance: position });
+        if (this.mapHandlerReady) {
+            this.mapHandler.postMessage({ type: 'POSITION', instance: position });
+        }
     }
 
     public configureNavigationDisplay(side: string, config: NavigationDisplayViewDto): void {
-        this.mapHandler.postMessage({
-            type: 'NDCONFIGURATION',
-            instance: {
-                side,
-                config,
-            },
-        });
+        if (this.mapHandlerReady) {
+            this.mapHandler.postMessage({
+                type: 'NDCONFIGURATION',
+                instance: {
+                    side,
+                    config,
+                },
+            });
+        }
     }
 
     public renderNavigationDisplay(side: string): void {
-        this.mapHandler.postMessage({ type: 'NDRENDER', instance: side });
+        if (this.mapHandlerReady) {
+            this.mapHandler.postMessage({ type: 'NDRENDER', instance: side });
+        }
     }
 }
