@@ -1,5 +1,5 @@
 import { parentPort } from 'worker_threads';
-import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
+import { GPU, IKernelRunShortcut, Texture, KernelOutput } from 'gpu.js';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { PositionDto } from '../dto/position.dto';
 import { distanceWgs84, rad2deg } from './generic/helper';
@@ -82,7 +82,7 @@ class MapHandler {
 
     private worldMapCache: Int16Array = null;
 
-    private navigationDisplayData: { [id: string]: { config: NavigationDisplayViewDto, lastFrame: Texture } } = {};
+    private navigationDisplayData: { [id: string]: { config: NavigationDisplayViewDto, lastFrame: Uint8ClampedArray } } = {};
 
     private extractLocalElevationMap: IKernelRunShortcut = null;
 
@@ -152,7 +152,7 @@ class MapHandler {
             .createKernel(a32nxRenderNavigationDisplay, {
                 dynamicArguments: true,
                 dynamicOutput: true,
-                pipeline: true,
+                pipeline: false,
                 immutable: false,
             })
             .setConstants<NavigationDisplayConstants>({
@@ -214,10 +214,11 @@ class MapHandler {
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
-        for (const key in this.navigationDisplayData) {
-            if (this.navigationDisplayData[key].lastFrame !== null) this.navigationDisplayData[key].lastFrame.delete();
-        }
+
+        // destroy all A32NX related instances
         if (this.a32nxNavigationDisplayRendering !== null) this.a32nxNavigationDisplayRendering.destroy();
+
+        // destroy the context iteslf
         if (this.gpu !== null) this.gpu.destroy();
     }
 
@@ -353,10 +354,7 @@ class MapHandler {
 
         if (display in this.navigationDisplayData) {
             if (this.navigationDisplayData[display].config.arcMode !== config.arcMode || config.active === false) {
-                if (this.navigationDisplayData[display].lastFrame !== null) {
-                    this.navigationDisplayData[display].lastFrame.delete();
-                    this.navigationDisplayData[display].lastFrame = null;
-                }
+                this.navigationDisplayData[display].lastFrame = null;
             }
             this.navigationDisplayData[display].config = config;
         } else {
@@ -545,13 +543,14 @@ class MapHandler {
         elevationMap: Texture,
         histogram: Texture,
         cutOffAltitude: number,
-    ): Texture {
+    ): Uint8ClampedArray {
         if (this.a32nxNavigationDisplayRendering.output === null
             || config.mapWidth * 4 !== this.a32nxNavigationDisplayRendering.output[0]
-            || config.mapHeight !== this.a32nxNavigationDisplayRendering.output[1]
+            || config.mapHeight + 1 !== this.a32nxNavigationDisplayRendering.output[1]
         ) {
+            // add one row for the metadata
             this.a32nxNavigationDisplayRendering = this.a32nxNavigationDisplayRendering
-                .setOutput([config.mapWidth * 4, config.mapHeight]);
+                .setOutput([config.mapWidth * 4, config.mapHeight + 1]);
         }
 
         const terrainmap = this.a32nxNavigationDisplayRendering(
@@ -563,16 +562,23 @@ class MapHandler {
             this.currentPosition.verticalSpeed,
             config.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
-        ) as Texture;
+        ) as KernelOutput;
+
+        const ndmap = terrainmap as number[][];
+        const metadata = ndmap[ndmap.length - 1];
+
+        // remove the metadata block
+        ndmap.splice(ndmap.length - 1);
+        const image = new Uint8ClampedArray(MapHandler.fastFlatten(ndmap));
+
 
         if (DebugRendering) {
-            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap.toArray() as number[][]));
             sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 4 } })
                 .png()
                 .toFile('navigationdisplay.png');
         }
 
-        return terrainmap;
+        return image;
     }
 
     public renderNavigationDisplay(side: string): void {
@@ -598,8 +604,7 @@ class MapHandler {
             // TODO calculate map transition
 
             // store the map for the next run
-            if (this.navigationDisplayData[side].lastFrame !== null) this.navigationDisplayData[side].lastFrame.delete();
-            this.navigationDisplayData[side].lastFrame = ndMap.clone();
+            this.navigationDisplayData[side].lastFrame = ndMap;
         }
     }
 }
