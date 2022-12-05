@@ -93,17 +93,17 @@ function renderNormalMode(
         && elevation !== this.constants.waterElevation
         && elevation >= absoluteCutOffAltitude
     ) {
+        const warningThresholds = calculateNormalModeWarningThresholds(
+            referenceAltitude,
+            minimumElevation,
+            gearDownAltitudeOffset,
+        );
         const greenThresholds = calculateNormalModeGreenThresholds(
             referenceAltitude,
             minimumElevation,
             flatEarth,
             lowerPercentile,
             halfElevation,
-        );
-        const warningThresholds = calculateNormalModeWarningThresholds(
-            referenceAltitude,
-            minimumElevation,
-            gearDownAltitudeOffset,
         );
 
         if (elevation >= warningThresholds[2]) {
