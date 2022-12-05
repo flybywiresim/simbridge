@@ -271,7 +271,7 @@ export function renderNavigationDisplay(
     const halfElevation = maxElevation * 0.5;
 
     const centerCoordinateX = width / 2;
-    const pixelX = Math.ceil(this.thread.x / 4);
+    const pixelX = Math.floor(this.thread.x / 4);
     const colorChannel = this.thread.x % 4;
     const pixelElevation = elevationGrid[this.thread.y][pixelX];
 
