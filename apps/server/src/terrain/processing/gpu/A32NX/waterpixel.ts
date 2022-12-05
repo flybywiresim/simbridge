@@ -1,5 +1,5 @@
 // need to draw spaghetti code due to wrong code generation
-export function drawWaterDensityPixel(
+export function a32nxDrawWaterDensityPixel(
     color: [number, number, number, number],
     pixelX: number,
     pixelY: number,

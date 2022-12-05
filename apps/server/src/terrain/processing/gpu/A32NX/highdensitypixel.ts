@@ -1,5 +1,5 @@
 // hard coded patterns due to code generation limitations
-export function drawHighDensityPixel(
+export function a32nxDrawHighDensityPixel(
     color: [number, number, number, number],
     pixelX: number,
     pixelY: number,

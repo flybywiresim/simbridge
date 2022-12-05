@@ -1,10 +1,10 @@
 import { GPU } from 'gpu.js';
-import { drawHighDensityPixel } from './highdensitypixel';
-import { drawLowDensityPixel } from './lowdensitypixel';
-import { drawWaterDensityPixel } from './waterpixel';
-import { NavigationDisplayParameters } from './interfaces';
+import { a32nxDrawHighDensityPixel } from './highdensitypixel';
+import { a32nxDrawLowDensityPixel } from './lowdensitypixel';
+import { a32nxDrawWaterDensityPixel } from './waterpixel';
+import { NavigationDisplayParameters } from '../interfaces';
 
-function calculateNormalModeGreenThresholds(
+function a32nxCalculateNormalModeGreenThresholds(
     referenceAltitude: number,
     minimumElevation: number,
     flatEarth: number,
@@ -37,7 +37,7 @@ function calculateNormalModeGreenThresholds(
     return [lowDensityGreen, highDensityGreen];
 }
 
-function calculateNormalModeWarningThresholds(
+function a32nxCalculateNormalModeWarningThresholds(
     referenceAltitude: number,
     minimumElevation: number,
     gearDownAltitudeOffset: number,
@@ -53,7 +53,7 @@ function calculateNormalModeWarningThresholds(
     return [lowDensityYellow, highDensityYellow, highDensityRed];
 }
 
-function calculatePeaksModeThresholds(
+function a32nxCalculatePeaksModeThresholds(
     lowerPercentile: number,
     upperPercentile: number,
     halfElevation: number,
@@ -74,7 +74,7 @@ function calculatePeaksModeThresholds(
     return [lowerDensity, higherDensity, solidDensity];
 }
 
-function renderNormalMode(
+function a32nxRenderNormalMode(
     elevation: number,
     pixelX: number,
     pixelY: number,
@@ -93,12 +93,12 @@ function renderNormalMode(
         && elevation !== this.constants.waterElevation
         && elevation >= absoluteCutOffAltitude
     ) {
-        const warningThresholds = calculateNormalModeWarningThresholds(
+        const warningThresholds = a32nxCalculateNormalModeWarningThresholds(
             referenceAltitude,
             minimumElevation,
             gearDownAltitudeOffset,
         );
-        const greenThresholds = calculateNormalModeGreenThresholds(
+        const greenThresholds = a32nxCalculateNormalModeGreenThresholds(
             referenceAltitude,
             minimumElevation,
             flatEarth,
@@ -107,34 +107,34 @@ function renderNormalMode(
         );
 
         if (elevation >= warningThresholds[2]) {
-            return drawHighDensityPixel([255, 0, 0, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawHighDensityPixel([255, 0, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= warningThresholds[1]) {
-            return drawHighDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawHighDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= greenThresholds[1] && elevation < warningThresholds[0]) {
-            return drawHighDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawHighDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= warningThresholds[0] && elevation < warningThresholds[1]) {
-            return drawLowDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawLowDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= greenThresholds[0] && elevation < greenThresholds[1]) {
-            return drawLowDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawLowDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
 
         return [0, 0, 0, 0];
     }
     if (elevation === this.constants.waterElevation) {
-        return drawWaterDensityPixel([0, 255, 255, 255], pixelX, pixelY, height, centerCoordinateX);
+        return a32nxDrawWaterDensityPixel([0, 255, 255, 255], pixelX, pixelY, height, centerCoordinateX);
     }
     if (elevation === this.constants.unknownElevation) {
-        return drawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
+        return a32nxDrawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
     }
 
     return [0, 0, 0, 0];
 }
 
-function renderPeaksMode(
+function a32nxRenderPeaksMode(
     elevation: number,
     pixelX: number,
     pixelY: number,
@@ -150,7 +150,7 @@ function renderPeaksMode(
         && elevation !== this.constants.unknownElevation
         && elevation !== this.constants.waterElevation
     ) {
-        const thresholds = calculatePeaksModeThresholds(
+        const thresholds = a32nxCalculatePeaksModeThresholds(
             lowerPercentile,
             upperPercentile,
             halfElevation,
@@ -163,25 +163,25 @@ function renderPeaksMode(
             return [0, 255, 0, 255];
         }
         if (thresholds[1] <= elevation) {
-            return drawHighDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawHighDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (thresholds[0] <= elevation) {
-            return drawLowDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
+            return a32nxDrawLowDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
 
         return [0, 0, 0, 0];
     }
     if (elevation === this.constants.waterElevation) {
-        return drawWaterDensityPixel([0, 255, 255, 255], pixelX, pixelY, height, centerCoordinateX);
+        return a32nxDrawWaterDensityPixel([0, 255, 255, 255], pixelX, pixelY, height, centerCoordinateX);
     }
     if (elevation === this.constants.unknownElevation) {
-        return drawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
+        return a32nxDrawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
     }
 
     return [0, 0, 0, 0];
 }
 
-export function renderNavigationDisplay(
+export function a32nxRenderNavigationDisplay(
     this: NavigationDisplayParameters,
     elevationGrid: number[][],
     histogram: number[],
@@ -255,7 +255,7 @@ export function renderNavigationDisplay(
     const pixelElevation = elevationGrid[this.thread.y][pixelX];
 
     if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {
-        return renderNormalMode(
+        return a32nxRenderNormalMode(
             pixelElevation,
             pixelX,
             this.thread.y,
@@ -271,7 +271,7 @@ export function renderNavigationDisplay(
         )[colorChannel];
     }
 
-    return renderPeaksMode(
+    return a32nxRenderPeaksMode(
         pixelElevation,
         pixelX,
         this.thread.y,
@@ -285,8 +285,8 @@ export function renderNavigationDisplay(
     )[colorChannel];
 }
 
-export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
-    gpu.addFunction(calculateNormalModeGreenThresholds, {
+export const registerA32NXNavigationDisplayFunctions = (gpu: GPU): void => {
+    gpu.addFunction(a32nxCalculateNormalModeGreenThresholds, {
         argumentTypes: {
             referenceAltitude: 'Float',
             minimumElevation: 'Float',
@@ -296,7 +296,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(2)',
     });
-    gpu.addFunction(calculateNormalModeWarningThresholds, {
+    gpu.addFunction(a32nxCalculateNormalModeWarningThresholds, {
         argumentTypes: {
             referenceAltitude: 'Float',
             minimumElevation: 'Float',
@@ -304,7 +304,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(3)',
     });
-    gpu.addFunction(calculatePeaksModeThresholds, {
+    gpu.addFunction(a32nxCalculatePeaksModeThresholds, {
         argumentTypes: {
             lowerPercentile: 'Float',
             upperPercentile: 'Float',
@@ -314,7 +314,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(3)',
     });
-    gpu.addFunction(drawLowDensityPixel, {
+    gpu.addFunction(a32nxDrawLowDensityPixel, {
         argumentTypes: {
             color: 'Array(4)',
             pixelX: 'Integer',
@@ -323,7 +323,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(4)',
     });
-    gpu.addFunction(drawHighDensityPixel, {
+    gpu.addFunction(a32nxDrawHighDensityPixel, {
         argumentTypes: {
             color: 'Array(4)',
             pixelX: 'Integer',
@@ -332,7 +332,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(4)',
     });
-    gpu.addFunction(drawWaterDensityPixel, {
+    gpu.addFunction(a32nxDrawWaterDensityPixel, {
         argumentTypes: {
             color: 'Array(4)',
             pixelX: 'Integer',
@@ -342,7 +342,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(4)',
     });
-    gpu.addFunction(renderNormalMode, {
+    gpu.addFunction(a32nxRenderNormalMode, {
         argumentTypes: {
             elevation: 'Integer',
             pixelX: 'Integer',
@@ -359,7 +359,7 @@ export const registerNavigationDisplayFunctions = (gpu: GPU): void => {
         },
         returnType: 'Array(4)',
     });
-    gpu.addFunction(renderPeaksMode, {
+    gpu.addFunction(a32nxRenderPeaksMode, {
         argumentTypes: {
             elevation: 'Integer',
             pixelX: 'Integer',

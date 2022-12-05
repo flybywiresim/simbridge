@@ -5,7 +5,7 @@ import { PositionDto } from '../dto/position.dto';
 import { distanceWgs84, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
 import { registerHelperFunctions, projectWgs84 } from './gpu/helper';
-import { registerNavigationDisplayFunctions, renderNavigationDisplay } from './gpu/navigationdisplay';
+import { registerA32NXNavigationDisplayFunctions, a32nxRenderNavigationDisplay } from './gpu/A32NX/navigationdisplay';
 import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { Worldmap } from '../mapdata/worldmap';
@@ -85,7 +85,7 @@ class MapHandler {
 
     private worldMapCache: Int16Array = null;
 
-    private navigationDisplayConfigurations: { [id: string]: NavigationDisplayViewDto } = {};
+    private navigationDisplayData: { [id: string]: { config: NavigationDisplayViewDto, lastFrame: Texture } } = {};
 
     private extractLocalElevationMap: IKernelRunShortcut = null;
 
@@ -93,17 +93,15 @@ class MapHandler {
 
     private elevationHistogram: IKernelRunShortcut = null;
 
-    private navigationDisplayRendering: IKernelRunShortcut = null;
+    private a32nxNavigationDisplayRendering: IKernelRunShortcut = null;
 
     private startupTimestamp: number = -1;
-
-    private lastNavigationDisplayMap: Texture = null;
 
     private createKernels(): void {
         this.gpu = new GPU({ mode: 'gpu' });
 
         registerHelperFunctions(this.gpu);
-        registerNavigationDisplayFunctions(this.gpu);
+        registerA32NXNavigationDisplayFunctions(this.gpu);
 
         // register kernel to upload the map data
         this.uploadWorldMapToGPU = this.gpu
@@ -153,8 +151,8 @@ class MapHandler {
             .setLoopMaxIterations(500)
             .setOutput([HistogramBinCount]);
 
-        this.navigationDisplayRendering = this.gpu
-            .createKernel(renderNavigationDisplay, {
+        this.a32nxNavigationDisplayRendering = this.gpu
+            .createKernel(a32nxRenderNavigationDisplay, {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
@@ -206,6 +204,7 @@ class MapHandler {
         const histogram = this.createElevationHistogram(map, startupConfig);
         this.createNavigationDisplayMap(startupConfig, map, histogram, 0);
 
+        this.startupTimestamp = new Date().getTime();
         this.Initialized = true;
     }
 
@@ -218,8 +217,10 @@ class MapHandler {
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
-        if (this.lastNavigationDisplayMap !== null) this.lastNavigationDisplayMap.delete();
-        if (this.navigationDisplayRendering !== null) this.navigationDisplayRendering.destroy();
+        for (const key in this.navigationDisplayData) {
+            if (this.navigationDisplayData[key].lastFrame !== null) this.navigationDisplayData[key].lastFrame.delete();
+        }
+        if (this.a32nxNavigationDisplayRendering !== null) this.a32nxNavigationDisplayRendering.destroy();
         if (this.gpu !== null) this.gpu.destroy();
     }
 
@@ -353,7 +354,20 @@ class MapHandler {
             config.cutOffAltitudeMaximum = 400;
         }
 
-        this.navigationDisplayConfigurations[display] = config;
+        if (display in this.navigationDisplayData) {
+            if (this.navigationDisplayData[display].config.arcMode !== config.arcMode || config.active === false) {
+                if (this.navigationDisplayData[display].lastFrame !== null) {
+                    this.navigationDisplayData[display].lastFrame.delete();
+                    this.navigationDisplayData[display].lastFrame = null;
+                }
+            }
+            this.navigationDisplayData[display].config = config;
+        } else {
+            this.navigationDisplayData[display] = {
+                config,
+                lastFrame: null,
+            };
+        }
     }
 
     private static fastFlatten<T>(arr: T[][]): T[] {
@@ -535,15 +549,15 @@ class MapHandler {
         histogram: Texture,
         cutOffAltitude: number,
     ): Texture {
-        if (this.navigationDisplayRendering.output === null
-            || config.mapWidth * 4 !== this.navigationDisplayRendering.output[0]
-            || config.mapHeight !== this.navigationDisplayRendering.output[1]
+        if (this.a32nxNavigationDisplayRendering.output === null
+            || config.mapWidth * 4 !== this.a32nxNavigationDisplayRendering.output[0]
+            || config.mapHeight !== this.a32nxNavigationDisplayRendering.output[1]
         ) {
-            this.navigationDisplayRendering = this.navigationDisplayRendering
+            this.a32nxNavigationDisplayRendering = this.a32nxNavigationDisplayRendering
                 .setOutput([config.mapWidth * 4, config.mapHeight]);
         }
 
-        const terrainmap = this.navigationDisplayRendering(
+        const terrainmap = this.a32nxNavigationDisplayRendering(
             elevationMap,
             histogram,
             config.mapWidth,
@@ -568,10 +582,10 @@ class MapHandler {
         // no valid position data received
         if (this.currentPosition === undefined) {
             console.log('No valid position received for rendering');
-        } else if (this.navigationDisplayConfigurations[side] === undefined) {
+        } else if (this.navigationDisplayData[side] === undefined) {
             console.log('No navigation display configuration received');
         } else {
-            const config = this.navigationDisplayConfigurations[side];
+            const { config } = this.navigationDisplayData[side];
 
             const elevationMap = this.createLocalElevationMap(config);
             const histogram = this.createElevationHistogram(elevationMap, config);
@@ -587,8 +601,8 @@ class MapHandler {
             // TODO calculate map transition
 
             // store the map for the next run
-            if (this.lastNavigationDisplayMap !== null) this.lastNavigationDisplayMap.delete();
-            this.lastNavigationDisplayMap = ndMap.clone();
+            if (this.navigationDisplayData[side].lastFrame !== null) this.navigationDisplayData[side].lastFrame.delete();
+            this.navigationDisplayData[side].lastFrame = ndMap.clone();
         }
     }
 }
