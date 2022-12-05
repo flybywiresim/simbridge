@@ -59,7 +59,7 @@ class MapHandler {
 
     private gpu: GPU = null;
 
-    private initialized = false;
+    public Initialized = false;
 
     private currentPosition: PositionDto = null;
 
@@ -206,11 +206,11 @@ class MapHandler {
         const histogram = this.createElevationHistogram(map, startupConfig);
         this.createNavigationDisplayMap(startupConfig, map, histogram, 0);
 
-        this.initialized = true;
+        this.Initialized = true;
     }
 
     public shutdown(): void {
-        this.initialized = false;
+        this.Initialized = false;
 
         // destroy all GPU related instances
         if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
@@ -224,7 +224,7 @@ class MapHandler {
     }
 
     public updatePosition(position: PositionDto, startup: boolean): void {
-        if (!this.initialized && !startup) return;
+        if (!this.Initialized && !startup) return;
 
         this.currentPosition = position;
         const tiledata = this.worldmap.updatePosition(this.currentPosition);
@@ -568,7 +568,6 @@ class MapHandler {
         // no valid position data received
         if (this.currentPosition === undefined) {
             console.log('No valid position received for rendering');
-            parentPort.postMessage(undefined);
         } else if (this.navigationDisplayConfigurations[side] === undefined) {
             console.log('No navigation display configuration received');
         } else {
@@ -590,8 +589,6 @@ class MapHandler {
             // store the map for the next run
             if (this.lastNavigationDisplayMap !== null) this.lastNavigationDisplayMap.delete();
             this.lastNavigationDisplayMap = ndMap.clone();
-
-            parentPort.postMessage(undefined);
         }
     }
 }
@@ -601,15 +598,18 @@ const maphandler = new MapHandler();
 parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
         maphandler.initialize(data.instance as TerrainMap);
-        parentPort.postMessage(undefined);
+        parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
     } else if (data.type === 'POSITION') {
         maphandler.updatePosition(data.instance as PositionDto, false);
+        parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'NDCONFIGURATION') {
         maphandler.configureNavigationDisplay(data.instance.side as string, data.instance.config as NavigationDisplayViewDto);
+        parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'NDRENDER') {
         maphandler.renderNavigationDisplay(data.instance as string);
+        parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'SHUTDOWN') {
         maphandler.shutdown();
-        parentPort.postMessage(undefined);
+        parentPort.postMessage({ request: data.type, response: undefined });
     }
 });

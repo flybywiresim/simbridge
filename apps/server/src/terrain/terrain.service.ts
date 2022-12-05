@@ -17,21 +17,27 @@ export class TerrainService implements OnApplicationShutdown {
     private terrainDirectory = 'terrain/';
 
     constructor(private fileService: FileService) {
-        this.mapHandler = new Worker(path.resolve(__dirname, './utils/maphandler.js'));
+        this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
+        this.mapHandler.on('message', (message: { request: string, response: any }) => {
+            if (message.request === 'INITIALIZATION') {
+                this.mapHandlerReady = message.response as boolean;
+                if (this.mapHandlerReady) {
+                    this.logger.log('Initialized map management');
+                } else {
+                    this.logger.log('Unable to initialize the map handler');
+                }
+            } else if (message.request === 'SHUTDOWN') {
+                this.mapHandler.terminate();
+            }
+        });
 
         this.readTerrainMap().then((map) => {
-            this.mapHandler.on('message', () => {
-                this.logger.log('Initialized map management');
-                // TODO add a callback function to handle the created data
-                this.mapHandlerReady = true;
-            });
             this.mapHandler.postMessage({ type: 'INITIALIZATION', instance: map });
         });
     }
 
     onApplicationShutdown(_signal?: string) {
         this.mapHandler.postMessage({ type: 'SHUTDOWN' });
-        this.mapHandler.on('message', () => this.mapHandler.terminate());
     }
 
     private async readTerrainMap(): Promise<TerrainMap | undefined> {

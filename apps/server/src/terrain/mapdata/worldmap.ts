@@ -3,7 +3,7 @@ import { TerrainMap } from '../fileformat/terrainmap';
 import { Tile } from '../fileformat/tile';
 import { PositionDto } from '../dto/position.dto';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
-import { projectWgs84 } from '../utils/gpu/helper';
+import { projectWgs84 } from '../processing/gpu/helper';
 import { NavigationDisplayData } from './navigationdisplaydata';
 import { TileManager } from './tilemanager';
 
