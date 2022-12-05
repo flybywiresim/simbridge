@@ -1,6 +1,6 @@
-import { ElevationGrid } from '../mapformat/elevationgrid';
+import { ElevationGrid } from '../fileformat/elevationgrid';
 import { Worldmap } from './worldmap';
-import { TerrainMap } from '../mapformat/terrainmap';
+import { TerrainMap } from '../fileformat/terrainmap';
 
 export class TileManager {
     public grid: { southwest: { latitude: number, longitude: number }, tileIndex: number, elevationmap: undefined | ElevationGrid }[][] = [];

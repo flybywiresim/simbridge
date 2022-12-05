@@ -4,7 +4,7 @@ import { Worker } from 'worker_threads';
 import { FileService } from '../utilities/file.service';
 import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
 import { PositionDto } from './dto/position.dto';
-import { TerrainMap } from './mapformat/terrainmap';
+import { TerrainMap } from './fileformat/terrainmap';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {

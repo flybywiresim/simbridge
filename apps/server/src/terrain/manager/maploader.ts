@@ -1,6 +1,6 @@
 import { parentPort } from 'worker_threads';
-import { TerrainMap } from '../mapformat/terrainmap';
-import { Tile } from '../mapformat/tile';
+import { TerrainMap } from '../fileformat/terrainmap';
+import { Tile } from '../fileformat/tile';
 import { TileData } from './worldmap';
 
 let mapdata: TerrainMap = null;

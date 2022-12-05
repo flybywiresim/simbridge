@@ -9,7 +9,7 @@ import { registerNavigationDisplayFunctions, renderNavigationDisplay } from './g
 import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { Worldmap } from '../manager/worldmap';
-import { TerrainMap } from '../mapformat/terrainmap';
+import { TerrainMap } from '../fileformat/terrainmap';
 
 const sharp = require('sharp');
 

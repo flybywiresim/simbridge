@@ -1,6 +1,6 @@
-import { ElevationGrid } from '../mapformat/elevationgrid';
-import { TerrainMap } from '../mapformat/terrainmap';
-import { Tile } from '../mapformat/tile';
+import { ElevationGrid } from '../fileformat/elevationgrid';
+import { TerrainMap } from '../fileformat/terrainmap';
+import { Tile } from '../fileformat/tile';
 import { PositionDto } from '../dto/position.dto';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { projectWgs84 } from '../utils/gpu/helper';
