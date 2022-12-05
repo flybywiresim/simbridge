@@ -8,7 +8,7 @@ import { registerHelperFunctions, projectWgs84 } from './gpu/helper';
 import { registerNavigationDisplayFunctions, renderNavigationDisplay } from './gpu/navigationdisplay';
 import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
-import { Worldmap } from '../manager/worldmap';
+import { Worldmap } from '../mapdata/worldmap';
 import { TerrainMap } from '../fileformat/terrainmap';
 
 const sharp = require('sharp');
