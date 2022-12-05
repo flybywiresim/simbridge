@@ -2,6 +2,7 @@ import { IKernelFunctionThis } from 'gpu.js';
 
 export interface LocalElevationMapConstants {
     unknownElevation: number,
+    invalidElevation: number,
 }
 
 export type LocalElevationMapParameters = {

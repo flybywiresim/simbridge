@@ -120,7 +120,10 @@ class MapHandler {
                 pipeline: true,
                 tactic: 'speed',
             })
-            .setConstants<LocalElevationMapConstants>({ unknownElevation: UnknownElevation });
+            .setConstants<LocalElevationMapConstants>({
+                unknownElevation: UnknownElevation,
+                invalidElevation: InvalidElevation,
+            });
 
         this.localElevationHistogram = this.gpu
             .createKernel(createLocalElevationHistogram, {
