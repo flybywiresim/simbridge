@@ -82,30 +82,56 @@ function a32nxRenderNormalMode(
     centerCoordinateX: number,
     referenceAltitude: number,
     minimumElevation: number,
+    maximumElevation: number,
     flatEarth: number,
     gearDownAltitudeOffset: number,
     lowerPercentile: number,
     halfElevation: number,
     absoluteCutOffAltitude: number,
 ): [number, number, number, number] {
+    const warningThresholds = a32nxCalculateNormalModeWarningThresholds(
+        referenceAltitude,
+        minimumElevation,
+        gearDownAltitudeOffset,
+    );
+    const greenThresholds = a32nxCalculateNormalModeGreenThresholds(
+        referenceAltitude,
+        minimumElevation,
+        flatEarth,
+        lowerPercentile,
+        halfElevation,
+    );
+
+    // store statistics in the last row as some metadata
+    if (this.thread.y >= height) {
+        /*
+         * Content pixel 0:
+         *  - R: rendering mode
+         *  - G: minimum elevation
+         *  - B: maximum elevation
+         *  - A: solid red threshold
+         */
+        /*
+         * Content pixel 1:
+         *  - R: high density yellow
+         *  - G: low density yellow
+         *  - B: high density green
+         *  - A: low density green
+         */
+        if (this.thread.x < 4) {
+            return [0, minimumElevation, maximumElevation, warningThresholds[2]];
+        }
+        if (this.thread.x < 8) {
+            return [warningThresholds[1], warningThresholds[0], greenThresholds[1], greenThresholds[0]];
+        }
+        return [0, 0, 0, 0];
+    }
+
     if (elevation !== this.constants.invalidElevation
         && elevation !== this.constants.unknownElevation
         && elevation !== this.constants.waterElevation
         && elevation >= absoluteCutOffAltitude
     ) {
-        const warningThresholds = a32nxCalculateNormalModeWarningThresholds(
-            referenceAltitude,
-            minimumElevation,
-            gearDownAltitudeOffset,
-        );
-        const greenThresholds = a32nxCalculateNormalModeGreenThresholds(
-            referenceAltitude,
-            minimumElevation,
-            flatEarth,
-            lowerPercentile,
-            halfElevation,
-        );
-
         if (elevation >= warningThresholds[2]) {
             return a32nxDrawHighDensityPixel([255, 0, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
@@ -146,18 +172,41 @@ function a32nxRenderPeaksMode(
     minimumElevation: number,
     maximumElevation: number,
 ): [number, number, number, number] {
+    const thresholds = a32nxCalculatePeaksModeThresholds(
+        lowerPercentile,
+        upperPercentile,
+        halfElevation,
+        minimumElevation,
+        maximumElevation,
+    );
+
+    // store statistics in the last row as some metadata
+    if (this.thread.y >= height) {
+        /*
+         * Content pixel 0:
+         *  - R: rendering mode
+         *  - G: minimum elevation
+         *  - B: maximum elevation
+         *  - A: solid green threshold
+         */
+        /*
+         * Content pixel 1:
+         *  - R: high density green
+         *  - G: low density green
+         */
+        if (this.thread.x < 4) {
+            return [1, minimumElevation, maximumElevation, thresholds[2]];
+        }
+        if (this.thread.x < 8) {
+            return [thresholds[1], thresholds[0], 0, 0];
+        }
+        return [0, 0, 0, 0];
+    }
+
     if (elevation !== this.constants.invalidElevation
         && elevation !== this.constants.unknownElevation
         && elevation !== this.constants.waterElevation
     ) {
-        const thresholds = a32nxCalculatePeaksModeThresholds(
-            lowerPercentile,
-            upperPercentile,
-            halfElevation,
-            minimumElevation,
-            maximumElevation,
-        );
-
         if (thresholds[2] <= elevation) {
             // solid threshold
             return [0, 255, 0, 255];
@@ -252,7 +301,12 @@ export function a32nxRenderNavigationDisplay(
     const centerCoordinateX = width / 2;
     const pixelX = Math.floor(this.thread.x / 4);
     const colorChannel = this.thread.x % 4;
-    const pixelElevation = elevationGrid[this.thread.y][pixelX];
+    let pixelElevation = 0;
+
+    // fallback for metadata block
+    if (this.thread.y < height) {
+        pixelElevation = elevationGrid[this.thread.y][pixelX];
+    }
 
     if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {
         return a32nxRenderNormalMode(
@@ -263,6 +317,7 @@ export function a32nxRenderNavigationDisplay(
             centerCoordinateX,
             referenceAltitude,
             minElevation,
+            maxElevation,
             flatEarth,
             gearDownAltitudeOffset,
             lowerPercentileElevation,
@@ -351,6 +406,7 @@ export const registerA32NXNavigationDisplayFunctions = (gpu: GPU): void => {
             centerCoordinateX: 'Float',
             referenceAltitude: 'Float',
             minimumElevation: 'Float',
+            maximumElevation: 'Float',
             flatEarth: 'Integer',
             gearDownAltitudeOffset: 'Integer',
             lowerPercentile: 'Float',
