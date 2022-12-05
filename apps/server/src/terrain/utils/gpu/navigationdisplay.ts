@@ -113,40 +113,19 @@ function renderNormalMode(
             return drawHighDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= greenThresholds[1] && elevation < warningThresholds[0]) {
-            return drawLowDensityPixel(
-                [0, 255, 0, 255],
-                pixelX,
-                pixelY,
-                centerCoordinateX,
-            );
+            return drawHighDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= warningThresholds[0] && elevation < warningThresholds[1]) {
-            return drawLowDensityPixel(
-                [255, 255, 50, 255],
-                pixelX,
-                pixelY,
-                centerCoordinateX,
-            );
+            return drawLowDensityPixel([255, 255, 50, 255], pixelX, pixelY, centerCoordinateX);
         }
         if (elevation >= greenThresholds[0] && elevation < greenThresholds[1]) {
-            return drawLowDensityPixel(
-                [0, 255, 0, 255],
-                pixelX,
-                pixelY,
-                centerCoordinateX,
-            );
+            return drawLowDensityPixel([0, 255, 0, 255], pixelX, pixelY, centerCoordinateX);
         }
 
         return [0, 0, 0, 0];
     }
     if (elevation === this.constants.waterElevation) {
-        return drawWaterDensityPixel(
-            [0, 255, 255, 255],
-            pixelX,
-            pixelY,
-            height,
-            centerCoordinateX,
-        );
+        return drawWaterDensityPixel([0, 255, 255, 255], pixelX, pixelY, height, centerCoordinateX);
     }
     if (elevation === this.constants.unknownElevation) {
         return drawHighDensityPixel([255, 148, 255, 255], pixelX, pixelY, centerCoordinateX);
