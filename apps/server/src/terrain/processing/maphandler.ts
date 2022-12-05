@@ -208,7 +208,7 @@ class MapHandler {
     public shutdown(): void {
         this.Initialized = false;
 
-        // destroy all GPU related instances
+        // destroy all generic GPU related instances
         if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
         if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
