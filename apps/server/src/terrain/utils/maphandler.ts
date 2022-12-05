@@ -96,6 +96,8 @@ class MapHandler {
 
     private navigationDisplayRendering: IKernelRunShortcut = null;
 
+    private lastNavigationDisplayMap: Texture = null;
+
     private createKernels(): void {
         this.gpu = new GPU({ mode: 'gpu' });
 
@@ -154,7 +156,7 @@ class MapHandler {
             .createKernel(renderNavigationDisplay, {
                 dynamicArguments: true,
                 dynamicOutput: true,
-                pipeline: false,
+                pipeline: true,
                 immutable: false,
             })
             .setConstants<NavigationDisplayConstants>({
@@ -215,6 +217,7 @@ class MapHandler {
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
+        if (this.lastNavigationDisplayMap !== null) this.lastNavigationDisplayMap.delete();
         if (this.navigationDisplayRendering !== null) this.navigationDisplayRendering.destroy();
         if (this.gpu !== null) this.gpu.destroy();
     }
@@ -586,6 +589,10 @@ class MapHandler {
             console.log(`Cut off altitude calculation: ${performance.now() - start}`);
 
             const ndMap = this.createNavigationDisplayMap(config, elevationMap, histogram, cutOffAltitude);
+
+            // store the map for the next run
+            if (this.lastNavigationDisplayMap !== null) this.lastNavigationDisplayMap.delete();
+            this.lastNavigationDisplayMap = ndMap.clone();
 
             parentPort.postMessage(undefined);
         }
