@@ -182,7 +182,7 @@ class MapHandler {
 
         this.createKernels();
 
-        // initial call of the kernels to reduce the first run and precompile the kernels
+        // initial call precompile the kernels and reduce first reaction time
         const startupPosition: PositionDto = {
             latitude: 0,
             longitude: 0,
