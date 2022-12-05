@@ -8,6 +8,7 @@ import { registerHelperFunctions, projectWgs84 } from './gpu/helper';
 import { registerA32NXNavigationDisplayFunctions, a32nxRenderNavigationDisplay } from './gpu/A32NX/navigationdisplay';
 import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
+import { uploadElevationmap } from './gpu/upload';
 import { Worldmap } from '../mapdata/worldmap';
 import { TerrainMap } from '../fileformat/terrainmap';
 
@@ -49,10 +50,6 @@ const RenderingNormalModeHighDensityRedOffset = 2000;
 const RenderingGearDownOffset = 250;
 const RenderingNonGearDownOffset = 500;
 const RenderingDensityPatchSize = 13;
-
-function uploadElevationmap(texture: number[], width: number): number {
-    return texture[this.thread.y * width + this.thread.x];
-}
 
 class MapHandler {
     private worldmap: Worldmap = null;
