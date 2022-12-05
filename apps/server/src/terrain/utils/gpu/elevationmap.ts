@@ -19,12 +19,15 @@ export function createLocalElevationMap(
     ndWidth: number,
     ndHeight: number,
     meterPerPixel: number,
+    arcMode: boolean,
 ): number {
     const centerX = ndWidth / 2.0;
     const delta = [this.thread.x - centerX, ndHeight - this.thread.y];
 
     // calculate distance and bearing for the projection
     const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
+    if (arcMode === true && distancePixels > ndHeight) return this.constants.invalidElevation;
+
     const distance = distancePixels * (meterPerPixel / 2.0);
     const angle = rad2deg(Math.acos(delta[1] / distancePixels));
     let bearing = 0.0;

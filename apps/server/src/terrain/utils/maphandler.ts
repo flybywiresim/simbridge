@@ -396,8 +396,8 @@ class MapHandler {
             config.mapWidth,
             config.mapHeight,
             config.meterPerPixel,
+            config.arcMode,
         ) as Texture;
-        console.log(`Local map extraction: ${performance.now() - start}`);
 
         if (DebugLocalElevationMap) {
             const map = MapHandler.fastFlatten(localElevationMap.toArray() as number[][]);
