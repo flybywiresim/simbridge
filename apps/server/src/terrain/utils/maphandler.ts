@@ -382,7 +382,6 @@ class MapHandler {
         }
 
         // create the local elevation map
-        const start = performance.now();
         const localElevationMap = this.extractLocalElevationMap(
             this.currentPosition.latitude,
             this.currentPosition.longitude,
@@ -426,7 +425,6 @@ class MapHandler {
 
     private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplayViewDto): Texture {
         // create the histogram statistics
-        const start = performance.now();
         const patchesInX = Math.ceil(config.mapWidth / HistogramPatchSize);
         const patchesInY = Math.ceil(config.mapHeight / HistogramPatchSize);
         const patchCount = patchesInX * patchesInY;
@@ -447,7 +445,6 @@ class MapHandler {
             localHistograms,
             patchCount,
         ) as Texture;
-        console.log(`Histogram: ${performance.now() - start}`);
 
         if (DebugHistogram) {
             let entryCount = 0;
@@ -536,7 +533,7 @@ class MapHandler {
         elevationMap: Texture,
         histogram: Texture,
         cutOffAltitude: number,
-    ): KernelOutput {
+    ): Texture {
         if (this.navigationDisplayRendering.output === null
             || config.mapWidth * 4 !== this.navigationDisplayRendering.output[0]
             || config.mapHeight !== this.navigationDisplayRendering.output[1]
@@ -545,7 +542,6 @@ class MapHandler {
                 .setOutput([config.mapWidth * 4, config.mapHeight]);
         }
 
-        const start = performance.now();
         const terrainmap = this.navigationDisplayRendering(
             elevationMap,
             histogram,
@@ -555,15 +551,16 @@ class MapHandler {
             this.currentPosition.verticalSpeed,
             config.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
-        ) as KernelOutput;
-        console.log(`Rendering: ${performance.now() - start}`);
+        ) as Texture;
 
         if (DebugRendering) {
-            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap as number[][]));
+            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap.toArray() as number[][]));
             sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 4 } })
                 .png()
                 .toFile('navigationdisplay.png');
         }
+
+        return terrainmap;
     }
 
     public renderNavigationDisplay(side: string): void {
@@ -579,14 +576,12 @@ class MapHandler {
             const elevationMap = this.createLocalElevationMap(config);
             const histogram = this.createElevationHistogram(elevationMap, config);
 
-            const start = performance.now();
             const cutOffAltitude = this.calculateAbsoluteCutOffAltitude(
                 config.destinationLatitude,
                 config.destinationLongitude,
                 config.cutOffAltitudeMinimimum,
                 config.cutOffAltitudeMaximum,
             );
-            console.log(`Cut off altitude calculation: ${performance.now() - start}`);
 
             const ndMap = this.createNavigationDisplayMap(config, elevationMap, histogram, cutOffAltitude);
 
