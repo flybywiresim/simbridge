@@ -189,10 +189,10 @@ class MapHandler {
         this.updatePosition(startupPosition, true);
         const startupConfig: NavigationDisplayViewDto = {
             active: true,
-            mapWidth: 300,
-            mapHeight: 100,
+            mapWidth: 100,
+            mapHeight: 20,
             meterPerPixel: 0,
-            mapTransitionFps: 10,
+            mapTransitionFps: 2,
             mapTransitionTime: 1,
             arcMode: true,
             gearDown: false,
