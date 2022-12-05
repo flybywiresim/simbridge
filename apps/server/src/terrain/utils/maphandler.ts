@@ -1,11 +1,10 @@
 import { parentPort } from 'worker_threads';
-import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
-import { WGS84 } from './wgs84';
+import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { PositionDto } from '../dto/position.dto';
 import { distanceWgs84, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
-import { registerHelperFunctions } from './gpu/helper';
+import { registerHelperFunctions, projectWgs84 } from './gpu/helper';
 import { registerNavigationDisplayFunctions, renderNavigationDisplay } from './gpu/navigationdisplay';
 import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
@@ -95,6 +94,8 @@ class MapHandler {
     private elevationHistogram: IKernelRunShortcut = null;
 
     private navigationDisplayRendering: IKernelRunShortcut = null;
+
+    private startupTimestamp: number = -1;
 
     private lastNavigationDisplayMap: Texture = null;
 
@@ -229,10 +230,10 @@ class MapHandler {
         const tiledata = this.worldmap.updatePosition(this.currentPosition);
 
         if (tiledata.loadlist.length !== 0 || this.cachedTiles !== tiledata.whitelist.length) {
-            const southwest = WGS84.project(position.latitude, position.longitude, this.worldmap.VisibilityRange * 1852, 225);
-            const southwestGrid = this.worldmap.worldMapIndices(southwest.latitude, southwest.longitude);
-            const northeast = WGS84.project(position.latitude, position.longitude, this.worldmap.VisibilityRange * 1852, 45);
-            const northeastGrid = this.worldmap.worldMapIndices(northeast.latitude, northeast.longitude);
+            const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.worldmap.VisibilityRange * 1852);
+            const southwestGrid = this.worldmap.worldMapIndices(southwestLat, southwestLong);
+            const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.worldmap.VisibilityRange * 1852);
+            const northeastGrid = this.worldmap.worldMapIndices(northeastLat, northeastLong);
 
             let minWidthPerTile = 5000;
             let minHeightPerTile = 5000;
@@ -584,6 +585,7 @@ class MapHandler {
             );
 
             const ndMap = this.createNavigationDisplayMap(config, elevationMap, histogram, cutOffAltitude);
+            // TODO calculate map transition
 
             // store the map for the next run
             if (this.lastNavigationDisplayMap !== null) this.lastNavigationDisplayMap.delete();

@@ -1,9 +1,9 @@
-import { WGS84 } from '../utils/wgs84';
 import { ElevationGrid } from '../mapformat/elevationgrid';
 import { TerrainMap } from '../mapformat/terrainmap';
 import { Tile } from '../mapformat/tile';
 import { PositionDto } from '../dto/position.dto';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
+import { projectWgs84 } from '../utils/gpu/helper';
 import { NavigationDisplayData } from './navigationdisplaydata';
 import { TileManager } from './tilemanager';
 
@@ -91,29 +91,29 @@ export class Worldmap {
     }
 
     private findRelevantTiles(position: PositionDto, rangeInNM: number): TileLoadingData {
-        const southwest = WGS84.project(position.latitude, position.longitude, rangeInNM * 1852, 225);
-        const northeast = WGS84.project(position.latitude, position.longitude, rangeInNM * 1852, 45);
+        let [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, rangeInNM * 1852);
+        let [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, rangeInNM * 1852);
         const tiles: TileLoadingData = { whitelist: [], loadlist: [] };
 
         // correct the borders to catch all tiles
-        southwest.latitude = Math.floor((southwest.latitude + 90) / this.GridData.latitudeStep) - 90;
-        southwest.longitude = Math.floor((southwest.longitude + 180) / this.GridData.longitudeStep) - 180;
-        northeast.latitude = Math.ceil((northeast.latitude + 90) / this.GridData.latitudeStep) - 90;
-        northeast.longitude = Math.ceil((northeast.longitude + 180) / this.GridData.longitudeStep) - 180;
+        southwestLat = Math.floor((southwestLat + 90) / this.GridData.latitudeStep) - 90;
+        southwestLong = Math.floor((southwestLong + 180) / this.GridData.longitudeStep) - 180;
+        northeastLat = Math.ceil((northeastLat + 90) / this.GridData.latitudeStep) - 90;
+        northeastLong = Math.ceil((northeastLong + 180) / this.GridData.longitudeStep) - 180;
 
         // wrap around at 180°
-        if (southwest.longitude > northeast.longitude) {
-            for (let lat = southwest.latitude; lat <= northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
-                let indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwest.longitude, 180));
+        if (southwestLong > northeastLong) {
+            for (let lat = southwestLat; lat <= northeastLat; lat += this.terrainData.AngularSteps.latitude) {
+                let indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwestLong, 180));
                 tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
                 tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
-                indices = this.filterTileIndexCandidates(this.findTileIndices(lat, -180, northeast.longitude));
+                indices = this.filterTileIndexCandidates(this.findTileIndices(lat, -180, northeastLong));
                 tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
                 tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
             }
         } else {
-            for (let lat = southwest.latitude; lat <= northeast.latitude; lat += this.terrainData.AngularSteps.latitude) {
-                const indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwest.longitude, northeast.longitude));
+            for (let lat = southwestLat; lat <= northeastLat; lat += this.terrainData.AngularSteps.latitude) {
+                const indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwestLong, northeastLong));
                 tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
                 tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
             }
