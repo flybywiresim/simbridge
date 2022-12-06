@@ -783,7 +783,10 @@ class MapHandler {
 
                     // store the map for the next run
                     this.navigationDisplayData[side].lastFrame = renderingData.clone();
+
+                    // TODO send last frame
                 } else {
+                    // TODO update does not work well
                     this.createNavigationDisplayTransitionFrame(this.navigationDisplayData[side].lastFrame, renderingData, config, angleStep * counter);
                     counter += 1;
                 }
@@ -793,6 +796,7 @@ class MapHandler {
 }
 
 // TODO
+// - test SimConnect to send images
 // - simulate internal timings per ND
 // - offset second screen based on random number between Cycle duration
 // - update and render based on timings

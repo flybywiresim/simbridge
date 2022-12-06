@@ -16,6 +16,7 @@ export function a32nxInitialNavigationDisplayTransition(
     const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
     const angle = rad2deg(Math.acos(delta[1] / distancePixels));
 
+    // TODO add an invert part to simulate missed init-timing after start of visualization
     if (angleThreshold >= angle) {
         return image[this.thread.y][this.thread.x];
     }
