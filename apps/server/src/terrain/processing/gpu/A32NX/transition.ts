@@ -5,7 +5,8 @@ export function a32nxInitialNavigationDisplayTransition(
     this: NavigationDisplayTransitionParameters,
     image: number[][],
     height: number,
-    angleThreshold: number,
+    angleThresholdStart: number,
+    angleThresholdStop: number,
 ): number {
     // keep the metadata block
     if (this.thread.y >= height) return image[this.thread.y][this.thread.x];
@@ -17,8 +18,7 @@ export function a32nxInitialNavigationDisplayTransition(
     const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
     const angle = rad2deg(Math.acos(delta[1] / distancePixels));
 
-    // TODO add an invert part to simulate missed init-timing after start of visualization
-    if (angleThreshold >= angle) {
+    if (angleThresholdStart <= angle && angleThresholdStop >= angle) {
         return image[this.thread.y][this.thread.x];
     }
 
