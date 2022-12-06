@@ -212,7 +212,10 @@ class MapHandler {
                 dynamicOutput: true,
                 pipeline: false,
                 immutable: false,
-            });
+            })
+            .setFunctions([
+                rad2deg,
+            ]);
 
         this.a32nxNavigationDisplayRendering.updateTransition = this.gpu
             .createKernel(a32nxUpdateNavigationDisplayTransition, {
@@ -220,7 +223,10 @@ class MapHandler {
                 dynamicOutput: true,
                 pipeline: false,
                 immutable: false,
-            });
+            })
+            .setFunctions([
+                rad2deg,
+            ]);
     }
 
     public initialize(terrainmap: TerrainMap): void {
