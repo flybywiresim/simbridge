@@ -163,7 +163,7 @@ class MapHandler {
                         dynamicArguments: true,
                         dynamicOutput: true,
                         pipeline: true,
-                        immutable: false,
+                        immutable: true,
                     })
                     .setConstants<NavigationDisplayConstants>({
                         histogramBinRange: HistogramBinRange,
@@ -198,7 +198,7 @@ class MapHandler {
                         dynamicArguments: true,
                         dynamicOutput: true,
                         pipeline: false,
-                        immutable: false,
+                        immutable: true,
                     })
                     .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
                     .setFunctions([
@@ -210,7 +210,7 @@ class MapHandler {
                         dynamicArguments: true,
                         dynamicOutput: true,
                         pipeline: false,
-                        immutable: false,
+                        immutable: true,
                     })
                     .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
                     .setFunctions([
