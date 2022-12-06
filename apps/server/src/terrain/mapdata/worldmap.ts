@@ -2,9 +2,7 @@ import { ElevationGrid } from '../fileformat/elevationgrid';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Tile } from '../fileformat/tile';
 import { PositionDto } from '../dto/position.dto';
-import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { projectWgs84 } from '../processing/gpu/helper';
-import { NavigationDisplayData } from './navigationdisplaydata';
 import { TileManager } from './tilemanager';
 
 require('sharp');
@@ -37,8 +35,6 @@ export class Worldmap {
     }
 
     public TileManager: TileManager = null;
-
-    private displays: { [id: string]: { viewConfig: NavigationDisplayViewDto, data: NavigationDisplayData } } = {};
 
     public VisibilityRange: number = 700;
 
@@ -170,17 +166,5 @@ export class Worldmap {
         }
 
         return this.terrainData.Tiles[this.TileManager.grid[index.row][index.column].tileIndex];
-    }
-
-    public ndMap(id: string, timestamp: number): NavigationDisplayData {
-        if (!(id in this.displays) || this.displays[id].viewConfig.active === false) {
-            return null;
-        }
-
-        if (this.displays[id].data && this.displays[id].data.Timestamp === timestamp) {
-            return this.displays[id].data;
-        }
-
-        return null;
     }
 }

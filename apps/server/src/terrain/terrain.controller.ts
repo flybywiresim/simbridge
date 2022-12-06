@@ -4,7 +4,6 @@ import { TerrainService } from './terrain.service';
 import { PositionDto } from './dto/position.dto';
 import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
 import { NavigationDisplayTerrainDataDto } from './dto/navigationdisplayterraindata.dto';
-import { TerrainLevelMode } from './mapdata/navigationdisplaydata';
 
 enum DisplaySide {
     Left = 'L',
