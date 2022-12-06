@@ -44,8 +44,8 @@ const DebugWorldCache = false;
 const DebugLocalElevationMap = false;
 const DebugHistogram = false;
 const DebugCutOffAltitude = false;
-const DebugRendering = true;
-const DebugTransition = true;
+const DebugRendering = false;
+const DebugTransition = false;
 
 // map grid creation
 const InvalidElevation = 32767;
