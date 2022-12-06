@@ -1,11 +1,11 @@
 // need to draw spaghetti code due to wrong code generation
 export function a32nxDrawWaterDensityPixel(
-    color: [number, number, number, number],
+    color: [number, number, number],
     pixelX: number,
     pixelY: number,
     height: number,
     centerCoordinateX: number,
-): [number, number, number, number] {
+): [number, number, number] {
     const delta = [this.thread.x - centerCoordinateX, height - this.thread.y];
 
     // calculate distance and bearing for the projection
@@ -1299,5 +1299,5 @@ export function a32nxDrawWaterDensityPixel(
         }
     }
 
-    return [0, 0, 0, 0];
+    return [4, 4, 5];
 }

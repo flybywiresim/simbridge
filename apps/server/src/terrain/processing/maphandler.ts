@@ -558,7 +558,7 @@ class MapHandler {
         ) {
             // add one row for the metadata
             this.a32nxNavigationDisplayRendering = this.a32nxNavigationDisplayRendering
-                .setOutput([config.mapWidth * 4, config.mapHeight + 1]);
+                .setOutput([config.mapWidth * 3, config.mapHeight + 1]);
         }
 
         const terrainmap = this.a32nxNavigationDisplayRendering(
