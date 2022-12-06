@@ -73,10 +73,4 @@ export class TerrainService implements OnApplicationShutdown {
             });
         }
     }
-
-    public renderNavigationDisplay(side: string): void {
-        if (this.a32nxMapHandlerReady) {
-            this.a32nxMapHandler.postMessage({ type: 'NDRENDER', instance: side });
-        }
-    }
 }
