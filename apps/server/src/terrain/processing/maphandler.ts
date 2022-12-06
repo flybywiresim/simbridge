@@ -23,6 +23,7 @@ import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConsta
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadElevationmap } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
+import { SimConnect } from './simconnect';
 
 const sharp = require('sharp');
 
@@ -71,6 +72,8 @@ const TransitionUpdateDelay = Math.floor(1000 / TransitionFPS);
 const MapUpdateCycletime = 2000;
 
 class MapHandler {
+    private simconnect: SimConnect = null;
+
     private worldmap: Worldmap = null;
 
     private gpu: GPU = null;
@@ -236,6 +239,7 @@ class MapHandler {
     }
 
     public initialize(terrainmap: TerrainMap): void {
+        this.simconnect = new SimConnect();
         this.worldmap = new Worldmap(terrainmap);
 
         this.createKernels();
@@ -271,6 +275,8 @@ class MapHandler {
 
     public shutdown(): void {
         this.Initialized = false;
+
+        if (this.simconnect !== null) this.simconnect.terminate();
 
         // destroy all generic GPU related instances
         if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
