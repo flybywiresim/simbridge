@@ -1,15 +1,16 @@
 import { rad2deg } from '../../generic/helper';
+import { NavigationDisplayTransitionParameters } from '../interfaces';
 
 export function a32nxInitialNavigationDisplayTransition(
+    this: NavigationDisplayTransitionParameters,
     image: number[][],
-    width: number,
     height: number,
     angleThreshold: number,
 ): number {
     // keep the metadata block
     if (this.thread.y >= height) return image[this.thread.y][this.thread.x];
 
-    const centerX = width / 2.0;
+    const centerX = this.constants.screenWidth / 2.0;
     const pixelX = Math.floor(this.thread.x / 3);
 
     const delta = [pixelX - centerX, height - this.thread.y];
@@ -25,16 +26,16 @@ export function a32nxInitialNavigationDisplayTransition(
 }
 
 export function a32nxUpdateNavigationDisplayTransition(
+    this: NavigationDisplayTransitionParameters,
     lastImage: number[][],
     image: number[][],
-    width: number,
     height: number,
     angleThreshold: number,
 ): number {
     // keep the metadata block
     if (this.thread.y >= height) return image[this.thread.y][this.thread.x];
 
-    const centerX = width / 2.0;
+    const centerX = this.constants.screenWidth / 2.0;
     const pixelX = Math.floor(this.thread.x / 3);
 
     const delta = [pixelX - centerX, height - this.thread.y];

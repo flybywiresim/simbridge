@@ -22,6 +22,12 @@ import {
     a32nxInitialNavigationDisplayTransition,
     a32nxUpdateNavigationDisplayTransition,
 } from './gpu/A32NX/transition';
+import {
+    HistogramConstants,
+    LocalElevationMapConstants,
+    NavigationDisplayConstants,
+    NavigationDisplayTransitionConstants,
+} from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadElevationmap } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
@@ -230,6 +236,7 @@ class MapHandler {
                 pipeline: false,
                 immutable: false,
             })
+            .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
             .setFunctions([
                 rad2deg,
             ]);
@@ -241,6 +248,7 @@ class MapHandler {
                 pipeline: false,
                 immutable: false,
             })
+            .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
             .setFunctions([
                 rad2deg,
             ]);
@@ -739,7 +747,6 @@ class MapHandler {
 
             frame = this.a32nxNavigationDisplayRendering.initialTransition(
                 nextFrame,
-                RenderingMaxNavigationDisplayWidth,
                 config.mapHeight,
                 angleThreshold,
             ) as number[][];
@@ -757,7 +764,6 @@ class MapHandler {
             frame = this.a32nxNavigationDisplayRendering.updateTransition(
                 lastFrame,
                 nextFrame,
-                RenderingMaxNavigationDisplayWidth,
                 config.mapHeight,
                 angleThreshold,
             ) as number[][];

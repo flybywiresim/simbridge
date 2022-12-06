@@ -46,3 +46,11 @@ export interface NavigationDisplayConstants {
 export type NavigationDisplayParameters = {
     constants: NavigationDisplayConstants,
 } & IKernelFunctionThis;
+
+export interface NavigationDisplayTransitionConstants {
+    screenWidth: number,
+}
+
+export type NavigationDisplayTransitionParameters = {
+    constants: NavigationDisplayTransitionConstants,
+} & IKernelFunctionThis;
