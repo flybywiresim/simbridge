@@ -18,8 +18,10 @@ import {
     a32nxRenderNormalMode,
     a32nxRenderPeaksMode,
 } from './gpu/A32NX/navigationdisplay';
-import { a32nxInitialNavigationDisplayTransition, a32nxUpdateNavigationDisplayTransition } from './gpu/A32NX/transition';
-import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
+import {
+    a32nxInitialNavigationDisplayTransition,
+    a32nxUpdateNavigationDisplayTransition,
+} from './gpu/A32NX/transition';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadElevationmap } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
