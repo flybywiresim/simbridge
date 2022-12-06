@@ -10,34 +10,34 @@ import { TerrainMap } from './fileformat/terrainmap';
 export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
-    private mapHandlerReady: boolean = false;
+    private a32nxMapHandlerReady: boolean = false;
 
-    private mapHandler: Worker = null;
+    private a32nxMapHandler: Worker = null;
 
     private terrainDirectory = 'terrain/';
 
     constructor(private fileService: FileService) {
-        this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
-        this.mapHandler.on('message', (message: { request: string, response: any }) => {
+        this.a32nxMapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
+        this.a32nxMapHandler.on('message', (message: { request: string, response: any }) => {
             if (message.request === 'INITIALIZATION') {
-                this.mapHandlerReady = message.response as boolean;
-                if (this.mapHandlerReady) {
+                this.a32nxMapHandlerReady = message.response as boolean;
+                if (this.a32nxMapHandlerReady) {
                     this.logger.log('Initialized map management');
                 } else {
                     this.logger.log('Unable to initialize the map handler');
                 }
             } else if (message.request === 'SHUTDOWN') {
-                this.mapHandler.terminate();
+                this.a32nxMapHandler.terminate();
             }
         });
 
         this.readTerrainMap().then((map) => {
-            this.mapHandler.postMessage({ type: 'INITIALIZATION', instance: map });
+            this.a32nxMapHandler.postMessage({ type: 'INITIALIZATION', instance: { aircraft: 'A32NX', map } });
         });
     }
 
     onApplicationShutdown(_signal?: string) {
-        this.mapHandler.postMessage({ type: 'SHUTDOWN' });
+        this.a32nxMapHandler.postMessage({ type: 'SHUTDOWN' });
     }
 
     private async readTerrainMap(): Promise<TerrainMap | undefined> {
@@ -57,14 +57,14 @@ export class TerrainService implements OnApplicationShutdown {
     }
 
     public updatePosition(position: PositionDto): void {
-        if (this.mapHandlerReady) {
-            this.mapHandler.postMessage({ type: 'POSITION', instance: position });
+        if (this.a32nxMapHandlerReady) {
+            this.a32nxMapHandler.postMessage({ type: 'POSITION', instance: position });
         }
     }
 
     public configureNavigationDisplay(side: string, config: NavigationDisplayViewDto): void {
-        if (this.mapHandlerReady) {
-            this.mapHandler.postMessage({
+        if (this.a32nxMapHandlerReady) {
+            this.a32nxMapHandler.postMessage({
                 type: 'NDCONFIGURATION',
                 instance: {
                     side,
@@ -75,8 +75,8 @@ export class TerrainService implements OnApplicationShutdown {
     }
 
     public renderNavigationDisplay(side: string): void {
-        if (this.mapHandlerReady) {
-            this.mapHandler.postMessage({ type: 'NDRENDER', instance: side });
+        if (this.a32nxMapHandlerReady) {
+            this.a32nxMapHandler.postMessage({ type: 'NDRENDER', instance: side });
         }
     }
 }
