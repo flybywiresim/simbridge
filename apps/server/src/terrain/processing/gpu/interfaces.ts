@@ -15,6 +15,7 @@ export interface HistogramConstants {
     invalidElevation: number,
     unknownElevation: number,
     waterElevation: number,
+    screenWidth: number,
     binRange: number,
     binCount: number,
     patchSize: number,

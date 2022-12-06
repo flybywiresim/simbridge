@@ -172,6 +172,7 @@ class MapHandler {
                 invalidElevation: InvalidElevation,
                 unknownElevation: UnknownElevation,
                 waterElevation: WaterElevation,
+                screenWidth: RenderingMaxNavigationDisplayWidth,
                 binRange: HistogramBinRange,
                 binCount: HistogramBinCount,
                 patchSize: HistogramPatchSize,
@@ -527,7 +528,6 @@ class MapHandler {
 
         const localHistograms = this.localElevationHistogram(
             localElevationMap,
-            RenderingMaxNavigationDisplayWidth,
             config.mapHeight,
         ) as Texture;
         const histogram = this.elevationHistogram(
