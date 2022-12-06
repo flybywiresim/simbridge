@@ -40,6 +40,7 @@ export interface NavigationDisplayConstants {
     normalModeHighDensityYellowOffset: number,
     normalModeHighDensityRedOffset: number,
     densityPatchSize: number,
+    screenWidth: number,
 }
 
 export type NavigationDisplayParameters = {

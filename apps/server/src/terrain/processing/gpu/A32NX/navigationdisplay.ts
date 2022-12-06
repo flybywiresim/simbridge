@@ -237,7 +237,6 @@ export function a32nxRenderNavigationDisplay(
     this: NavigationDisplayParameters,
     elevationGrid: number[][],
     histogram: number[],
-    width: number,
     height: number,
     altitude: number,
     verticalSpeed: number,
@@ -301,7 +300,7 @@ export function a32nxRenderNavigationDisplay(
     const flatEarth = this.constants.flatEarthThreshold - (maxElevation - minElevation);
     const halfElevation = maxElevation * 0.5;
 
-    const centerCoordinateX = width / 2;
+    const centerCoordinateX = this.constants.screenWidth / 2;
     const pixelX = Math.floor(this.thread.x / 3);
     const colorChannel = this.thread.x % 3;
     let pixelElevation = 0;

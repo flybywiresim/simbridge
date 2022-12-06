@@ -208,6 +208,7 @@ class MapHandler {
                 normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
                 normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
                 densityPatchSize: RenderingDensityPatchSize,
+                screenWidth: RenderingMaxNavigationDisplayWidth,
             })
             .setFunctions([
                 a32nxCalculateNormalModeGreenThresholds,
@@ -698,7 +699,6 @@ class MapHandler {
         const terrainmap = this.a32nxNavigationDisplayRendering.finalMap(
             elevationMap,
             histogram,
-            RenderingMaxNavigationDisplayWidth,
             config.mapHeight,
             this.currentPosition.altitude,
             this.currentPosition.verticalSpeed,
