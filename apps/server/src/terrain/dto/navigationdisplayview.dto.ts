@@ -6,10 +6,6 @@ export class NavigationDisplayViewDto {
     @IsBoolean()
     active: boolean
 
-    @ApiProperty({ description: 'The current map width [px]', example: '900' })
-    @IsNumber()
-    mapWidth: number
-
     @ApiProperty({ description: 'The current map width [px]', example: '450' })
     @IsNumber()
     mapHeight: number
