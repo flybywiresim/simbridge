@@ -45,7 +45,7 @@ const DebugLocalElevationMap = false;
 const DebugHistogram = false;
 const DebugCutOffAltitude = false;
 const DebugRendering = false;
-const DebugTransition = false;
+const DebugTransition = true;
 
 // map grid creation
 const InvalidElevation = 32767;
@@ -80,7 +80,8 @@ const RenderingColorChannelCount = 3;
 const TransitionFPS = 10;
 const TransitionDuration = 1.5;
 const TransitionUpdateDelay = Math.floor(1000 / TransitionFPS);
-const MapUpdateCycletime = 2000;
+const TransitionMapUpdateCycletime = 2000;
+const TransitionOverallCycleTime = TransitionDuration * 1000 + TransitionMapUpdateCycletime;
 
 class MapHandler {
     private simconnect: SimConnect = null;
@@ -115,25 +116,109 @@ class MapHandler {
 
     private worldMapCache: Int16Array = null;
 
-    private navigationDisplayData: { [id: string]: { config: NavigationDisplayViewDto, lastFrame: Texture } } = {};
-
     private extractLocalElevationMap: IKernelRunShortcut = null;
 
     private localElevationHistogram: IKernelRunShortcut = null;
 
     private elevationHistogram: IKernelRunShortcut = null;
 
-    private a32nxNavigationDisplayRendering: {
-        finalMap: IKernelRunShortcut,
-        initialTransition: IKernelRunShortcut,
-        updateTransition: IKernelRunShortcut,
-    } = {
-        finalMap: null,
-        initialTransition: null,
-        updateTransition: null,
-    }
+    private navigationDisplayRendering: {
+        [side: string]: {
+            config: NavigationDisplayViewDto,
+            timeout: NodeJS.Timeout,
+            startupTimestamp: number,
+            finalMap: IKernelRunShortcut,
+            initialTransition: IKernelRunShortcut,
+            updateTransition: IKernelRunShortcut,
+            lastFrame: Texture,
+        }
+    } = {}
 
-    private startupTimestamp: number = -1;
+    private createRenderingKernelsA32NX(): void {
+        /* create the sides */
+        this.navigationDisplayRendering.L = {
+            config: null,
+            timeout: null,
+            startupTimestamp: new Date().getTime(),
+            finalMap: null,
+            initialTransition: null,
+            updateTransition: null,
+            lastFrame: null,
+        };
+        this.navigationDisplayRendering.R = {
+            config: null,
+            timeout: null,
+            // offset the rendering to have a more realistic bahaviour
+            startupTimestamp: new Date().getTime() - 2000,
+            finalMap: null,
+            initialTransition: null,
+            updateTransition: null,
+            lastFrame: null,
+        };
+
+        for (const side in this.navigationDisplayRendering) {
+            if (side in this.navigationDisplayRendering) {
+                this.navigationDisplayRendering[side].finalMap = this.gpu
+                    .createKernel(a32nxRenderNavigationDisplay, {
+                        dynamicArguments: true,
+                        dynamicOutput: true,
+                        pipeline: true,
+                        immutable: false,
+                    })
+                    .setConstants<NavigationDisplayConstants>({
+                        histogramBinRange: HistogramBinRange,
+                        histogramMinElevation: HistogramMinimumElevation,
+                        histogramBinCount: HistogramBinCount,
+                        lowerPercentile: RenderingLowerPercentile,
+                        upperPercentile: RenderingUpperPercentile,
+                        flatEarthThreshold: RenderingFlatEarthThreshold,
+                        invalidElevation: InvalidElevation,
+                        unknownElevation: UnknownElevation,
+                        waterElevation: WaterElevation,
+                        normalModeLowDensityGreenOffset: RenderingNormalModeLowDensityGreenOffset,
+                        normalModeHighDensityGreenOffset: RenderingNormalModeHighDensityGreenOffset,
+                        normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
+                        normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
+                        densityPatchSize: RenderingDensityPatchSize,
+                        screenWidth: RenderingMaxNavigationDisplayWidth,
+                    })
+                    .setFunctions([
+                        a32nxCalculateNormalModeGreenThresholds,
+                        a32nxCalculateNormalModeWarningThresholds,
+                        a32nxCalculatePeaksModeThresholds,
+                        a32nxRenderNormalMode,
+                        a32nxRenderPeaksMode,
+                        a32nxDrawHighDensityPixel,
+                        a32nxDrawLowDensityPixel,
+                        a32nxDrawWaterDensityPixel,
+                    ]);
+
+                this.navigationDisplayRendering[side].initialTransition = this.gpu
+                    .createKernel(a32nxInitialNavigationDisplayTransition, {
+                        dynamicArguments: true,
+                        dynamicOutput: true,
+                        pipeline: false,
+                        immutable: false,
+                    })
+                    .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
+                    .setFunctions([
+                        rad2deg,
+                    ]);
+
+                this.navigationDisplayRendering[side].updateTransition = this.gpu
+                    .createKernel(a32nxUpdateNavigationDisplayTransition, {
+                        dynamicArguments: true,
+                        dynamicOutput: true,
+                        pipeline: false,
+                        immutable: false,
+                    })
+                    .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
+                    .setFunctions([
+                        rad2deg,
+                    ]);
+            }
+        }
+    }
 
     private createKernels(): void {
         this.gpu = new GPU({ mode: 'gpu' });
@@ -193,68 +278,9 @@ class MapHandler {
             })
             .setLoopMaxIterations(500)
             .setOutput([HistogramBinCount]);
-
-        this.a32nxNavigationDisplayRendering.finalMap = this.gpu
-            .createKernel(a32nxRenderNavigationDisplay, {
-                dynamicArguments: true,
-                dynamicOutput: true,
-                pipeline: true,
-                immutable: false,
-            })
-            .setConstants<NavigationDisplayConstants>({
-                histogramBinRange: HistogramBinRange,
-                histogramMinElevation: HistogramMinimumElevation,
-                histogramBinCount: HistogramBinCount,
-                lowerPercentile: RenderingLowerPercentile,
-                upperPercentile: RenderingUpperPercentile,
-                flatEarthThreshold: RenderingFlatEarthThreshold,
-                invalidElevation: InvalidElevation,
-                unknownElevation: UnknownElevation,
-                waterElevation: WaterElevation,
-                normalModeLowDensityGreenOffset: RenderingNormalModeLowDensityGreenOffset,
-                normalModeHighDensityGreenOffset: RenderingNormalModeHighDensityGreenOffset,
-                normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
-                normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
-                densityPatchSize: RenderingDensityPatchSize,
-                screenWidth: RenderingMaxNavigationDisplayWidth,
-            })
-            .setFunctions([
-                a32nxCalculateNormalModeGreenThresholds,
-                a32nxCalculateNormalModeWarningThresholds,
-                a32nxCalculatePeaksModeThresholds,
-                a32nxRenderNormalMode,
-                a32nxRenderPeaksMode,
-                a32nxDrawHighDensityPixel,
-                a32nxDrawLowDensityPixel,
-                a32nxDrawWaterDensityPixel,
-            ]);
-
-        this.a32nxNavigationDisplayRendering.initialTransition = this.gpu
-            .createKernel(a32nxInitialNavigationDisplayTransition, {
-                dynamicArguments: true,
-                dynamicOutput: true,
-                pipeline: false,
-                immutable: false,
-            })
-            .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
-            .setFunctions([
-                rad2deg,
-            ]);
-
-        this.a32nxNavigationDisplayRendering.updateTransition = this.gpu
-            .createKernel(a32nxUpdateNavigationDisplayTransition, {
-                dynamicArguments: true,
-                dynamicOutput: true,
-                pipeline: false,
-                immutable: false,
-            })
-            .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
-            .setFunctions([
-                rad2deg,
-            ]);
     }
 
-    public initialize(terrainmap: TerrainMap): void {
+    public initialize(aircraft: string, terrainmap: TerrainMap): void {
         this.simconnect = new SimConnect({
             maxNavigationDisplayHeight: RenderingMaxNavigationDisplayHeight,
             maxNavigationDisplayWidth: RenderingMaxNavigationDisplayWidth,
@@ -264,6 +290,10 @@ class MapHandler {
         this.worldmap = new Worldmap(terrainmap);
 
         this.createKernels();
+
+        if (aircraft === 'A32NX') {
+            this.createRenderingKernelsA32NX();
+        }
 
         // initial call precompile the kernels and reduce first reaction time
         const startupPosition: PositionDto = {
@@ -285,11 +315,18 @@ class MapHandler {
         };
         const map = this.createLocalElevationMap(startupConfig);
         const histogram = this.createElevationHistogram(map, startupConfig);
-        const display = this.createNavigationDisplayMap(startupConfig, map, histogram, 0);
-        this.createNavigationDisplayTransitionFrame(null, display, startupConfig, 20.0);
-        this.createNavigationDisplayTransitionFrame(display, display, startupConfig, 20.0);
 
-        this.startupTimestamp = new Date().getTime();
+        // left side
+        let display = this.createNavigationDisplayMap('L', startupConfig, map, histogram, 0);
+        this.createNavigationDisplayTransitionFrame('L', null, display, startupConfig, 0, 20.0, true);
+        this.createNavigationDisplayTransitionFrame('L', display, display, startupConfig, 0, 20.0, true);
+
+        // right side
+        display = this.createNavigationDisplayMap('R', startupConfig, map, histogram, 0);
+        this.createNavigationDisplayTransitionFrame('R', null, display, startupConfig, 0, 20.0, true);
+        this.createNavigationDisplayTransitionFrame('R', display, display, startupConfig, 0, 20.0, true);
+
+        this.currentPosition = undefined;
         this.Initialized = true;
     }
 
@@ -298,17 +335,22 @@ class MapHandler {
 
         if (this.simconnect !== null) this.simconnect.terminate();
 
+        // destroy all aircraft specific rendering
+        for (const side in this.navigationDisplayRendering) {
+            if (side in this.navigationDisplayRendering) {
+                if (this.navigationDisplayRendering[side].timeout !== null) clearTimeout(this.navigationDisplayRendering[side].timeout);
+                this.navigationDisplayRendering[side].finalMap.destroy();
+                this.navigationDisplayRendering[side].initialTransition.destroy();
+                this.navigationDisplayRendering[side].updateTransition.destroy();
+            }
+        }
+
         // destroy all generic GPU related instances
         if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
         if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
-
-        // destroy all A32NX related instances
-        if (this.a32nxNavigationDisplayRendering.finalMap !== null) this.a32nxNavigationDisplayRendering.finalMap.destroy();
-        if (this.a32nxNavigationDisplayRendering.initialTransition !== null) this.a32nxNavigationDisplayRendering.initialTransition.destroy();
-        if (this.a32nxNavigationDisplayRendering.updateTransition !== null) this.a32nxNavigationDisplayRendering.updateTransition.destroy();
 
         // destroy the context iteslf
         if (this.gpu !== null) this.gpu.destroy();
@@ -444,16 +486,24 @@ class MapHandler {
             config.cutOffAltitudeMaximum = 400;
         }
 
-        if (display in this.navigationDisplayData) {
-            if (this.navigationDisplayData[display].config.arcMode !== config.arcMode || config.active === false) {
-                this.navigationDisplayData[display].lastFrame = null;
+        if (display in this.navigationDisplayRendering) {
+            if (this.navigationDisplayRendering[display].config !== null
+                && (this.navigationDisplayRendering[display].config.arcMode !== config.arcMode || config.active === false)
+            ) {
+                if (this.navigationDisplayRendering[display].lastFrame !== null) {
+                    this.navigationDisplayRendering[display].lastFrame.delete();
+                    this.navigationDisplayRendering[display].lastFrame = null;
+                }
             }
-            this.navigationDisplayData[display].config = config;
-        } else {
-            this.navigationDisplayData[display] = {
-                config,
-                lastFrame: null,
-            };
+            this.navigationDisplayRendering[display].config = config;
+
+            // deactivate rendering, if needed
+            if (config.active === false && this.navigationDisplayRendering[display].timeout !== null) {
+                clearTimeout(this.navigationDisplayRendering[display].timeout);
+                this.navigationDisplayRendering[display].timeout = null;
+            } else {
+                this.startNavigationDisplayRenderingCycle(display);
+            }
         }
     }
 
@@ -692,21 +742,22 @@ class MapHandler {
      * - The red channel of the first pixel in the last row defines the rendering mode (0 === normal mode, 1 === peaks mode)
      */
     private createNavigationDisplayMap(
+        side: string,
         config: NavigationDisplayViewDto,
         elevationMap: Texture,
         histogram: Texture,
         cutOffAltitude: number,
     ): Texture {
-        if (this.a32nxNavigationDisplayRendering.finalMap.output === null
-            || (RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount) !== this.a32nxNavigationDisplayRendering.finalMap.output[0]
-            || config.mapHeight + 1 !== this.a32nxNavigationDisplayRendering.finalMap.output[1]
+        if (this.navigationDisplayRendering[side].finalMap.output === null
+            || (RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount) !== this.navigationDisplayRendering[side].finalMap.output[0]
+            || config.mapHeight + 1 !== this.navigationDisplayRendering[side].finalMap.output[1]
         ) {
             // add one row for the metadata
-            this.a32nxNavigationDisplayRendering.finalMap = this.a32nxNavigationDisplayRendering.finalMap
+            this.navigationDisplayRendering[side].finalMap = this.navigationDisplayRendering[side].finalMap
                 .setOutput([RenderingMaxNavigationDisplayWidth * 3, config.mapHeight + 1]);
         }
 
-        const terrainmap = this.a32nxNavigationDisplayRendering.finalMap(
+        const terrainmap = this.navigationDisplayRendering[side].finalMap(
             elevationMap,
             histogram,
             config.mapHeight,
@@ -727,64 +778,80 @@ class MapHandler {
     }
 
     private createNavigationDisplayTransitionFrame(
+        side: string,
         lastFrame: Texture,
         nextFrame: Texture,
         config: NavigationDisplayViewDto,
-        angleThreshold: number,
+        angleThresholdStart: number,
+        angleThresholdStop: number,
+        startup: boolean,
     ): void {
         let frame: number[][] = null;
 
         if (lastFrame === null) {
-            if (this.a32nxNavigationDisplayRendering.initialTransition.output === null
-                || this.a32nxNavigationDisplayRendering.initialTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
-                || this.a32nxNavigationDisplayRendering.initialTransition.output[1] !== config.mapHeight
+            if (this.navigationDisplayRendering[side].initialTransition.output === null
+                || this.navigationDisplayRendering[side].initialTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
+                || this.navigationDisplayRendering[side].initialTransition.output[1] !== config.mapHeight
             ) {
-                this.a32nxNavigationDisplayRendering.initialTransition.setOutput([
+                this.navigationDisplayRendering[side].initialTransition.setOutput([
                     RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount,
                     config.mapHeight,
                 ]);
             }
 
-            frame = this.a32nxNavigationDisplayRendering.initialTransition(
+            frame = this.navigationDisplayRendering[side].initialTransition(
                 nextFrame,
                 config.mapHeight,
-                angleThreshold,
+                angleThresholdStart,
+                angleThresholdStop,
             ) as number[][];
         } else {
-            if (this.a32nxNavigationDisplayRendering.updateTransition.output === null
-                || this.a32nxNavigationDisplayRendering.updateTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
-                || this.a32nxNavigationDisplayRendering.updateTransition.output[1] !== config.mapHeight
+            if (this.navigationDisplayRendering[side].updateTransition.output === null
+                || this.navigationDisplayRendering[side].updateTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
+                || this.navigationDisplayRendering[side].updateTransition.output[1] !== config.mapHeight
             ) {
-                this.a32nxNavigationDisplayRendering.updateTransition.setOutput([
+                this.navigationDisplayRendering[side].updateTransition.setOutput([
                     RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount,
                     config.mapHeight,
                 ]);
             }
 
-            frame = this.a32nxNavigationDisplayRendering.updateTransition(
+            frame = this.navigationDisplayRendering[side].updateTransition(
                 lastFrame,
                 nextFrame,
                 config.mapHeight,
-                angleThreshold,
+                angleThresholdStop,
             ) as number[][];
         }
 
-        if (DebugTransition) {
-            const image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
-            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: 3 } })
+        let image = null;
+
+        // send the data via SimConnect
+        if (startup === false) {
+            image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
+            this.simconnect.sendNavigationDisplayTerrainMapFrame(image);
+        }
+
+        if (DebugTransition && image !== null) {
+            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: RenderingColorChannelCount } })
                 .png()
-                .toFile(`${lastFrame === null ? 'initial' : 'update'}_${Math.round(angleThreshold)}.png`);
+                .toFile(`${lastFrame === null ? 'initial' : 'update'}_${Math.round(angleThresholdStop)}.png`);
         }
     }
 
-    public renderNavigationDisplay(side: string): void {
+    public renderNavigationDisplay(
+        side: string,
+        frameCount: number,
+        angularStep: number,
+        angleThresholdStart: number,
+    ): void {
         // no valid position data received
         if (this.currentPosition === undefined) {
             console.log('No valid position received for rendering');
-        } else if (this.navigationDisplayData[side] === undefined) {
+        } else if (this.navigationDisplayRendering[side].config === undefined) {
             console.log('No navigation display configuration received');
         } else {
-            const { config } = this.navigationDisplayData[side];
+            const { config } = this.navigationDisplayRendering[side];
 
             const elevationMap = this.createLocalElevationMap(config);
             const histogram = this.createElevationHistogram(elevationMap, config);
@@ -797,51 +864,110 @@ class MapHandler {
             );
 
             // create the final map
-            const renderingData = this.createNavigationDisplayMap(config, elevationMap, histogram, cutOffAltitude);
+            const renderingData = this.createNavigationDisplayMap(side, config, elevationMap, histogram, cutOffAltitude);
+            const frame = renderingData.toArray() as number[][];
+            const metadata = frame.splice(frame.length - 1)[0];
 
-            // calculate the map transitions
-            const frameCount = Math.ceil(TransitionFPS * TransitionDuration);
-            const angleStep = Math.ceil(90.0 / frameCount);
+            // render the frames
             let counter = 0;
-
             const interval = setInterval(() => {
                 if (counter >= frameCount) {
                     clearInterval(interval);
-
                     // store the map for the next run
-                    this.navigationDisplayData[side].lastFrame = renderingData.clone();
+                    this.navigationDisplayRendering[side].lastFrame = renderingData.clone();
 
-                    // TODO send last frame
+                    const image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
+                    this.simconnect.sendNavigationDisplayTerrainMapFrame(image);
                 } else {
-                    // TODO update does not work well
-                    this.createNavigationDisplayTransitionFrame(this.navigationDisplayData[side].lastFrame, renderingData, config, angleStep * counter);
-                    counter += 1;
+                    this.createNavigationDisplayTransitionFrame(
+                        side,
+                        this.navigationDisplayRendering[side].lastFrame,
+                        renderingData,
+                        config,
+                        angleThresholdStart,
+                        angularStep * counter + angleThresholdStart,
+                        false,
+                    );
+
+                    // send the threshold data for the map
+                    if (counter === 0) {
+                        const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
+                        this.simconnect.sendNavigationDisplayThresholds(thresholdData);
+                    }
                 }
+
+                counter += 1;
             }, TransitionUpdateDelay);
         }
     }
-}
 
-// TODO
-// - test SimConnect to send images
-// - simulate internal timings per ND
-// - offset second screen based on random number between Cycle duration
-// - update and render based on timings
+    public startNavigationDisplayRenderingCycle(side: string): void {
+        if (side in this.navigationDisplayRendering) {
+            if (this.navigationDisplayRendering[side].config === null || this.navigationDisplayRendering[side].config.active === false) return;
+
+            const overallFrameCount = Math.ceil(TransitionFPS * TransitionDuration);
+            const angularStep = 90.0 / overallFrameCount;
+
+            if (this.navigationDisplayRendering[side].lastFrame === null) {
+                // new iteration cycle
+                const deltaTime = Math.round(new Date().getTime() - this.navigationDisplayRendering[side].startupTimestamp);
+                const cycleDelta = deltaTime % TransitionOverallCycleTime;
+
+                if (cycleDelta > TransitionMapUpdateCycletime) {
+                    const transitionDurationMilli = TransitionDuration * 1000;
+                    const ratio = (cycleDelta - TransitionMapUpdateCycletime) / transitionDurationMilli;
+
+                    if (ratio > 0.8) {
+                        // wait for next cycle
+                        const skipTime = transitionDurationMilli - transitionDurationMilli * ratio;
+                        this.navigationDisplayRendering[side].timeout = setTimeout(
+                            () => this.startNavigationDisplayRenderingCycle(side),
+                            TransitionMapUpdateCycletime + skipTime,
+                        );
+                        return;
+                    }
+
+                    // calculate the remaining frame count
+                    const remainingFrameCount = overallFrameCount - Math.floor(ratio * overallFrameCount);
+
+                    // calculate the angular thresholds
+                    const angleThresholdStart = (overallFrameCount - remainingFrameCount) * angularStep;
+
+                    // render the remaining start
+                    this.renderNavigationDisplay(side, remainingFrameCount, angularStep, angleThresholdStart);
+
+                    this.navigationDisplayRendering[side].timeout = setTimeout(
+                        () => this.startNavigationDisplayRenderingCycle(side),
+                        TransitionOverallCycleTime,
+                    );
+                } else {
+                    this.navigationDisplayRendering[side].timeout = setTimeout(
+                        () => this.startNavigationDisplayRenderingCycle(side),
+                        TransitionMapUpdateCycletime - cycleDelta,
+                    );
+                }
+            } else {
+                this.renderNavigationDisplay(side, overallFrameCount, angularStep, 0);
+                this.navigationDisplayRendering[side].timeout = setTimeout(
+                    () => this.startNavigationDisplayRenderingCycle(side),
+                    TransitionOverallCycleTime,
+                );
+            }
+        }
+    }
+}
 
 const maphandler = new MapHandler();
 
 parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
-        maphandler.initialize(data.instance as TerrainMap);
+        maphandler.initialize(data.instance.aircraft as string, data.instance.map as TerrainMap);
         parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
     } else if (data.type === 'POSITION') {
         maphandler.updatePosition(data.instance as PositionDto, false);
         parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'NDCONFIGURATION') {
         maphandler.configureNavigationDisplay(data.instance.side as string, data.instance.config as NavigationDisplayViewDto);
-        parentPort.postMessage({ request: data.type, response: undefined });
-    } else if (data.type === 'NDRENDER') {
-        maphandler.renderNavigationDisplay(data.instance as string);
         parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'SHUTDOWN') {
         maphandler.shutdown();
