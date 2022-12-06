@@ -748,14 +748,8 @@ class MapHandler {
         histogram: Texture,
         cutOffAltitude: number,
     ): Texture {
-        if (this.navigationDisplayRendering[side].finalMap.output === null
-            || (RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount) !== this.navigationDisplayRendering[side].finalMap.output[0]
-            || config.mapHeight + 1 !== this.navigationDisplayRendering[side].finalMap.output[1]
-        ) {
-            // add one row for the metadata
-            this.navigationDisplayRendering[side].finalMap = this.navigationDisplayRendering[side].finalMap
-                .setOutput([RenderingMaxNavigationDisplayWidth * 3, config.mapHeight + 1]);
-        }
+        this.navigationDisplayRendering[side].finalMap = this.navigationDisplayRendering[side].finalMap
+            .setOutput([RenderingMaxNavigationDisplayWidth * 3, config.mapHeight + 1]);
 
         const terrainmap = this.navigationDisplayRendering[side].finalMap(
             elevationMap,
