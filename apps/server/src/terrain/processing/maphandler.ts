@@ -1,16 +1,28 @@
 import { parentPort } from 'worker_threads';
-import { GPU, IKernelRunShortcut, Texture, KernelOutput } from 'gpu.js';
+import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
+import { a32nxDrawHighDensityPixel } from './gpu/A32NX/highdensitypixel';
+import { a32nxDrawLowDensityPixel } from './gpu/A32NX/lowdensitypixel';
+import { a32nxDrawWaterDensityPixel } from './gpu/A32NX/waterpixel';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
 import { PositionDto } from '../dto/position.dto';
-import { distanceWgs84, rad2deg } from './generic/helper';
+import { TerrainMap } from '../fileformat/terrainmap';
+import { Worldmap } from '../mapdata/worldmap';
+import { deg2rad, distanceWgs84, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
-import { registerHelperFunctions, projectWgs84 } from './gpu/helper';
-import { registerA32NXNavigationDisplayFunctions, a32nxRenderNavigationDisplay } from './gpu/A32NX/navigationdisplay';
+import { normalizeHeading, projectWgs84 } from './gpu/helper';
+import {
+    a32nxCalculateNormalModeGreenThresholds,
+    a32nxCalculateNormalModeWarningThresholds,
+    a32nxCalculatePeaksModeThresholds,
+    a32nxRenderNavigationDisplay,
+    a32nxRenderNormalMode,
+    a32nxRenderPeaksMode,
+} from './gpu/A32NX/navigationdisplay';
+import { a32nxInitialNavigationDisplayTransition, a32nxUpdateNavigationDisplayTransition } from './gpu/A32NX/transition';
 import { HistogramConstants, LocalElevationMapConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadElevationmap } from './gpu/upload';
-import { Worldmap } from '../mapdata/worldmap';
-import { TerrainMap } from '../fileformat/terrainmap';
+import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 
 const sharp = require('sharp');
 
@@ -24,6 +36,7 @@ const DebugLocalElevationMap = false;
 const DebugHistogram = false;
 const DebugCutOffAltitude = false;
 const DebugRendering = true;
+const DebugTransition = true;
 
 // map grid creation
 const InvalidElevation = 32767;
@@ -82,7 +95,7 @@ class MapHandler {
 
     private worldMapCache: Int16Array = null;
 
-    private navigationDisplayData: { [id: string]: { config: NavigationDisplayViewDto, lastFrame: Uint8ClampedArray } } = {};
+    private navigationDisplayData: { [id: string]: { config: NavigationDisplayViewDto, lastFrame: Texture } } = {};
 
     private extractLocalElevationMap: IKernelRunShortcut = null;
 
@@ -90,15 +103,20 @@ class MapHandler {
 
     private elevationHistogram: IKernelRunShortcut = null;
 
-    private a32nxNavigationDisplayRendering: IKernelRunShortcut = null;
+    private a32nxNavigationDisplayRendering: {
+        finalMap: IKernelRunShortcut,
+        initialTransition: IKernelRunShortcut,
+        updateTransition: IKernelRunShortcut,
+    } = {
+        finalMap: null,
+        initialTransition: null,
+        updateTransition: null,
+    }
 
     private startupTimestamp: number = -1;
 
     private createKernels(): void {
         this.gpu = new GPU({ mode: 'gpu' });
-
-        registerHelperFunctions(this.gpu);
-        registerA32NXNavigationDisplayFunctions(this.gpu);
 
         // register kernel to upload the map data
         this.uploadWorldMapToGPU = this.gpu
@@ -121,7 +139,13 @@ class MapHandler {
             .setConstants<LocalElevationMapConstants>({
                 unknownElevation: UnknownElevation,
                 invalidElevation: InvalidElevation,
-            });
+            })
+            .setFunctions([
+                deg2rad,
+                normalizeHeading,
+                rad2deg,
+                projectWgs84,
+            ]);
 
         this.localElevationHistogram = this.gpu
             .createKernel(createLocalElevationHistogram, {
@@ -148,11 +172,11 @@ class MapHandler {
             .setLoopMaxIterations(500)
             .setOutput([HistogramBinCount]);
 
-        this.a32nxNavigationDisplayRendering = this.gpu
+        this.a32nxNavigationDisplayRendering.finalMap = this.gpu
             .createKernel(a32nxRenderNavigationDisplay, {
                 dynamicArguments: true,
                 dynamicOutput: true,
-                pipeline: false,
+                pipeline: true,
                 immutable: false,
             })
             .setConstants<NavigationDisplayConstants>({
@@ -170,6 +194,32 @@ class MapHandler {
                 normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
                 normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
                 densityPatchSize: RenderingDensityPatchSize,
+            })
+            .setFunctions([
+                a32nxCalculateNormalModeGreenThresholds,
+                a32nxCalculateNormalModeWarningThresholds,
+                a32nxCalculatePeaksModeThresholds,
+                a32nxRenderNormalMode,
+                a32nxRenderPeaksMode,
+                a32nxDrawHighDensityPixel,
+                a32nxDrawLowDensityPixel,
+                a32nxDrawWaterDensityPixel,
+            ]);
+
+        this.a32nxNavigationDisplayRendering.initialTransition = this.gpu
+            .createKernel(a32nxInitialNavigationDisplayTransition, {
+                dynamicArguments: true,
+                dynamicOutput: true,
+                pipeline: false,
+                immutable: false,
+            });
+
+        this.a32nxNavigationDisplayRendering.updateTransition = this.gpu
+            .createKernel(a32nxUpdateNavigationDisplayTransition, {
+                dynamicArguments: true,
+                dynamicOutput: true,
+                pipeline: false,
+                immutable: false,
             });
     }
 
@@ -199,7 +249,9 @@ class MapHandler {
         };
         const map = this.createLocalElevationMap(startupConfig);
         const histogram = this.createElevationHistogram(map, startupConfig);
-        this.createNavigationDisplayMap(startupConfig, map, histogram, 0);
+        const display = this.createNavigationDisplayMap(startupConfig, map, histogram, 0);
+        // this.createNavigationDisplayTransition(null, display, startupConfig);
+        // this.createNavigationDisplayTransition(display, display, startupConfig);
 
         this.startupTimestamp = new Date().getTime();
         this.Initialized = true;
@@ -216,7 +268,9 @@ class MapHandler {
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
 
         // destroy all A32NX related instances
-        if (this.a32nxNavigationDisplayRendering !== null) this.a32nxNavigationDisplayRendering.destroy();
+        if (this.a32nxNavigationDisplayRendering.finalMap !== null) this.a32nxNavigationDisplayRendering.finalMap.destroy();
+        if (this.a32nxNavigationDisplayRendering.initialTransition !== null) this.a32nxNavigationDisplayRendering.initialTransition.destroy();
+        if (this.a32nxNavigationDisplayRendering.updateTransition !== null) this.a32nxNavigationDisplayRendering.updateTransition.destroy();
 
         // destroy the context iteslf
         if (this.gpu !== null) this.gpu.destroy();
@@ -538,6 +592,60 @@ class MapHandler {
         return HistogramMinimumElevation;
     }
 
+    private analyzeMetadata(metadata: number[], cutOffAltitude: number): NavigationDisplayData {
+        const retval = new NavigationDisplayData();
+
+        if (metadata[0] === 0) {
+            // normal mode
+            const [
+                _,
+                __,
+                maxElevation,
+                highDensityRed,
+                ___,
+                lowDensityYellow,
+                highDensityGreen,
+                lowDensityGreen,
+            ] = metadata;
+
+            retval.MinimumElevation = cutOffAltitude > lowDensityGreen ? cutOffAltitude : lowDensityGreen;
+            if (lowDensityYellow <= highDensityGreen) {
+                retval.MinimumElevationMode = TerrainLevelMode.Warning;
+            } else {
+                retval.MinimumElevationMode = TerrainLevelMode.PeaksMode;
+            }
+
+            retval.MaximumElevation = maxElevation;
+            if (maxElevation >= highDensityRed) {
+                retval.MaximumElevationMode = TerrainLevelMode.Caution;
+            } else {
+                retval.MaximumElevationMode = TerrainLevelMode.Warning;
+            }
+        } else {
+            // peaks mode
+            const [
+                _,
+                minElevation,
+                maxElevation,
+                __,
+                ___,
+                lowDensityGreen,
+            ] = metadata;
+
+            if (maxElevation < 0) {
+                retval.MinimumElevation = -1;
+                retval.MaximumElevation = 0;
+            } else {
+                retval.MinimumElevation = lowDensityGreen > minElevation ? lowDensityGreen : minElevation;
+                retval.MaximumElevation = maxElevation;
+            }
+            retval.MinimumElevationMode = TerrainLevelMode.PeaksMode;
+            retval.MaximumElevationMode = TerrainLevelMode.PeaksMode;
+        }
+
+        return retval;
+    }
+
     /*
      * Concept for the metadata row:
      * - The idea comes initialy from image capturing systems and image decoding information, etc are stored in dedicated rows of one image
@@ -545,23 +653,24 @@ class MapHandler {
      *   Take a deeper look in the GPU code to get the channel and pixel encoding
      * - The statistics calculation is done on the GPU to reduce the number of transmitted data from the GPU to the CPU
      *   The reduction increases the system performance and an additional row is less time consuming than transmitting the histogram
+     * - The red channel of the first pixel in the last row defines the rendering mode (0 === normal mode, 1 === peaks mode)
      */
     private createNavigationDisplayMap(
         config: NavigationDisplayViewDto,
         elevationMap: Texture,
         histogram: Texture,
         cutOffAltitude: number,
-    ): Uint8ClampedArray {
-        if (this.a32nxNavigationDisplayRendering.output === null
-            || config.mapWidth * 4 !== this.a32nxNavigationDisplayRendering.output[0]
-            || config.mapHeight + 1 !== this.a32nxNavigationDisplayRendering.output[1]
+    ): Texture {
+        if (this.a32nxNavigationDisplayRendering.finalMap.output === null
+            || config.mapWidth * 3 !== this.a32nxNavigationDisplayRendering.finalMap.output[0]
+            || config.mapHeight + 1 !== this.a32nxNavigationDisplayRendering.finalMap.output[1]
         ) {
             // add one row for the metadata
-            this.a32nxNavigationDisplayRendering = this.a32nxNavigationDisplayRendering
+            this.a32nxNavigationDisplayRendering.finalMap = this.a32nxNavigationDisplayRendering.finalMap
                 .setOutput([config.mapWidth * 3, config.mapHeight + 1]);
         }
 
-        const terrainmap = this.a32nxNavigationDisplayRendering(
+        const terrainmap = this.a32nxNavigationDisplayRendering.finalMap(
             elevationMap,
             histogram,
             config.mapWidth,
@@ -570,23 +679,66 @@ class MapHandler {
             this.currentPosition.verticalSpeed,
             config.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
-        ) as KernelOutput;
-
-        const ndmap = terrainmap as number[][];
-        const metadata = ndmap[ndmap.length - 1];
-
-        // remove the metadata block
-        ndmap.splice(ndmap.length - 1);
-        const image = new Uint8ClampedArray(MapHandler.fastFlatten(ndmap));
-
+        ) as Texture;
 
         if (DebugRendering) {
-            sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 4 } })
+            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap.toArray() as number[][]));
+            sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 3 } })
                 .png()
                 .toFile('navigationdisplay.png');
         }
 
-        return image;
+        return terrainmap;
+    }
+
+    private createNavigationDisplayTransition(
+        lastFrame: Texture,
+        nextFrame: Texture,
+        config: NavigationDisplayViewDto,
+    ): void {
+        const frameCount = Math.floor(config.mapTransitionFps * config.mapTransitionTime);
+        console.log(frameCount);
+        let frames: number[][][] = null;
+
+        if (lastFrame === null) {
+            if (this.a32nxNavigationDisplayRendering.initialTransition.output === null
+                || this.a32nxNavigationDisplayRendering.initialTransition.output[0] !== config.mapWidth * 3
+                || this.a32nxNavigationDisplayRendering.initialTransition.output[1] !== config.mapHeight
+                || this.a32nxNavigationDisplayRendering.initialTransition.output[2] !== frameCount) {
+                this.a32nxNavigationDisplayRendering.initialTransition.setOutput([config.mapWidth * 3, config.mapHeight, frameCount]);
+            }
+
+            frames = this.a32nxNavigationDisplayRendering.initialTransition(
+                nextFrame,
+                config.mapWidth,
+                config.mapHeight,
+                frameCount,
+            ) as number[][][];
+        } else {
+            if (this.a32nxNavigationDisplayRendering.updateTransition.output === null
+                || this.a32nxNavigationDisplayRendering.updateTransition.output[0] !== config.mapWidth * 3
+                || this.a32nxNavigationDisplayRendering.updateTransition.output[1] !== config.mapHeight
+                || this.a32nxNavigationDisplayRendering.updateTransition.output[2] !== frameCount) {
+                this.a32nxNavigationDisplayRendering.updateTransition.setOutput([config.mapWidth * 3, config.mapHeight, frameCount]);
+            }
+
+            frames = this.a32nxNavigationDisplayRendering.updateTransition(
+                lastFrame,
+                nextFrame,
+                config.mapWidth,
+                config.mapHeight,
+                frameCount,
+            ) as number[][][];
+        }
+
+        if (DebugTransition) {
+            frames.forEach((frame, index) => {
+                const image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
+                sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 3 } })
+                    .png()
+                    .toFile(`${lastFrame === null ? 'initial' : 'update'}_${index}.png`);
+            });
+        }
     }
 
     public renderNavigationDisplay(side: string): void {
@@ -608,11 +760,18 @@ class MapHandler {
                 config.cutOffAltitudeMaximum,
             );
 
-            const ndMap = this.createNavigationDisplayMap(config, elevationMap, histogram, cutOffAltitude);
-            // TODO calculate map transition
+            // create the final map
+            const renderingData = this.createNavigationDisplayMap(config, elevationMap, histogram, cutOffAltitude);
+
+            // calculate the map transitions
+            // this.createNavigationDisplayTransition(
+            //     this.navigationDisplayData[side].lastFrame,
+            //     renderingData,
+            //     config,
+            // );
 
             // store the map for the next run
-            this.navigationDisplayData[side].lastFrame = ndMap;
+            this.navigationDisplayData[side].lastFrame = renderingData.clone();
         }
     }
 }

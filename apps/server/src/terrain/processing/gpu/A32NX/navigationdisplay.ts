@@ -1,10 +1,10 @@
-import { GPU } from 'gpu.js';
+// import { GPU } from 'gpu.js';
 import { a32nxDrawHighDensityPixel } from './highdensitypixel';
 import { a32nxDrawLowDensityPixel } from './lowdensitypixel';
 import { a32nxDrawWaterDensityPixel } from './waterpixel';
 import { NavigationDisplayParameters } from '../interfaces';
 
-function a32nxCalculateNormalModeGreenThresholds(
+export function a32nxCalculateNormalModeGreenThresholds(
     referenceAltitude: number,
     minimumElevation: number,
     flatEarth: number,
@@ -37,7 +37,7 @@ function a32nxCalculateNormalModeGreenThresholds(
     return [lowDensityGreen, highDensityGreen];
 }
 
-function a32nxCalculateNormalModeWarningThresholds(
+export function a32nxCalculateNormalModeWarningThresholds(
     referenceAltitude: number,
     minimumElevation: number,
     gearDownAltitudeOffset: number,
@@ -53,7 +53,7 @@ function a32nxCalculateNormalModeWarningThresholds(
     return [lowDensityYellow, highDensityYellow, highDensityRed];
 }
 
-function a32nxCalculatePeaksModeThresholds(
+export function a32nxCalculatePeaksModeThresholds(
     lowerPercentile: number,
     upperPercentile: number,
     halfElevation: number,
@@ -74,7 +74,7 @@ function a32nxCalculatePeaksModeThresholds(
     return [lowerDensity, higherDensity, solidDensity];
 }
 
-function a32nxRenderNormalMode(
+export function a32nxRenderNormalMode(
     elevation: number,
     pixelX: number,
     pixelY: number,
@@ -164,7 +164,7 @@ function a32nxRenderNormalMode(
     return [4, 4, 5];
 }
 
-function a32nxRenderPeaksMode(
+export function a32nxRenderPeaksMode(
     elevation: number,
     pixelX: number,
     pixelY: number,
@@ -342,95 +342,3 @@ export function a32nxRenderNavigationDisplay(
         maxElevation,
     )[colorChannel];
 }
-
-export const registerA32NXNavigationDisplayFunctions = (gpu: GPU): void => {
-    gpu.addFunction(a32nxCalculateNormalModeGreenThresholds, {
-        argumentTypes: {
-            referenceAltitude: 'Float',
-            minimumElevation: 'Float',
-            flatEarth: 'Number',
-            lowerPercentile: 'Float',
-            halfElevation: 'Float',
-        },
-        returnType: 'Array(2)',
-    });
-    gpu.addFunction(a32nxCalculateNormalModeWarningThresholds, {
-        argumentTypes: {
-            referenceAltitude: 'Float',
-            minimumElevation: 'Float',
-            gearDownAltitudeOffset: 'Number',
-        },
-        returnType: 'Array(3)',
-    });
-    gpu.addFunction(a32nxCalculatePeaksModeThresholds, {
-        argumentTypes: {
-            lowerPercentile: 'Float',
-            upperPercentile: 'Float',
-            halfElevation: 'Float',
-            minimumElevation: 'Float',
-            maximumElevation: 'Float',
-        },
-        returnType: 'Array(3)',
-    });
-    gpu.addFunction(a32nxDrawLowDensityPixel, {
-        argumentTypes: {
-            color: 'Array(3)',
-            pixelX: 'Integer',
-            pixelY: 'Integer',
-            centerCoordinateX: 'Float',
-        },
-        returnType: 'Array(3)',
-    });
-    gpu.addFunction(a32nxDrawHighDensityPixel, {
-        argumentTypes: {
-            color: 'Array(3)',
-            pixelX: 'Integer',
-            pixelY: 'Integer',
-            centerCoordinateX: 'Float',
-        },
-        returnType: 'Array(3)',
-    });
-    gpu.addFunction(a32nxDrawWaterDensityPixel, {
-        argumentTypes: {
-            color: 'Array(3)',
-            pixelX: 'Integer',
-            pixelY: 'Integer',
-            height: 'Integer',
-            centerCoordinateX: 'Float',
-        },
-        returnType: 'Array(3)',
-    });
-    gpu.addFunction(a32nxRenderNormalMode, {
-        argumentTypes: {
-            elevation: 'Integer',
-            pixelX: 'Integer',
-            pixelY: 'Integer',
-            height: 'Integer',
-            centerCoordinateX: 'Float',
-            referenceAltitude: 'Float',
-            minimumElevation: 'Float',
-            maximumElevation: 'Float',
-            flatEarth: 'Integer',
-            gearDownAltitudeOffset: 'Integer',
-            lowerPercentile: 'Float',
-            halfElevation: 'Float',
-            absoluteCutOffAltitude: 'Float',
-        },
-        returnType: 'Array(3)',
-    });
-    gpu.addFunction(a32nxRenderPeaksMode, {
-        argumentTypes: {
-            elevation: 'Integer',
-            pixelX: 'Integer',
-            pixelY: 'Integer',
-            height: 'Integer',
-            centerCoordinateX: 'Float',
-            lowerPercentile: 'Float',
-            upperPercentile: 'Float',
-            halfElevation: 'Float',
-            minimumElevation: 'Float',
-            maximumElevation: 'Float',
-        },
-        returnType: 'Array(3)',
-    });
-};
