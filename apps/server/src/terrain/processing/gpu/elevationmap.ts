@@ -16,12 +16,11 @@ export function createLocalElevationMap(
     worldMapSouthwestLong: number,
     worldMapNortheastLat: number,
     worldMapNortheastLong: number,
-    ndWidth: number,
     ndHeight: number,
     meterPerPixel: number,
     arcMode: boolean,
 ): number {
-    const centerX = ndWidth / 2.0;
+    const centerX = this.constants.screenWidth / 2.0;
     const delta = [this.thread.x - centerX, ndHeight - this.thread.y];
 
     // calculate distance and bearing for the projection

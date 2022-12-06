@@ -64,6 +64,9 @@ const RenderingNormalModeHighDensityRedOffset = 2000;
 const RenderingGearDownOffset = 250;
 const RenderingNonGearDownOffset = 500;
 const RenderingDensityPatchSize = 13;
+const RenderingMaxNavigationDisplayHeight = 492;
+const RenderingMaxNavigationDisplayWidth = 768;
+const RenderingColorChannelCount = 3;
 
 // transition parameters
 const TransitionFPS = 10;
@@ -148,6 +151,7 @@ class MapHandler {
             .setConstants<LocalElevationMapConstants>({
                 unknownElevation: UnknownElevation,
                 invalidElevation: InvalidElevation,
+                screenWidth: RenderingMaxNavigationDisplayWidth,
             })
             .setFunctions([
                 deg2rad,
@@ -239,7 +243,12 @@ class MapHandler {
     }
 
     public initialize(terrainmap: TerrainMap): void {
-        this.simconnect = new SimConnect();
+        this.simconnect = new SimConnect({
+            maxNavigationDisplayHeight: RenderingMaxNavigationDisplayHeight,
+            maxNavigationDisplayWidth: RenderingMaxNavigationDisplayWidth,
+            colorChannelCount: RenderingColorChannelCount,
+        });
+
         this.worldmap = new Worldmap(terrainmap);
 
         this.createKernels();
@@ -255,7 +264,6 @@ class MapHandler {
         this.updatePosition(startupPosition, true);
         const startupConfig: NavigationDisplayViewDto = {
             active: true,
-            mapWidth: 100,
             mapHeight: 20,
             meterPerPixel: 0,
             mapTransitionFps: 2,
@@ -457,10 +465,10 @@ class MapHandler {
     private createLocalElevationMap(config: NavigationDisplayViewDto): Texture {
         // prepare the output buffer
         if (this.extractLocalElevationMap.output === null
-            || this.extractLocalElevationMap.output[0] !== config.mapWidth
+            || this.extractLocalElevationMap.output[0] !== RenderingMaxNavigationDisplayWidth
             || this.extractLocalElevationMap.output[1] !== config.mapHeight
         ) {
-            this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
+            this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([RenderingMaxNavigationDisplayWidth, config.mapHeight]);
         }
 
         // create the local elevation map
@@ -477,7 +485,6 @@ class MapHandler {
             this.worldMapMetadata.southwest.longitude,
             this.worldMapMetadata.northeast.latitude,
             this.worldMapMetadata.northeast.longitude,
-            config.mapWidth,
             config.mapHeight,
             config.meterPerPixel,
             config.arcMode,
@@ -497,7 +504,7 @@ class MapHandler {
                 image[index] = gray;
             });
 
-            sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 1 } })
+            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: 1 } })
                 .png()
                 .toFile('localelevationmap.png');
         }
@@ -507,7 +514,7 @@ class MapHandler {
 
     private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplayViewDto): Texture {
         // create the histogram statistics
-        const patchesInX = Math.ceil(config.mapWidth / HistogramPatchSize);
+        const patchesInX = Math.ceil(RenderingMaxNavigationDisplayWidth / HistogramPatchSize);
         const patchesInY = Math.ceil(config.mapHeight / HistogramPatchSize);
         const patchCount = patchesInX * patchesInY;
 
@@ -520,7 +527,7 @@ class MapHandler {
 
         const localHistograms = this.localElevationHistogram(
             localElevationMap,
-            config.mapWidth,
+            RenderingMaxNavigationDisplayWidth,
             config.mapHeight,
         ) as Texture;
         const histogram = this.elevationHistogram(
@@ -538,7 +545,7 @@ class MapHandler {
                     entryCount += entry;
                 }
             });
-            console.log(`${entryCount} of ${config.mapHeight * config.mapWidth} px`);
+            console.log(`${entryCount} of ${config.mapHeight * RenderingMaxNavigationDisplayWidth} px`);
         }
 
         return histogram;
@@ -680,18 +687,18 @@ class MapHandler {
         cutOffAltitude: number,
     ): Texture {
         if (this.a32nxNavigationDisplayRendering.finalMap.output === null
-            || config.mapWidth * 3 !== this.a32nxNavigationDisplayRendering.finalMap.output[0]
+            || (RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount) !== this.a32nxNavigationDisplayRendering.finalMap.output[0]
             || config.mapHeight + 1 !== this.a32nxNavigationDisplayRendering.finalMap.output[1]
         ) {
             // add one row for the metadata
             this.a32nxNavigationDisplayRendering.finalMap = this.a32nxNavigationDisplayRendering.finalMap
-                .setOutput([config.mapWidth * 3, config.mapHeight + 1]);
+                .setOutput([RenderingMaxNavigationDisplayWidth * 3, config.mapHeight + 1]);
         }
 
         const terrainmap = this.a32nxNavigationDisplayRendering.finalMap(
             elevationMap,
             histogram,
-            config.mapWidth,
+            RenderingMaxNavigationDisplayWidth,
             config.mapHeight,
             this.currentPosition.altitude,
             this.currentPosition.verticalSpeed,
@@ -701,7 +708,7 @@ class MapHandler {
 
         if (DebugRendering) {
             const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap.toArray() as number[][]));
-            sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 3 } })
+            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: 3 } })
                 .png()
                 .toFile('navigationdisplay.png');
         }
@@ -719,30 +726,36 @@ class MapHandler {
 
         if (lastFrame === null) {
             if (this.a32nxNavigationDisplayRendering.initialTransition.output === null
-                || this.a32nxNavigationDisplayRendering.initialTransition.output[0] !== config.mapWidth * 3
+                || this.a32nxNavigationDisplayRendering.initialTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
                 || this.a32nxNavigationDisplayRendering.initialTransition.output[1] !== config.mapHeight
             ) {
-                this.a32nxNavigationDisplayRendering.initialTransition.setOutput([config.mapWidth * 3, config.mapHeight]);
+                this.a32nxNavigationDisplayRendering.initialTransition.setOutput([
+                    RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount,
+                    config.mapHeight,
+                ]);
             }
 
             frame = this.a32nxNavigationDisplayRendering.initialTransition(
                 nextFrame,
-                config.mapWidth,
+                RenderingMaxNavigationDisplayWidth,
                 config.mapHeight,
                 angleThreshold,
             ) as number[][];
         } else {
             if (this.a32nxNavigationDisplayRendering.updateTransition.output === null
-                || this.a32nxNavigationDisplayRendering.updateTransition.output[0] !== config.mapWidth * 3
+                || this.a32nxNavigationDisplayRendering.updateTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
                 || this.a32nxNavigationDisplayRendering.updateTransition.output[1] !== config.mapHeight
             ) {
-                this.a32nxNavigationDisplayRendering.updateTransition.setOutput([config.mapWidth * 3, config.mapHeight]);
+                this.a32nxNavigationDisplayRendering.updateTransition.setOutput([
+                    RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount,
+                    config.mapHeight,
+                ]);
             }
 
             frame = this.a32nxNavigationDisplayRendering.updateTransition(
                 lastFrame,
                 nextFrame,
-                config.mapWidth,
+                RenderingMaxNavigationDisplayWidth,
                 config.mapHeight,
                 angleThreshold,
             ) as number[][];
@@ -750,7 +763,7 @@ class MapHandler {
 
         if (DebugTransition) {
             const image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
-            sharp(image, { raw: { width: config.mapWidth, height: config.mapHeight, channels: 3 } })
+            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: 3 } })
                 .png()
                 .toFile(`${lastFrame === null ? 'initial' : 'update'}_${Math.round(angleThreshold)}.png`);
         }
