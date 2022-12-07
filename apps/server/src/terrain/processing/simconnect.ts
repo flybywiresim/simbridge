@@ -9,8 +9,8 @@ const parser = require('xml2json');
 const SimConnectClientName = 'Map handling SimConnect client';
 
 const enum ClientDataId {
-    NavigationDisplayThresholds = 1000,
-    NavigationDisplayFrame = 1001,
+    NavigationDisplayThresholds,
+    NavigationDisplayFrame,
 }
 
 const NavigationDisplayThresholdByteCount = 10;
