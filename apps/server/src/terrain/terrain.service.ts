@@ -28,6 +28,10 @@ export class TerrainService implements OnApplicationShutdown {
                 }
             } else if (message.request === 'LOGMESSAGE') {
                 this.logger.log(message.response as string);
+            } else if (message.request === 'LOGWARN') {
+                this.logger.warn(message.response as string);
+            } else if (message.request === 'LOGERROR') {
+                this.logger.error(message.response as string);
             } else if (message.request === 'SHUTDOWN') {
                 this.a32nxMapHandler.terminate();
             }

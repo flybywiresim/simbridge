@@ -842,9 +842,9 @@ class MapHandler {
     ): void {
         // no valid position data received
         if (this.currentPosition === undefined) {
-            console.log('No valid position received for rendering');
+            parentPort.postMessage({ request: 'LOGWARN', response: 'No valid position received for rendering' });
         } else if (this.navigationDisplayRendering[side].config === undefined) {
-            console.log('No navigation display configuration received');
+            console.log({ request: 'LOGWARN', response: 'No navigation display configuration received' });
         } else {
             const { config } = this.navigationDisplayRendering[side];
 

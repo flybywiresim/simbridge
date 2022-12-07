@@ -102,7 +102,7 @@ export class SimConnect {
                     this.connectToSim();
                 });
                 this.connection.on('close', () => {
-                    parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Connection closed unexpectedly!' });
+                    parentPort.postMessage({ request: 'LOGERROR', response: 'Connection closed unexpectedly!' });
 
                     if (this.connection !== null) this.connection.close();
                     this.connection = null;
@@ -111,7 +111,7 @@ export class SimConnect {
                 });
             })
             .catch((error) => {
-                parentPort.postMessage({ request: 'LOGMESSAGE', response: `Connection failed: ${error} - Retry in 10 seconds` });
+                parentPort.postMessage({ request: 'LOGERROR', response: `Connection failed: ${error} - Retry in 10 seconds` });
                 setTimeout(() => this.connectToSim(), 10000);
             });
     }
@@ -124,7 +124,7 @@ export class SimConnect {
             });
 
             this.simConnectPort = entry.Port;
-            this.simConnectMaxReceiveSize = entry.MaxRecvSize;
+            this.simConnectMaxReceiveSize = parseInt(entry.MaxRecvSize);
 
             return true;
         }
@@ -146,7 +146,7 @@ export class SimConnect {
             parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Steam version detected' });
             filename = steamLocation;
         } else {
-            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'No SimConnect.xml file found. Trying port 500' });
+            parentPort.postMessage({ request: 'LOGWARN', response: 'No SimConnect.xml file found. Trying port 500' });
             return;
         }
 
@@ -154,7 +154,7 @@ export class SimConnect {
         const xmlContent = JSON.parse(parser.toJson(filecontent));
 
         if (xmlContent['SimBase.Document'] === undefined || xmlContent['SimBase.Document']['SimConnect.Comm'] === undefined) {
-            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Invalid SimConnect.xml file found. Trying port 500' });
+            parentPort.postMessage({ request: 'LOGERROR', response: 'Invalid SimConnect.xml file found. Trying port 500' });
             return;
         }
 
@@ -170,7 +170,7 @@ export class SimConnect {
         }
 
         if (foundValidEntry === false) {
-            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'No valid Comm-configuration found. Trying port 500' });
+            parentPort.postMessage({ request: 'LOGERROR', response: 'No valid Comm-configuration found. Trying port 500' });
         }
     }
 
