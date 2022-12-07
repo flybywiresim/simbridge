@@ -193,9 +193,9 @@ export class SimConnect {
         // fill the buffer
         buffer.writeUInt16LE(thresholdData.Columns);
         buffer.writeUInt16LE(thresholdData.Rows);
-        buffer.writeUInt16LE(thresholdData.MinimumElevation);
+        buffer.writeInt16LE(thresholdData.MinimumElevation);
         buffer.writeUInt8(thresholdData.MinimumElevationMode);
-        buffer.writeUInt16LE(thresholdData.MaximumElevation);
+        buffer.writeInt16LE(thresholdData.MaximumElevation);
         buffer.writeUInt8(thresholdData.MaximumElevationMode);
 
         this.connection.setClientData(
