@@ -81,7 +81,7 @@ export class SimConnect {
     private registerNavigationDisplayData(): void {
         this.connection.mapClientDataNameToID(SimConnectClientName, ClientDataId.NavigationDisplayFrame);
 
-        this.connection.createClientData(ClientDataId.NavigationDisplayFrame, byteCount, false);
+        this.connection.createClientData(ClientDataId.NavigationDisplayFrame, this.simConnectMaxReceiveSize, false);
 
         this.connection.addToClientDataDefinition(
             ClientDataId.NavigationDisplayFrame,
