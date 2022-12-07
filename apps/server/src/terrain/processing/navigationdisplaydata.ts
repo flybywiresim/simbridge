@@ -1,7 +1,7 @@
 export enum TerrainLevelMode {
-    PeaksMode,
-    Warning,
-    Caution,
+    PeaksMode = 0,
+    Warning = 1,
+    Caution = 2,
 }
 
 export class NavigationDisplayData {
