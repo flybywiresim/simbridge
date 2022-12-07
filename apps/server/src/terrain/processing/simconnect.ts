@@ -81,16 +81,13 @@ export class SimConnect {
     private registerNavigationDisplayData(): void {
         this.connection.mapClientDataNameToID(SimConnectClientName, ClientDataId.NavigationDisplayFrame);
 
-        const byteCount = this.parameters.maxNavigationDisplayHeight * this.parameters.maxNavigationDisplayWidth * this.parameters.colorChannelCount;
         this.connection.createClientData(ClientDataId.NavigationDisplayFrame, byteCount, false);
 
-        for (let i = 0; i < byteCount; i++) {
-            this.connection.addToClientDataDefinition(
-                ClientDataId.NavigationDisplayFrame,
-                SimConnectConstants.CLIENTDATAOFFSET_AUTO,
-                SimConnectConstants.CLIENT_DATA_TYPE_INT8,
-            );
-        }
+        this.connection.addToClientDataDefinition(
+            ClientDataId.NavigationDisplayFrame,
+            SimConnectConstants.CLIENTDATAOFFSET_AUTO,
+            this.simConnectMaxReceiveSize,
+        );
     }
 
     private connectToSim() {
