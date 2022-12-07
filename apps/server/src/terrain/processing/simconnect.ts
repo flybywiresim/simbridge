@@ -218,13 +218,13 @@ export class SimConnect {
         );
     }
 
-    public sendNavigationDisplayTerrainMapFrame(frame: Uint8ClampedArray): void {
+    public sendNavigationDisplayTerrainMapFrame(frame: Buffer): void {
         if (this.connection === null) return;
 
-        const byteCount = this.parameters.maxNavigationDisplayHeight * this.parameters.maxNavigationDisplayWidth * this.parameters.colorChannelCount;
-        const buffer = Buffer.alloc(byteCount, 0);
-
-        frame.forEach((entry) => buffer.writeInt8(entry));
+        // create the final buffer with the size header
+        const buffer = Buffer.alloc(this.simConnectMaxReceiveSize);
+        buffer.writeUInt32LE(frame.byteLength);
+        Buffer.concat([buffer, frame]);
 
         this.connection.setClientData(
             ClientDataId.NavigationDisplayFrame,

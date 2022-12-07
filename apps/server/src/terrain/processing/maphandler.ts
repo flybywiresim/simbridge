@@ -823,7 +823,12 @@ class MapHandler {
         // send the data via SimConnect
         if (startup === false) {
             image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
-            this.simconnect.sendNavigationDisplayTerrainMapFrame(image);
+            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: RenderingColorChannelCount } })
+                .png()
+                .toBuffer()
+                .then((buffer) => {
+                    this.simconnect.sendNavigationDisplayTerrainMapFrame(buffer);
+                });
         }
 
         if (DebugTransition && image !== null) {
