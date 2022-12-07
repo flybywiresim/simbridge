@@ -26,6 +26,8 @@ export class TerrainService implements OnApplicationShutdown {
                 } else {
                     this.logger.log('Unable to initialize the map handler');
                 }
+            } else if (message.request === 'LOGMESSAGE') {
+                this.logger.log(message.response as string);
             } else if (message.request === 'SHUTDOWN') {
                 this.a32nxMapHandler.terminate();
             }

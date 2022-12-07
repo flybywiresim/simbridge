@@ -1,4 +1,5 @@
 import { open, Protocol, SimConnectConnection, SimConnectConstants } from 'node-simconnect';
+import { parentPort } from 'worker_threads';
 import { NavigationDisplayData } from './navigationdisplaydata';
 
 export interface SimConnectParameters {
@@ -81,16 +82,16 @@ export class SimConnect {
     private connectToSim() {
         if (this.shutdown) return;
 
-        open('Map handling SimConnect client', Protocol.FSX_SP2, { remote: { host: 'localhost', port: 5111 } })
+        open('Map handling SimConnect client', Protocol.FSX_SP2, { remote: { host: 'localhost', port: 500 } })
             .then(({ recvOpen, handle }) => {
-                console.log(`Connected to ${recvOpen.applicationName}`);
+                parentPort.postMessage({ request: 'LOGMESSAGE', response: `Connected to ${recvOpen.applicationName}` });
                 this.connection = handle;
 
                 this.registerNavigationDisplayThresholdData();
                 this.registerNavigationDisplayData();
 
                 this.connection.on('quit', () => {
-                    console.log('Simulator quit!');
+                    parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Simulator quit!' });
 
                     if (this.connection !== null) this.connection.close();
                     this.connection = null;
@@ -98,7 +99,7 @@ export class SimConnect {
                     this.connectToSim();
                 });
                 this.connection.on('close', () => {
-                    console.log('Connection closed unexpectedly!');
+                    parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Connection closed unexpectedly!' });
 
                     if (this.connection !== null) this.connection.close();
                     this.connection = null;
@@ -107,7 +108,7 @@ export class SimConnect {
                 });
             })
             .catch((error) => {
-                console.log(`Connection failed: ${error} - Retry in 10 seconds`);
+                parentPort.postMessage({ request: 'LOGMESSAGE', response: `Connection failed: ${error} - Retry in 10 seconds` });
                 setTimeout(() => this.connectToSim(), 10000);
             });
     }
