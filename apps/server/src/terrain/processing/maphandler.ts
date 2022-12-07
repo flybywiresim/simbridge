@@ -281,11 +281,7 @@ class MapHandler {
     }
 
     public initialize(aircraft: string, terrainmap: TerrainMap): void {
-        this.simconnect = new SimConnect({
-            maxNavigationDisplayHeight: RenderingMaxNavigationDisplayHeight,
-            maxNavigationDisplayWidth: RenderingMaxNavigationDisplayWidth,
-            colorChannelCount: RenderingColorChannelCount,
-        });
+        this.simconnect = new SimConnect();
 
         this.worldmap = new Worldmap(terrainmap);
 

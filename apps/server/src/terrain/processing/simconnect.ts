@@ -8,12 +8,6 @@ const parser = require('xml2json');
 
 const SimConnectClientName = 'Map handling SimConnect client';
 
-export interface SimConnectParameters {
-    maxNavigationDisplayWidth: number,
-    maxNavigationDisplayHeight: number,
-    colorChannelCount: number,
-}
-
 const enum ClientDataId {
     NavigationDisplayThresholds = 1000,
     NavigationDisplayFrame = 1001,
@@ -22,8 +16,6 @@ const enum ClientDataId {
 const NavigationDisplayThresholdByteCount = 10;
 
 export class SimConnect {
-    private parameters: SimConnectParameters = null;
-
     private simConnectPort: number = 500;
 
     private simConnectMaxReceiveSize: number = 16000;
@@ -182,9 +174,7 @@ export class SimConnect {
         }
     }
 
-    constructor(parameters: SimConnectParameters) {
-        this.parameters = parameters;
-
+    constructor() {
         this.loadSimConnectConfiguration();
         this.connectToSim();
     }
