@@ -201,12 +201,12 @@ export class SimConnect {
         const buffer = Buffer.alloc(NavigationDisplayThresholdByteCount);
 
         // fill the buffer
-        buffer.writeInt16LE(thresholdData.Columns);
-        buffer.writeInt16LE(thresholdData.Rows);
-        buffer.writeInt16LE(thresholdData.MinimumElevation);
-        buffer.writeInt8(thresholdData.MinimumElevationMode);
-        buffer.writeInt16LE(thresholdData.MaximumElevation);
-        buffer.writeInt8(thresholdData.MaximumElevationMode);
+        buffer.writeUInt16LE(thresholdData.Columns);
+        buffer.writeUInt16LE(thresholdData.Rows);
+        buffer.writeUInt16LE(thresholdData.MinimumElevation);
+        buffer.writeUInt8(thresholdData.MinimumElevationMode);
+        buffer.writeUInt16LE(thresholdData.MaximumElevation);
+        buffer.writeUInt8(thresholdData.MaximumElevationMode);
 
         this.connection.setClientData(
             ClientDataId.NavigationDisplayThresholds,
