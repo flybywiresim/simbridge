@@ -25,7 +25,7 @@ export class SimConnect {
     private connection: SimConnectConnection = null;
 
     private registerNavigationDisplayThresholdData(): void {
-        this.connection.mapClientDataNameToID(SimConnectClientName, ClientDataId.NavigationDisplayFrame);
+        this.connection.mapClientDataNameToID('FBW_SIMBRIDGE_TERRONND_THRESHOLDS', ClientDataId.NavigationDisplayFrame);
 
         // see data definition below for byte count
         this.connection.createClientData(ClientDataId.NavigationDisplayFrame, NavigationDisplayThresholdByteCount, false);
@@ -71,7 +71,7 @@ export class SimConnect {
     }
 
     private registerNavigationDisplayData(): void {
-        this.connection.mapClientDataNameToID(SimConnectClientName, ClientDataId.NavigationDisplayFrame);
+        this.connection.mapClientDataNameToID('FBW_SIMBRIDGE_TERRONND_IMAGE', ClientDataId.NavigationDisplayFrame);
 
         this.connection.createClientData(ClientDataId.NavigationDisplayFrame, this.simConnectMaxReceiveSize, false);
 
