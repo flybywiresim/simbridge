@@ -865,14 +865,11 @@ class MapHandler {
             // render the frames
             let counter = 0;
             const interval = setInterval(() => {
-                if (counter >= frameCount) {
+                if (counter > frameCount) {
                     clearInterval(interval);
                     // store the map for the next run
                     if (this.navigationDisplayRendering[side].lastFrame !== null) this.navigationDisplayRendering[side].lastFrame.delete();
                     this.navigationDisplayRendering[side].lastFrame = renderingData.clone();
-
-                    const image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
-                    this.simconnect.sendNavigationDisplayTerrainMapFrame(image);
                 } else {
                     this.createNavigationDisplayTransitionFrame(
                         side,
