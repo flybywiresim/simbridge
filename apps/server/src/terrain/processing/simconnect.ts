@@ -1,6 +1,12 @@
+import { existsSync, readFileSync } from 'fs';
 import { open, Protocol, SimConnectConnection, SimConnectConstants } from 'node-simconnect';
+import { userInfo } from 'os';
 import { parentPort } from 'worker_threads';
 import { NavigationDisplayData } from './navigationdisplaydata';
+
+const parser = require('xml2json');
+
+const SimConnectClientName = 'Map handling SimConnect client';
 
 export interface SimConnectParameters {
     maxNavigationDisplayWidth: number,
@@ -18,11 +24,17 @@ const NavigationDisplayThresholdByteCount = 10;
 export class SimConnect {
     private parameters: SimConnectParameters = null;
 
+    private simConnectPort: number = 500;
+
+    private simConnectMaxReceiveSize: number = 16000;
+
     private shutdown: boolean = false;
 
     private connection: SimConnectConnection = null;
 
     private registerNavigationDisplayThresholdData(): void {
+        this.connection.mapClientDataNameToID(SimConnectClientName, ClientDataId.NavigationDisplayFrame);
+
         // see data definition below for byte count
         this.connection.createClientData(ClientDataId.NavigationDisplayFrame, NavigationDisplayThresholdByteCount, false);
 
@@ -67,6 +79,8 @@ export class SimConnect {
     }
 
     private registerNavigationDisplayData(): void {
+        this.connection.mapClientDataNameToID(SimConnectClientName, ClientDataId.NavigationDisplayFrame);
+
         const byteCount = this.parameters.maxNavigationDisplayHeight * this.parameters.maxNavigationDisplayWidth * this.parameters.colorChannelCount;
         this.connection.createClientData(ClientDataId.NavigationDisplayFrame, byteCount, false);
 
@@ -82,7 +96,7 @@ export class SimConnect {
     private connectToSim() {
         if (this.shutdown) return;
 
-        open('Map handling SimConnect client', Protocol.FSX_SP2, { remote: { host: 'localhost', port: 500 } })
+        open(SimConnectClientName, Protocol.FSX_SP2, { remote: { host: 'localhost', port: this.simConnectPort } })
             .then(({ recvOpen, handle }) => {
                 parentPort.postMessage({ request: 'LOGMESSAGE', response: `Connected to ${recvOpen.applicationName}` });
                 this.connection = handle;
@@ -113,8 +127,68 @@ export class SimConnect {
             });
     }
 
+    private validateSimConnectConnectionEntry(entry: any): boolean {
+        if (entry.Protocol === 'IPv4' && entry.Port !== undefined && entry.Port > 0 && entry.MaxRecvSize > 0) {
+            parentPort.postMessage({
+                request: 'LOGMESSAGE',
+                response: `Found valid Comm-configuration. Using port ${entry.Port} with a maximum receive size of ${entry.MaxRecvSize}`,
+            });
+
+            this.simConnectPort = entry.Port;
+            this.simConnectMaxReceiveSize = entry.MaxRecvSize;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private loadSimConnectConfiguration(): void {
+        const { homedir } = userInfo();
+
+        const msStoreLocation = `${homedir}\\AppData\\Local\\Packages\\Microsoft.FlightSimulator_8wekyb3d8bbwe\\LocalCache\\SimConnect.xml`;
+        const steamLocation = `${homedir}\\AppData\\Roaming\\Microsoft Flight Simulator\\SimConnect.xml`;
+        let filename = null;
+
+        if (existsSync(msStoreLocation)) {
+            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'MS Store version detected' });
+            filename = msStoreLocation;
+        } else if (existsSync(steamLocation)) {
+            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Steam version detected' });
+            filename = steamLocation;
+        } else {
+            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'No SimConnect.xml file found. Trying port 500' });
+            return;
+        }
+
+        const filecontent = readFileSync(filename).toString();
+        const xmlContent = JSON.parse(parser.toJson(filecontent));
+
+        if (xmlContent['SimBase.Document'] === undefined || xmlContent['SimBase.Document']['SimConnect.Comm'] === undefined) {
+            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Invalid SimConnect.xml file found. Trying port 500' });
+            return;
+        }
+
+        const connections = xmlContent['SimBase.Document']['SimConnect.Comm'];
+        let foundValidEntry = false;
+        if (Array.isArray(connections) === true) {
+            connections.every((entry) => {
+                foundValidEntry = this.validateSimConnectConnectionEntry(entry);
+                return foundValidEntry !== true;
+            });
+        } else {
+            foundValidEntry = this.validateSimConnectConnectionEntry(connections);
+        }
+
+        if (foundValidEntry === false) {
+            parentPort.postMessage({ request: 'LOGMESSAGE', response: 'No valid Comm-configuration found. Trying port 500' });
+        }
+    }
+
     constructor(parameters: SimConnectParameters) {
         this.parameters = parameters;
+
+        this.loadSimConnectConfiguration();
         this.connectToSim();
     }
 
