@@ -896,6 +896,8 @@ class MapHandler {
     }
 
     public startNavigationDisplayRenderingCycle(side: string): void {
+        if (this.navigationDisplayRendering[side].timeout !== null) clearTimeout(this.navigationDisplayRendering[side].timeout);
+
         if (side in this.navigationDisplayRendering) {
             if (this.navigationDisplayRendering[side].config === null || this.navigationDisplayRendering[side].config.active === false) return;
 
