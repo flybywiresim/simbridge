@@ -72,7 +72,6 @@ const RenderingNormalModeHighDensityRedOffset = 2000;
 const RenderingGearDownOffset = 250;
 const RenderingNonGearDownOffset = 500;
 const RenderingDensityPatchSize = 13;
-const RenderingMaxNavigationDisplayHeight = 492;
 const RenderingMaxNavigationDisplayWidth = 768;
 const RenderingColorChannelCount = 3;
 
