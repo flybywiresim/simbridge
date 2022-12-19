@@ -90,7 +90,8 @@
 		"systray2": "^2.1.4",
 		"winston": "^3.3.3",
 		"winston-daily-rotate-file": "^4.5.5",
-		"ws": "^8.5.0"
+		"ws": "^8.5.0",
+		"xml2js": "^0.4.23"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.17.5",
