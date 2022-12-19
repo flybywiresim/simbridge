@@ -16,4 +16,6 @@ export class NavigationDisplayData {
     public MaximumElevation: number = Infinity;
 
     public MaximumElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
+
+    public FrameByteCount: number = 0;
 }

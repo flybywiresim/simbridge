@@ -313,13 +313,13 @@ class MapHandler {
 
         // left side
         let display = this.createNavigationDisplayMap('L', startupConfig, map, histogram, 0);
-        this.createNavigationDisplayTransitionFrame('L', null, display, startupConfig, 0, 20.0, true);
-        this.createNavigationDisplayTransitionFrame('L', display, display, startupConfig, 0, 20.0, true);
+        this.createNavigationDisplayTransitionFrame('L', null, display, null, startupConfig, 0, 20.0, true);
+        this.createNavigationDisplayTransitionFrame('L', display, display, null, startupConfig, 0, 20.0, true);
 
         // right side
         display = this.createNavigationDisplayMap('R', startupConfig, map, histogram, 0);
-        this.createNavigationDisplayTransitionFrame('R', null, display, startupConfig, 0, 20.0, true);
-        this.createNavigationDisplayTransitionFrame('R', display, display, startupConfig, 0, 20.0, true);
+        this.createNavigationDisplayTransitionFrame('R', null, display, null, startupConfig, 0, 20.0, true);
+        this.createNavigationDisplayTransitionFrame('R', display, display, null, startupConfig, 0, 20.0, true);
 
         this.currentPosition = undefined;
         this.Initialized = true;
@@ -770,6 +770,7 @@ class MapHandler {
         side: string,
         lastFrame: Texture,
         nextFrame: Texture,
+        viewData: NavigationDisplayData,
         config: NavigationDisplayViewDto,
         angleThresholdStart: number,
         angleThresholdStop: number,
@@ -822,7 +823,9 @@ class MapHandler {
                 .png()
                 .toBuffer()
                 .then((buffer) => {
-                    this.simconnect.sendNavigationDisplayTerrainMapFrame(buffer);
+                    viewData.FrameByteCount = buffer.byteLength;
+                    this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, viewData);
+                    this.simconnect.sendNavigationDisplayTerrainMapFrame(side, buffer);
                 });
         }
 
@@ -862,6 +865,11 @@ class MapHandler {
             const frame = renderingData.toArray() as number[][];
             const metadata = frame.splice(frame.length - 1)[0];
 
+            // send the threshold data for the map
+            const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
+            thresholdData.ImageWidth = RenderingMaxNavigationDisplayWidth;
+            thresholdData.ImageHeight = config.mapHeight;
+
             // render the frames
             let counter = 0;
             const interval = setInterval(() => {
@@ -875,19 +883,12 @@ class MapHandler {
                         side,
                         this.navigationDisplayRendering[side].lastFrame,
                         renderingData,
+                        thresholdData,
                         config,
                         angleThresholdStart,
                         angularStep * counter + angleThresholdStart,
                         false,
                     );
-
-                    // send the threshold data for the map
-                    if (counter === 0) {
-                        const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
-                        thresholdData.ImageWidth = RenderingMaxNavigationDisplayWidth;
-                        thresholdData.ImageHeight = config.mapHeight;
-                        this.simconnect.sendNavigationDisplayThresholds(thresholdData);
-                    }
                 }
 
                 counter += 1;
