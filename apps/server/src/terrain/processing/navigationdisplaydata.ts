@@ -5,11 +5,9 @@ export enum TerrainLevelMode {
 }
 
 export class NavigationDisplayData {
-    public Timestamp: number = 0;
+    public ImageWidth: number = 0;
 
-    public Rows: number = 0;
-
-    public Columns: number = 0;
+    public ImageHeight: number = 0;
 
     public MinimumElevation: number = Infinity;
 

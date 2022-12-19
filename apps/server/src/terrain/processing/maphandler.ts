@@ -884,8 +884,8 @@ class MapHandler {
                     // send the threshold data for the map
                     if (counter === 0) {
                         const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
-                        thresholdData.Columns = RenderingMaxNavigationDisplayWidth;
-                        thresholdData.Rows = config.mapHeight;
+                        thresholdData.ImageWidth = RenderingMaxNavigationDisplayWidth;
+                        thresholdData.ImageHeight = config.mapHeight;
                         this.simconnect.sendNavigationDisplayThresholds(thresholdData);
                     }
                 }
