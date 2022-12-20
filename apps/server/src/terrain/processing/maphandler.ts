@@ -76,7 +76,7 @@ const RenderingMaxNavigationDisplayWidth = 768;
 const RenderingColorChannelCount = 3;
 
 // transition parameters
-const TransitionFPS = 10;
+const TransitionFPS = 15;
 const TransitionDuration = 1.5;
 const TransitionUpdateDelay = Math.floor(1000 / TransitionFPS);
 const TransitionMapUpdateCycletime = 2000;
