@@ -105,6 +105,20 @@ export class SimConnect {
         });
     }
 
+    private simConnectQuit(): void {
+        this.receiver.stop();
+        this.receiver = null;
+        this.frameMetadataLeft = null;
+        this.frameMetadataRight = null;
+        this.frameDataLeft = null;
+        this.frameDataRight = null;
+        this.connection.close();
+
+        parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Received a quit signal. Trying to reconnect...' });
+
+        this.connectToSim();
+    }
+
     private simConnectError(message: ErrorMessage): void {
         if (message !== null) {
             console.log(`Error: ${message.id}`);
@@ -131,6 +145,7 @@ export class SimConnect {
         if (this.receiver !== null) this.receiver.stop();
         this.receiver = new Receiver(this.connection);
         this.receiver.addCallback('open', (message: OpenMessage) => this.simConnectOpen(message));
+        this.receiver.addCallback('quit', () => this.simConnectQuit());
         this.receiver.addCallback('exception', (message: ExceptionMessage) => this.simConnectException(message));
         this.receiver.addCallback('error', (message: ErrorMessage) => this.simConnectError(message));
         this.receiver.start();
@@ -188,13 +203,12 @@ export class SimConnect {
         // calculate the size
         const chunks = Math.ceil(frame.byteLength / ClientDataMaxSize);
         const stream = Buffer.alloc(ClientDataMaxSize);
-        const mapping = new Uint8Array(stream);
 
         for (let i = 0; i < chunks; ++i) {
             // copy over the remaining data
             const remaining = frame.byteLength - i * ClientDataMaxSize;
             const byteCount = remaining >= ClientDataMaxSize ? ClientDataMaxSize : remaining;
-            frame.copy(mapping, 0, i * ClientDataMaxSize, i * ClientDataMaxSize + byteCount);
+            frame.copy(stream, 0, i * ClientDataMaxSize, i * ClientDataMaxSize + byteCount);
 
             // send the data
             if (side === 'L') {
