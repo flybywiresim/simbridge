@@ -1,7 +1,7 @@
+import { PositionData } from '../communication/types';
 import { ElevationGrid } from '../fileformat/elevationgrid';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Tile } from '../fileformat/tile';
-import { PositionDto } from '../dto/position.dto';
 import { projectWgs84 } from '../processing/gpu/helper';
 import { TileManager } from './tilemanager';
 
@@ -86,7 +86,7 @@ export class Worldmap {
         };
     }
 
-    private findRelevantTiles(position: PositionDto, rangeInNM: number): TileLoadingData {
+    private findRelevantTiles(position: PositionData, rangeInNM: number): TileLoadingData {
         let [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, rangeInNM * 1852);
         let [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, rangeInNM * 1852);
         const tiles: TileLoadingData = { whitelist: [], loadlist: [] };
@@ -118,7 +118,7 @@ export class Worldmap {
         return tiles;
     }
 
-    public updatePosition(position: PositionDto): TileLoadingData {
+    public updatePosition(position: PositionData): TileLoadingData {
         const tiles = this.findRelevantTiles(position, this.VisibilityRange);
 
         // load all missing tiles

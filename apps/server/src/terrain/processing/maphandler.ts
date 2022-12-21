@@ -4,7 +4,7 @@ import { a32nxDrawHighDensityPixel } from './gpu/A32NX/highdensitypixel';
 import { a32nxDrawLowDensityPixel } from './gpu/A32NX/lowdensitypixel';
 import { a32nxDrawWaterDensityPixel } from './gpu/A32NX/waterpixel';
 import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
-import { PositionDto } from '../dto/position.dto';
+import { PositionData } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
 import { deg2rad, distanceWgs84, rad2deg } from './generic/helper';
@@ -31,7 +31,7 @@ import {
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadElevationmap } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
-import { SimConnect } from './simconnect';
+import { SimConnect } from '../communication/simconnect';
 
 const sharp = require('sharp');
 
@@ -91,7 +91,7 @@ class MapHandler {
 
     public Initialized = false;
 
-    private currentPosition: PositionDto = null;
+    private currentPosition: PositionData = null;
 
     private uploadWorldMapToGPU: IKernelRunShortcut = null;
 
@@ -291,12 +291,13 @@ class MapHandler {
         }
 
         // initial call precompile the kernels and reduce first reaction time
-        const startupPosition: PositionDto = {
+        const startupPosition: PositionData = {
             latitude: 0,
             longitude: 0,
             altitude: 3000,
             heading: 360,
             verticalSpeed: 0,
+            gearDown: false,
         };
         this.updatePosition(startupPosition, true);
         const startupConfig: NavigationDisplayViewDto = {
@@ -306,7 +307,6 @@ class MapHandler {
             mapTransitionFps: 2,
             mapTransitionTime: 1,
             arcMode: true,
-            gearDown: false,
         };
         const map = this.createLocalElevationMap(startupConfig);
         const histogram = this.createElevationHistogram(map, startupConfig);
@@ -351,7 +351,7 @@ class MapHandler {
         if (this.gpu !== null) this.gpu.destroy();
     }
 
-    public updatePosition(position: PositionDto, startup: boolean): void {
+    public updatePosition(position: PositionData, startup: boolean): void {
         if (!this.Initialized && !startup) return;
 
         this.currentPosition = position;
@@ -752,7 +752,7 @@ class MapHandler {
             config.mapHeight,
             this.currentPosition.altitude,
             this.currentPosition.verticalSpeed,
-            config.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
+            this.currentPosition.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
         ) as Texture;
 
@@ -964,7 +964,7 @@ parentPort.on('message', (data: { type: string, instance: any }) => {
         maphandler.initialize(data.instance.aircraft as string, data.instance.map as TerrainMap);
         parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
     } else if (data.type === 'POSITION') {
-        maphandler.updatePosition(data.instance as PositionDto, false);
+        maphandler.updatePosition(data.instance as PositionData, false);
         parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'NDCONFIGURATION') {
         maphandler.configureNavigationDisplay(data.instance.side as string, data.instance.config as NavigationDisplayViewDto);

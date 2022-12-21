@@ -26,10 +26,6 @@ export class NavigationDisplayViewDto {
     @IsBoolean()
     arcMode: boolean
 
-    @ApiProperty({ description: 'Indicates if the gear is down', example: 'true' })
-    @IsBoolean()
-    gearDown: boolean
-
     @ApiProperty({ description: 'The latitude of the destination', example: 52.3923 })
     @IsOptional()
     @IsNumber()

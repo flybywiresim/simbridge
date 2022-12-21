@@ -13,8 +13,8 @@ import {
     SimulatorDataRequestMessage,
 } from '@flybywiresim/msfs-nodejs';
 import { parentPort } from 'worker_threads';
-import { NavigationDisplayData } from './navigationdisplaydata';
-import { PositionDto } from '../dto/position.dto';
+import { NavigationDisplayData } from '../processing/navigationdisplaydata';
+import { PositionData } from './types';
 
 const SimConnectClientName = 'FBW_SIMBRIDGE_SIMCONNECT';
 
@@ -142,6 +142,12 @@ export class SimConnect {
             unit: 'DEGREES',
             memberName: 'heading',
         });
+        addedDefinition = this.simulatorData.addDataDefinition({
+            type: SimulatorDataType.Int32,
+            name: 'GEAR POSITION:0',
+            unit: 'ENUM',
+            memberName: 'gearDown',
+        });
 
         if (!addedDefinition) {
             parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the simulation data area: ${this.simulatorData.lastError()}` });
@@ -191,7 +197,7 @@ export class SimConnect {
 
     private simConnectReceivedSimulatorData(message: SimulatorDataRequestMessage): void {
         if (message.definitionId === SimulatorDataId.AircraftPosition) {
-            parentPort.postMessage({ request: 'SIMOBJECT_POSITION', response: message.content as PositionDto });
+            parentPort.postMessage({ request: 'SIMOBJECT_POSITION', response: message.content as PositionData });
         }
     }
 

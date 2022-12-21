@@ -1,7 +1,6 @@
-import { Controller, Get, Patch, Body, Put, Query } from '@nestjs/common';
+import { Controller, Get, Body, Put, Query } from '@nestjs/common';
 import { ApiResponse, ApiTags, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
-import { PositionDto } from './dto/position.dto';
 import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
 
 enum DisplaySide {
