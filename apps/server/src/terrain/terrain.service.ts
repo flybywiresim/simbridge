@@ -26,6 +26,8 @@ export class TerrainService implements OnApplicationShutdown {
                 } else {
                     this.logger.log('Unable to initialize the map handler');
                 }
+            } else if (message.request === 'SIMOBJECT_POSITION') {
+                this.updatePosition(message.response as PositionDto);
             } else if (message.request === 'LOGMESSAGE') {
                 this.logger.log(message.response as string);
             } else if (message.request === 'LOGWARN') {
@@ -62,7 +64,7 @@ export class TerrainService implements OnApplicationShutdown {
         }
     }
 
-    public updatePosition(position: PositionDto): void {
+    private updatePosition(position: PositionDto): void {
         if (this.a32nxMapHandlerReady) {
             this.a32nxMapHandler.postMessage({ type: 'POSITION', instance: position });
         }

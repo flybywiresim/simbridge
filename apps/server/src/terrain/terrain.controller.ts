@@ -42,18 +42,4 @@ export class TerrainController {
     configureDisplay(@Query('display') display, @Body() config: NavigationDisplayViewDto): void {
         this.terrainService.configureNavigationDisplay(display, config);
     }
-
-    @Patch('position')
-    @ApiBody({
-        description: 'The current position',
-        type: PositionDto,
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Current position updated',
-    })
-    positionUpdate(@Body() position: PositionDto) {
-        position.heading = Math.round(position.heading);
-        this.terrainService.updatePosition(position);
-    }
 }
