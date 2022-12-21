@@ -1,17 +1,26 @@
 import {
     ClientDataArea,
     ClientDataOffsetAuto,
+    ClientDataMaxSize,
     Connection,
-    Receiver,
-    OpenMessage,
     ErrorMessage,
     ExceptionMessage,
-    ClientDataMaxSize,
+    OpenMessage,
+    Receiver,
+    SimulatorDataArea,
+    SimulatorDataType,
+    SimulatorDataPeriod,
+    SimulatorDataRequestMessage,
 } from '@flybywiresim/msfs-nodejs';
 import { parentPort } from 'worker_threads';
 import { NavigationDisplayData } from './navigationdisplaydata';
+import { PositionDto } from '../dto/position.dto';
 
 const SimConnectClientName = 'FBW_SIMBRIDGE_SIMCONNECT';
+
+const enum SimulatorDataId {
+    AircraftPosition = 0,
+}
 
 const enum ClientDataId {
     NavigationDisplayMetdataLeft = 0,
@@ -35,6 +44,8 @@ export class SimConnect {
     private connection: Connection = null;
 
     private receiver: Receiver = null;
+
+    private simulatorData: SimulatorDataArea = null;
 
     private frameMetadataLeft: ClientDataArea = null;
 
@@ -98,11 +109,56 @@ export class SimConnect {
         return addedDefinition;
     }
 
+    private registerSimulatorData(): boolean {
+        this.simulatorData = new SimulatorDataArea(this.connection, SimulatorDataId.AircraftPosition);
+
+        let addedDefinition = this.simulatorData.addDataDefinition({
+            type: SimulatorDataType.Float64,
+            name: 'PLANE ALTITUDE',
+            unit: 'FEET',
+            memberName: 'altitude',
+        });
+        addedDefinition = this.simulatorData.addDataDefinition({
+            type: SimulatorDataType.Float64,
+            name: 'PLANE LATITUDE',
+            unit: 'DEGREES',
+            memberName: 'latitude',
+        });
+        addedDefinition = this.simulatorData.addDataDefinition({
+            type: SimulatorDataType.Float64,
+            name: 'PLANE LONGITUDE',
+            unit: 'DEGREES',
+            memberName: 'longitude',
+        });
+        addedDefinition = this.simulatorData.addDataDefinition({
+            type: SimulatorDataType.Float64,
+            name: 'VERTICAL SPEED',
+            unit: 'FEET PER MINUTE',
+            memberName: 'verticalSpeed',
+        });
+        addedDefinition = this.simulatorData.addDataDefinition({
+            type: SimulatorDataType.Float64,
+            name: 'PLANE HEADING DEGREES TRUE',
+            unit: 'DEGREES',
+            memberName: 'heading',
+        });
+
+        if (!addedDefinition) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the simulation data area: ${this.simulatorData.lastError()}` });
+        }
+
+        return addedDefinition;
+    }
+
     private simConnectOpen(message: OpenMessage): void {
         parentPort.postMessage({
             request: 'LOGMESSAGE',
             response: `Connected to ${message.application.name} - v${message.application.version.major}.${message.application.version.minor}`,
         });
+
+        if (this.receiver !== null && this.simulatorData !== null) {
+            this.receiver.requestSimulatorData(this.simulatorData, SimulatorDataPeriod.Second);
+        }
     }
 
     private simConnectQuit(): void {
@@ -112,6 +168,7 @@ export class SimConnect {
         this.frameMetadataRight = null;
         this.frameDataLeft = null;
         this.frameDataRight = null;
+        this.simulatorData = null;
         this.connection.close();
 
         parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Received a quit signal. Trying to reconnect...' });
@@ -132,6 +189,12 @@ export class SimConnect {
         console.log(message.exceptionText);
     }
 
+    private simConnectReceivedSimulatorData(message: SimulatorDataRequestMessage): void {
+        if (message.definitionId === SimulatorDataId.AircraftPosition) {
+            parentPort.postMessage({ request: 'SIMOBJECT_POSITION', response: message.content as PositionDto });
+        }
+    }
+
     private connectToSim() {
         if (this.shutdown) return;
 
@@ -146,6 +209,7 @@ export class SimConnect {
         this.receiver = new Receiver(this.connection);
         this.receiver.addCallback('open', (message: OpenMessage) => this.simConnectOpen(message));
         this.receiver.addCallback('quit', () => this.simConnectQuit());
+        this.receiver.addCallback('simulatorData', (message: SimulatorDataRequestMessage) => this.simConnectReceivedSimulatorData(message));
         this.receiver.addCallback('exception', (message: ExceptionMessage) => this.simConnectException(message));
         this.receiver.addCallback('error', (message: ErrorMessage) => this.simConnectError(message));
         this.receiver.start();
@@ -160,7 +224,8 @@ export class SimConnect {
             'FBW_SIMBRIDGE_TERRONND_METADATA_RIGHT',
             DataDefinitionId.NavigationDisplayMetadataAreaRight,
         );
-        if (this.frameMetadataLeft === null || this.frameMetadataRight === null || this.registerNavigationDisplayData() === false) {
+        const createdSimulatorData = this.registerSimulatorData();
+        if (this.frameMetadataLeft === null || this.frameMetadataRight === null || this.registerNavigationDisplayData() === false || createdSimulatorData === false) {
             this.receiver.stop();
             this.connection.close();
             setTimeout(() => this.connectToSim(), 10000);
