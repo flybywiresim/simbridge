@@ -28,6 +28,8 @@ export class TerrainService implements OnApplicationShutdown {
                 }
             } else if (message.request === 'SIMOBJECT_POSITION') {
                 this.updatePosition(message.response as PositionData);
+            } else if (message.request === 'SIMCONNECT_QUIT') {
+                this.a32nxMapHandler.postMessage({ type: 'STOP_RENDERING' });
             } else if (message.request === 'LOGMESSAGE') {
                 this.logger.log(message.response as string);
             } else if (message.request === 'LOGWARN') {

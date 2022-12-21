@@ -178,6 +178,7 @@ export class SimConnect {
         this.connection.close();
 
         parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Received a quit signal. Trying to reconnect...' });
+        parentPort.postMessage({ request: 'SIMCONNECT_QUIT', response: undefined });
 
         this.connectToSim();
     }

@@ -955,6 +955,24 @@ class MapHandler {
             }
         }
     }
+
+    public stopRendering(): void {
+        if (this.navigationDisplayRendering.L.config !== null) {
+            this.navigationDisplayRendering.L.config.active = false;
+        }
+        if (this.navigationDisplayRendering.L.timeout !== null) {
+            clearTimeout(this.navigationDisplayRendering.L.timeout);
+            this.navigationDisplayRendering.L.timeout = null;
+        }
+
+        if (this.navigationDisplayRendering.R.config !== null) {
+            this.navigationDisplayRendering.R.config.active = false;
+        }
+        if (this.navigationDisplayRendering.R.timeout !== null) {
+            clearTimeout(this.navigationDisplayRendering.R.timeout);
+            this.navigationDisplayRendering.R.timeout = null;
+        }
+    }
 }
 
 const maphandler = new MapHandler();
@@ -969,6 +987,8 @@ parentPort.on('message', (data: { type: string, instance: any }) => {
     } else if (data.type === 'NDCONFIGURATION') {
         maphandler.configureNavigationDisplay(data.instance.side as string, data.instance.config as NavigationDisplayViewDto);
         parentPort.postMessage({ request: data.type, response: undefined });
+    } else if (data.type === 'STOP_RENDERING') {
+        maphandler.stopRendering();
     } else if (data.type === 'SHUTDOWN') {
         maphandler.shutdown();
         parentPort.postMessage({ request: data.type, response: undefined });
