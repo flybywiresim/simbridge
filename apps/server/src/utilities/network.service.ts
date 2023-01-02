@@ -121,15 +121,17 @@ export class NetworkService implements OnApplicationShutdown {
         return new Promise<string | undefined>((resolve) => {
             const conn = createConnection({ host: 'api.flybywiresim.com', port: 443, timeout: 1000 })
                 .on('connect', () => {
+                    conn.destroy();
                     resolve((conn.address() as AddressInfo).address);
                 })
                 .on('timeout', () => {
+                    conn.destroy();
                     resolve(this.getLocalIpFallback(defaultToLocalhost));
                 })
                 .on('error', () => {
+                    conn.destroy();
                     resolve(this.getLocalIpFallback(defaultToLocalhost));
                 });
-            conn.destroy();
         });
     }
 
