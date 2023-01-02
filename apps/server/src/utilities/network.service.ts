@@ -121,8 +121,10 @@ export class NetworkService implements OnApplicationShutdown {
         return new Promise<string | undefined>((resolve) => {
             const conn = createConnection({ host: 'api.flybywiresim.com', port: 443, timeout: 1000 })
                 .on('connect', () => {
+                    const { address } = conn.address() as AddressInfo;
+                    // Calling destroy on every event to make sure simbridge can shut down cleanly
                     conn.destroy();
-                    resolve((conn.address() as AddressInfo).address);
+                    resolve(address);
                 })
                 .on('timeout', () => {
                     conn.destroy();
