@@ -129,6 +129,7 @@ export class NetworkService implements OnApplicationShutdown {
                 .on('error', () => {
                     resolve(this.getLocalIpFallback(defaultToLocalhost));
                 });
+            conn.destroy();
         });
     }
 
