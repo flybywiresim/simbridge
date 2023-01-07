@@ -162,12 +162,7 @@ export class SimConnect {
         return addedDefinition;
     }
 
-    private simConnectOpen(message: OpenMessage): void {
-        parentPort.postMessage({
-            request: 'LOGMESSAGE',
-            response: `Connected to ${message.application.name} - v${message.application.version.major}.${message.application.version.minor}`,
-        });
-
+    private simConnectOpen(_message: OpenMessage): void {
         if (this.receiver !== null && this.simulatorData !== null) {
             this.receiver.requestSimulatorData(this.simulatorData, SimulatorDataPeriod.Second);
             this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.Second, ClientDataRequest.Default);
