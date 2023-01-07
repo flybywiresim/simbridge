@@ -196,9 +196,9 @@ export class SimConnect {
         }
     }
 
-    private simConnectException(message: ExceptionMessage): void {
-        console.log(`Exception: ${message.exception} ${message.sendId} ${message.index}`);
-        console.log(message.exceptionText);
+    private simConnectException(_message: ExceptionMessage): void {
+        this.resetConnection();
+        setTimeout(() => this.connectToSim(), 10000);
     }
 
     // Rust stores some values defragmented
