@@ -297,6 +297,8 @@ class MapHandler {
 
     public initialize(aircraft: string, terrainmap: TerrainMap): void {
         this.simconnect = new SimConnect();
+        this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
+        this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
 
         this.worldmap = new Worldmap(terrainmap);
 
