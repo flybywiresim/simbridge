@@ -123,7 +123,7 @@ export class SimConnect {
 
         this.frameDataRight = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameRight);
         this.frameDataRight.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT');
-        addedDefinition = this.frameDataLeft.addDataDefinition({
+        addedDefinition = this.frameDataRight.addDataDefinition({
             definitionId: DataDefinitionId.NavigationDisplayFrameAreaRight,
             offset: ClientDataOffsetAuto,
             sizeOrType: ClientDataMaxSize,
