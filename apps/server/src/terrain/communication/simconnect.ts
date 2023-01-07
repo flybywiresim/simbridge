@@ -174,7 +174,7 @@ export class SimConnect {
         }
     }
 
-    private simConnectQuit(): void {
+    private resetConnection(): void {
         this.receiver.stop();
         this.receiver = null;
         this.frameMetadataLeft = null;
@@ -183,7 +183,10 @@ export class SimConnect {
         this.frameDataRight = null;
         this.simulatorData = null;
         this.connection.close();
+    }
 
+    private simConnectQuit(): void {
+        this.resetConnection();
         parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Received a quit signal. Trying to reconnect...' });
         parentPort.postMessage({ request: 'SIMCONNECT_QUIT', response: undefined });
 
