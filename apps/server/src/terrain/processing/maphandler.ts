@@ -140,13 +140,13 @@ class MapHandler {
     } = {}
 
     private onPositionUpdate(data: PositionData): void {
-        this.currentPosition = data;
+        this.updatePosition(data, false);
     }
 
     private onAircraftStatusUpdate(data: AircraftStatus): void {
         this.aircraftStatus = data;
-        this.navigationDisplayRendering.L.config = this.aircraftStatus.navigationDisplayCapt;
-        this.navigationDisplayRendering.R.config = this.aircraftStatus.navigationDisplayFO;
+        this.configureNavigationDisplay('L', this.aircraftStatus.navigationDisplayCapt);
+        this.configureNavigationDisplay('R', this.aircraftStatus.navigationDisplayFO);
     }
 
     private createRenderingKernelsA32NX(): void {
@@ -502,7 +502,7 @@ class MapHandler {
         return this.worldMapCache[index];
     }
 
-    public configureNavigationDisplay(display: string, config: NavigationDisplay): void {
+    private configureNavigationDisplay(display: string, config: NavigationDisplay): void {
         if (display in this.navigationDisplayRendering) {
             if (this.navigationDisplayRendering[display].config !== null
                 && (this.navigationDisplayRendering[display].config.arcMode !== config.arcMode || config.active === false)
@@ -995,9 +995,6 @@ parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
         maphandler.initialize(data.instance.aircraft as string, data.instance.map as TerrainMap);
         parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
-    } else if (data.type === 'POSITION') {
-        maphandler.updatePosition(data.instance as PositionData, false);
-        parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'STOP_RENDERING') {
         maphandler.stopRendering();
     } else if (data.type === 'SHUTDOWN') {
