@@ -3,8 +3,7 @@ import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { a32nxDrawHighDensityPixel } from './gpu/A32NX/highdensitypixel';
 import { a32nxDrawLowDensityPixel } from './gpu/A32NX/lowdensitypixel';
 import { a32nxDrawWaterDensityPixel } from './gpu/A32NX/waterpixel';
-import { NavigationDisplayViewDto } from '../dto/navigationdisplayview.dto';
-import { PositionData } from '../communication/types';
+import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
 import { deg2rad, distanceWgs84, rad2deg } from './generic/helper';
@@ -38,6 +37,7 @@ const sharp = require('sharp');
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
 const ThreeNauticalMilesInFeet = 18228.3;
+const MetresToNauticalMiles = 1852;
 
 // debugging parameters
 const DebugWorldCache = false;
@@ -61,6 +61,10 @@ const HistogramBinCount = Math.ceil((HistogramMaximumElevation - HistogramMinimu
 const HistogramPatchSize = 128;
 
 // rendering parameters
+const RenderingArcModePixelHeight = 492;
+const RenderingRoseModePixelHeight = 250;
+const RenderingCutOffAltitudeMinimimum = 200;
+const RenderingCutOffAltitudeMaximum = 400;
 const RenderingLowerPercentile = 0.85;
 const RenderingUpperPercentile = 0.95;
 const RenderingFlatEarthThreshold = 100;
@@ -121,9 +125,11 @@ class MapHandler {
 
     private elevationHistogram: IKernelRunShortcut = null;
 
+    private aircraftStatus: AircraftStatus = null;
+
     private navigationDisplayRendering: {
         [side: string]: {
-            config: NavigationDisplayViewDto,
+            config: NavigationDisplay,
             timeout: NodeJS.Timeout,
             startupTimestamp: number,
             finalMap: IKernelRunShortcut,
@@ -132,6 +138,16 @@ class MapHandler {
             lastFrame: Texture,
         }
     } = {}
+
+    private onPositionUpdate(data: PositionData): void {
+        this.currentPosition = data;
+    }
+
+    private onAircraftStatusUpdate(data: AircraftStatus): void {
+        this.aircraftStatus = data;
+        this.navigationDisplayRendering.L.config = this.aircraftStatus.navigationDisplayCapt;
+        this.navigationDisplayRendering.R.config = this.aircraftStatus.navigationDisplayFO;
+    }
 
     private createRenderingKernelsA32NX(): void {
         /* create the sides */
@@ -291,23 +307,32 @@ class MapHandler {
         }
 
         // initial call precompile the kernels and reduce first reaction time
+        const startupConfig: NavigationDisplay = {
+            range: 10,
+            arcMode: true,
+            active: true,
+            brightness: 1.0,
+        };
+        this.aircraftStatus = {
+            adiruDataValid: true,
+            latitude: 5.0,
+            longitude: 5.0,
+            altitude: 1000,
+            heading: 360,
+            verticalSpeed: 0,
+            gearIsDown: false,
+            destinationDataValid: false,
+            destinationLatitude: 0.0,
+            destinationLongitude: 0.0,
+            navigationDisplayCapt: startupConfig,
+            navigationDisplayFO: startupConfig,
+            navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
+        };
         const startupPosition: PositionData = {
             latitude: 0,
             longitude: 0,
-            altitude: 3000,
-            heading: 360,
-            verticalSpeed: 0,
-            gearDown: false,
         };
         this.updatePosition(startupPosition, true);
-        const startupConfig: NavigationDisplayViewDto = {
-            active: true,
-            mapHeight: 20,
-            meterPerPixel: 0,
-            mapTransitionFps: 2,
-            mapTransitionTime: 1,
-            arcMode: true,
-        };
         const map = this.createLocalElevationMap(startupConfig);
         const histogram = this.createElevationHistogram(map, startupConfig);
 
@@ -322,6 +347,7 @@ class MapHandler {
         this.createNavigationDisplayTransitionFrame('R', display, display, null, startupConfig, 0, 20.0, true);
 
         this.currentPosition = undefined;
+        this.aircraftStatus = undefined;
         this.Initialized = true;
     }
 
@@ -474,13 +500,7 @@ class MapHandler {
         return this.worldMapCache[index];
     }
 
-    public configureNavigationDisplay(display: string, config: NavigationDisplayViewDto): void {
-        // ensure that the cut off values are set
-        if (config.cutOffAltitudeMinimimum === undefined || config.cutOffAltitudeMaximum === undefined) {
-            config.cutOffAltitudeMinimimum = 200;
-            config.cutOffAltitudeMaximum = 400;
-        }
-
+    public configureNavigationDisplay(display: string, config: NavigationDisplay): void {
         if (display in this.navigationDisplayRendering) {
             if (this.navigationDisplayRendering[display].config !== null
                 && (this.navigationDisplayRendering[display].config.arcMode !== config.arcMode || config.active === false)
@@ -519,7 +539,11 @@ class MapHandler {
         return flattened;
     }
 
-    private createLocalElevationMap(config: NavigationDisplayViewDto): Texture {
+    private createLocalElevationMap(config: NavigationDisplay): Texture {
+        config.mapHeight = config.arcMode ? RenderingArcModePixelHeight : RenderingRoseModePixelHeight;
+        let metresPerPixel = Math.round((config.range * MetresToNauticalMiles) / config.mapHeight);
+        if (config.arcMode) metresPerPixel *= 2.0;
+
         // prepare the output buffer
         if (this.extractLocalElevationMap.output === null
             || this.extractLocalElevationMap.output[0] !== RenderingMaxNavigationDisplayWidth
@@ -530,9 +554,9 @@ class MapHandler {
 
         // create the local elevation map
         const localElevationMap = this.extractLocalElevationMap(
-            this.currentPosition.latitude,
-            this.currentPosition.longitude,
-            this.currentPosition.heading,
+            this.aircraftStatus.latitude,
+            this.aircraftStatus.longitude,
+            this.aircraftStatus.heading,
             this.worldMapMetadata.currentGridPosition.x,
             this.worldMapMetadata.currentGridPosition.y,
             this.gpuWorldMap,
@@ -543,7 +567,7 @@ class MapHandler {
             this.worldMapMetadata.northeast.latitude,
             this.worldMapMetadata.northeast.longitude,
             config.mapHeight,
-            config.meterPerPixel,
+            metresPerPixel,
             config.arcMode,
         ) as Texture;
 
@@ -569,7 +593,7 @@ class MapHandler {
         return localElevationMap;
     }
 
-    private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplayViewDto): Texture {
+    private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplay): Texture {
         // create the histogram statistics
         const patchesInX = Math.ceil(RenderingMaxNavigationDisplayWidth / HistogramPatchSize);
         const patchesInY = Math.ceil(config.mapHeight / HistogramPatchSize);
@@ -607,39 +631,32 @@ class MapHandler {
         return histogram;
     }
 
-    private calculateAbsoluteCutOffAltitude(
-        destinationLatitude: number | undefined,
-        destinationLongitude: number | undefined,
-        cutOffAltitudeMinimimum: number,
-        cutOffAltitudeMaximum: number,
-    ): number {
-        if (destinationLatitude === undefined
-            || destinationLongitude === undefined
-        ) {
+    private calculateAbsoluteCutOffAltitude(): number {
+        if (this.aircraftStatus === null || this.aircraftStatus.destinationDataValid === false) {
             return HistogramMinimumElevation;
         }
 
-        const destinationElevation = this.extractElevation(destinationLatitude, destinationLongitude);
+        const destinationElevation = this.extractElevation(this.aircraftStatus.destinationLatitude, this.aircraftStatus.destinationLongitude);
 
         if (destinationElevation !== InvalidElevation) {
-            let cutOffAltitude = cutOffAltitudeMaximum;
+            let cutOffAltitude = RenderingCutOffAltitudeMaximum;
 
             const distance = distanceWgs84(
                 this.currentPosition.latitude,
                 this.currentPosition.longitude,
-                destinationLatitude,
-                destinationLongitude,
+                this.aircraftStatus.destinationLatitude,
+                this.aircraftStatus.destinationLongitude,
             );
             if (distance <= RenderingMaxAirportDistance) {
                 const distanceFeet = distance * FeetPerNauticalMile;
                 if (DebugCutOffAltitude) {
                     console.log(`Distance to destination: ${distance}`);
                     console.log(`Destination elevation: ${destinationElevation}`);
-                    console.log(`Altitude: ${this.currentPosition.altitude}`);
+                    console.log(`Altitude: ${this.aircraftStatus.altitude}`);
                 }
 
                 // calculate the glide until touchdown
-                const opposite = this.currentPosition.altitude - destinationElevation;
+                const opposite = this.aircraftStatus.altitude - destinationElevation;
                 let glideRadian = 0.0;
                 if (opposite > 0 && distance > 0) {
                     // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
@@ -652,16 +669,16 @@ class MapHandler {
                     if (DebugCutOffAltitude) console.log('Glide slope based cut off altitude');
                     if (distance <= 1.0 || glideRadian === 0.0) {
                         // use the minimum value close to the airport
-                        cutOffAltitude = cutOffAltitudeMinimimum;
+                        cutOffAltitude = RenderingCutOffAltitudeMinimimum;
                         if (DebugCutOffAltitude) console.log('Use minimum cut off altitude');
                     } else {
                         // use a linear model from max to min for 4 nm to 1 nm
-                        const slope = (cutOffAltitudeMinimimum - cutOffAltitudeMaximum) / ThreeNauticalMilesInFeet;
-                        cutOffAltitude = Math.round(slope * (distanceFeet - FeetPerNauticalMile) + cutOffAltitudeMaximum);
+                        const slope = (RenderingCutOffAltitudeMinimimum - RenderingCutOffAltitudeMaximum) / ThreeNauticalMilesInFeet;
+                        cutOffAltitude = Math.round(slope * (distanceFeet - FeetPerNauticalMile) + RenderingCutOffAltitudeMaximum);
 
                         // ensure that we are not below the minimum and not above the maximum
-                        cutOffAltitude = Math.max(cutOffAltitude, cutOffAltitudeMinimimum);
-                        cutOffAltitude = Math.min(cutOffAltitude, cutOffAltitudeMaximum);
+                        cutOffAltitude = Math.max(cutOffAltitude, RenderingCutOffAltitudeMinimimum);
+                        cutOffAltitude = Math.min(cutOffAltitude, RenderingCutOffAltitudeMaximum);
                     }
                 }
             }
@@ -738,7 +755,7 @@ class MapHandler {
      */
     private createNavigationDisplayMap(
         side: string,
-        config: NavigationDisplayViewDto,
+        config: NavigationDisplay,
         elevationMap: Texture,
         histogram: Texture,
         cutOffAltitude: number,
@@ -750,9 +767,9 @@ class MapHandler {
             elevationMap,
             histogram,
             config.mapHeight,
-            this.currentPosition.altitude,
-            this.currentPosition.verticalSpeed,
-            this.currentPosition.gearDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
+            this.aircraftStatus.altitude,
+            this.aircraftStatus.verticalSpeed,
+            this.aircraftStatus.gearIsDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
         ) as Texture;
 
@@ -771,7 +788,7 @@ class MapHandler {
         lastFrame: Texture,
         nextFrame: Texture,
         viewData: NavigationDisplayData,
-        config: NavigationDisplayViewDto,
+        config: NavigationDisplay,
         angleThresholdStart: number,
         angleThresholdStop: number,
         startup: boolean,
@@ -853,12 +870,7 @@ class MapHandler {
             const elevationMap = this.createLocalElevationMap(config);
             const histogram = this.createElevationHistogram(elevationMap, config);
 
-            const cutOffAltitude = this.calculateAbsoluteCutOffAltitude(
-                config.destinationLatitude,
-                config.destinationLongitude,
-                config.cutOffAltitudeMinimimum,
-                config.cutOffAltitudeMaximum,
-            );
+            const cutOffAltitude = this.calculateAbsoluteCutOffAltitude();
 
             // create the final map
             const renderingData = this.createNavigationDisplayMap(side, config, elevationMap, histogram, cutOffAltitude);
@@ -983,9 +995,6 @@ parentPort.on('message', (data: { type: string, instance: any }) => {
         parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
     } else if (data.type === 'POSITION') {
         maphandler.updatePosition(data.instance as PositionData, false);
-        parentPort.postMessage({ request: data.type, response: undefined });
-    } else if (data.type === 'NDCONFIGURATION') {
-        maphandler.configureNavigationDisplay(data.instance.side as string, data.instance.config as NavigationDisplayViewDto);
         parentPort.postMessage({ request: data.type, response: undefined });
     } else if (data.type === 'STOP_RENDERING') {
         maphandler.stopRendering();

@@ -1,12 +1,6 @@
-import { Controller, Get, Body, Put, Query } from '@nestjs/common';
-import { ApiResponse, ApiTags, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get } from '@nestjs/common';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TerrainService } from './terrain.service';
-import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
-
-enum DisplaySide {
-    Left = 'L',
-    Right = 'R',
-}
 
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
@@ -26,19 +20,5 @@ export class TerrainController {
         // if (this.terrainService.Terrainmap === undefined || this.terrainService.MapManager === undefined) {
         //     throw new NotFoundException('System not initialized');
         // }
-    }
-
-    @Put('displaysettings')
-    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
-    @ApiBody({
-        description: 'The new connection containing the flight number and current location',
-        type: NavigationDisplayViewDto,
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Updated the ND display configuration',
-    })
-    configureDisplay(@Query('display') display, @Body() config: NavigationDisplayViewDto): void {
-        this.terrainService.configureNavigationDisplay(display, config);
     }
 }

@@ -2,8 +2,6 @@ import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { FileService } from '../utilities/file.service';
-import { PositionData } from './communication/types';
-import { NavigationDisplayViewDto } from './dto/navigationdisplayview.dto';
 import { TerrainMap } from './fileformat/terrainmap';
 
 @Injectable()
@@ -26,10 +24,6 @@ export class TerrainService implements OnApplicationShutdown {
                 } else {
                     this.logger.log('Unable to initialize the map handler');
                 }
-            } else if (message.request === 'SIMOBJECT_POSITION') {
-                this.updatePosition(message.response as PositionData);
-            } else if (message.request === 'SIMCONNECT_QUIT') {
-                this.a32nxMapHandler.postMessage({ type: 'STOP_RENDERING' });
             } else if (message.request === 'LOGMESSAGE') {
                 this.logger.log(message.response as string);
             } else if (message.request === 'LOGWARN') {
@@ -63,24 +57,6 @@ export class TerrainService implements OnApplicationShutdown {
             this.logger.warn('Did not find the terrain.map-file');
             this.logger.warn(err);
             return undefined;
-        }
-    }
-
-    private updatePosition(position: PositionData): void {
-        if (this.a32nxMapHandlerReady) {
-            this.a32nxMapHandler.postMessage({ type: 'POSITION', instance: position });
-        }
-    }
-
-    public configureNavigationDisplay(side: string, config: NavigationDisplayViewDto): void {
-        if (this.a32nxMapHandlerReady) {
-            this.a32nxMapHandler.postMessage({
-                type: 'NDCONFIGURATION',
-                instance: {
-                    side,
-                    config,
-                },
-            });
         }
     }
 }

@@ -11,10 +11,18 @@ import {
     SimulatorDataType,
     SimulatorDataPeriod,
     SimulatorDataRequestMessage,
+    ClientDataRequestMessage,
+    ClientDataPeriod,
+    ClientDataRequest,
 } from '@flybywiresim/msfs-nodejs';
 import { parentPort } from 'worker_threads';
 import { NavigationDisplayData } from '../processing/navigationdisplaydata';
-import { PositionData } from './types';
+import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
+
+export type UpdateCallbacks = {
+    positionUpdate: (data: PositionData) => void;
+    aircraftStatusUpdate: (data: AircraftStatus) => void;
+}
 
 const SimConnectClientName = 'FBW_SIMBRIDGE_SIMCONNECT';
 
@@ -23,22 +31,30 @@ const enum SimulatorDataId {
 }
 
 const enum ClientDataId {
-    NavigationDisplayMetdataLeft = 0,
-    NavigationDisplayMetdataRight = 1,
-    NavigationDisplayFrameLeft = 2,
-    NavigationDisplayFrameRight = 3,
+    EnhancedGpwcAircraftStatus = 0,
+    NavigationDisplayMetdataLeft = 1,
+    NavigationDisplayMetdataRight = 2,
+    NavigationDisplayFrameLeft = 3,
+    NavigationDisplayFrameRight = 4,
 }
 
 const enum DataDefinitionId {
-    NavigationDisplayMetadataAreaLeft = 0,
-    NavigationDisplayMetadataAreaRight = 1,
-    NavigationDisplayFrameAreaLeft = 2,
-    NavigationDisplayFrameAreaRight = 3,
+    EnhancedGpwcAircraftStatus = 0,
+    NavigationDisplayMetadataAreaLeft = 1,
+    NavigationDisplayMetadataAreaRight = 2,
+    NavigationDisplayFrameAreaLeft = 3,
+    NavigationDisplayFrameAreaRight = 4,
 }
 
+const EnhancedGpwcAircraftStatusByteCount = 48;
 const NavigationDisplayThresholdByteCount = 14;
 
 export class SimConnect {
+    private callbacks: UpdateCallbacks = {
+        positionUpdate: null,
+        aircraftStatusUpdate: null,
+    };
+
     private shutdown: boolean = false;
 
     private connection: Connection = null;
@@ -47,6 +63,8 @@ export class SimConnect {
 
     private simulatorData: SimulatorDataArea = null;
 
+    private egpwcAircraftStatus: ClientDataArea = null;
+
     private frameMetadataLeft: ClientDataArea = null;
 
     private frameMetadataRight: ClientDataArea = null;
@@ -54,6 +72,18 @@ export class SimConnect {
     private frameDataLeft: ClientDataArea = null;
 
     private frameDataRight: ClientDataArea = null;
+
+    private registerEgpwcAircraftStatus(): void {
+        this.egpwcAircraftStatus = new ClientDataArea(this.connection, ClientDataId.EnhancedGpwcAircraftStatus);
+        this.egpwcAircraftStatus.mapNameToId('FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS');
+        this.egpwcAircraftStatus.addDataDefinition({
+            definitionId: DataDefinitionId.EnhancedGpwcAircraftStatus,
+            offset: ClientDataOffsetAuto,
+            sizeOrType: EnhancedGpwcAircraftStatusByteCount,
+            epsilon: 0,
+            memberName: 'AircraftStatus',
+        });
+    }
 
     private registerNavigationDisplayMetadata(clientId: ClientDataId, mapName: string, dataDefinitionId: DataDefinitionId): ClientDataArea {
         const metadata = new ClientDataArea(this.connection, clientId);
@@ -114,12 +144,6 @@ export class SimConnect {
 
         let addedDefinition = this.simulatorData.addDataDefinition({
             type: SimulatorDataType.Float64,
-            name: 'PLANE ALTITUDE',
-            unit: 'FEET',
-            memberName: 'altitude',
-        });
-        addedDefinition = this.simulatorData.addDataDefinition({
-            type: SimulatorDataType.Float64,
             name: 'PLANE LATITUDE',
             unit: 'DEGREES',
             memberName: 'latitude',
@@ -129,24 +153,6 @@ export class SimConnect {
             name: 'PLANE LONGITUDE',
             unit: 'DEGREES',
             memberName: 'longitude',
-        });
-        addedDefinition = this.simulatorData.addDataDefinition({
-            type: SimulatorDataType.Float64,
-            name: 'VERTICAL SPEED',
-            unit: 'FEET PER MINUTE',
-            memberName: 'verticalSpeed',
-        });
-        addedDefinition = this.simulatorData.addDataDefinition({
-            type: SimulatorDataType.Float64,
-            name: 'PLANE HEADING DEGREES TRUE',
-            unit: 'DEGREES',
-            memberName: 'heading',
-        });
-        addedDefinition = this.simulatorData.addDataDefinition({
-            type: SimulatorDataType.Int32,
-            name: 'GEAR POSITION:0',
-            unit: 'ENUM',
-            memberName: 'gearDown',
         });
 
         if (!addedDefinition) {
@@ -164,6 +170,7 @@ export class SimConnect {
 
         if (this.receiver !== null && this.simulatorData !== null) {
             this.receiver.requestSimulatorData(this.simulatorData, SimulatorDataPeriod.Second);
+            this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.Second, ClientDataRequest.Default);
         }
     }
 
@@ -196,9 +203,57 @@ export class SimConnect {
         console.log(message.exceptionText);
     }
 
+    // Rust stores some values defragmented
+    private static readDefragmentedFloat(buffer: Buffer, indices: [number, number, number, number]): number {
+        const temporaryBuffer = new Uint8Array(4);
+        for (let i = 0; i < 4; ++i) {
+            temporaryBuffer[i] = buffer.at(indices[i]);
+        }
+        return Buffer.from(temporaryBuffer).readFloatLE(0);
+    }
+
+    private simConnectReceivedClientData(message: ClientDataRequestMessage): void {
+        if (message.clientDataId === ClientDataId.EnhancedGpwcAircraftStatus) {
+            const entry = Object.entries(message.content)[0];
+            const data = entry[1] as ArrayBuffer;
+            const buffer = Buffer.from(data);
+
+            // offsets are found based on an reverse engineering of transmitted data
+            const status: AircraftStatus = {
+                adiruDataValid: buffer.readUInt16LE(34) !== 0,
+                latitude: SimConnect.readDefragmentedFloat(buffer, [28, 29, 0, 1]),
+                longitude: buffer.readFloatLE(2),
+                altitude: buffer.readInt32LE(6),
+                heading: buffer.readInt16LE(40),
+                verticalSpeed: buffer.readInt16LE(20),
+                gearIsDown: buffer.readUInt8(42) !== 0,
+                destinationDataValid: buffer.readUInt8(43) !== 0,
+                destinationLatitude: SimConnect.readDefragmentedFloat(buffer, [10, 11, 30, 31]),
+                destinationLongitude: SimConnect.readDefragmentedFloat(buffer, [32, 33, 38, 39]),
+                navigationDisplayCapt: {
+                    range: buffer.readUInt16LE(22),
+                    arcMode: buffer.readUInt8(24) !== 0,
+                    active: buffer.readUInt8(25) !== 0,
+                    brightness: buffer.readFloatLE(12),
+                },
+                navigationDisplayFO: {
+                    range: buffer.readUInt16LE(36),
+                    arcMode: buffer.readUInt8(26) !== 0,
+                    active: buffer.readUInt8(27) !== 0,
+                    brightness: buffer.readFloatLE(16),
+                },
+                navigationDisplayRenderingMode: buffer.readUInt8(buffer.readUInt8(45)) as TerrainRenderingMode,
+            };
+
+            if (this.callbacks.aircraftStatusUpdate !== null) {
+                this.callbacks.aircraftStatusUpdate(status);
+            }
+        }
+    }
+
     private simConnectReceivedSimulatorData(message: SimulatorDataRequestMessage): void {
-        if (message.definitionId === SimulatorDataId.AircraftPosition) {
-            parentPort.postMessage({ request: 'SIMOBJECT_POSITION', response: message.content as PositionData });
+        if (message.definitionId === SimulatorDataId.AircraftPosition && this.callbacks.positionUpdate !== null) {
+            this.callbacks.positionUpdate(message.content as PositionData);
         }
     }
 
@@ -217,10 +272,12 @@ export class SimConnect {
         this.receiver.addCallback('open', (message: OpenMessage) => this.simConnectOpen(message));
         this.receiver.addCallback('quit', () => this.simConnectQuit());
         this.receiver.addCallback('simulatorData', (message: SimulatorDataRequestMessage) => this.simConnectReceivedSimulatorData(message));
+        this.receiver.addCallback('clientData', (message: ClientDataRequestMessage) => this.simConnectReceivedClientData(message));
         this.receiver.addCallback('exception', (message: ExceptionMessage) => this.simConnectException(message));
         this.receiver.addCallback('error', (message: ErrorMessage) => this.simConnectError(message));
         this.receiver.start();
 
+        this.registerEgpwcAircraftStatus();
         this.frameMetadataLeft = this.registerNavigationDisplayMetadata(
             ClientDataId.NavigationDisplayMetdataLeft,
             'FBW_SIMBRIDGE_TERRONND_METADATA_LEFT',
@@ -291,5 +348,9 @@ export class SimConnect {
                 parentPort.postMessage({ request: 'LOGERROR', response: `Could not send frame data: ${this.frameDataRight.lastError()}` });
             }
         }
+    }
+
+    public addUpdateCallback<K extends keyof UpdateCallbacks>(event: K, callback: UpdateCallbacks[K]): void {
+        this.callbacks[event] = callback;
     }
 }
