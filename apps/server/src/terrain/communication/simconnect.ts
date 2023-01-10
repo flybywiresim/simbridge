@@ -242,7 +242,7 @@ export class SimConnect {
                         arcMode: buffer.readUInt8(33) !== 0,
                         active: buffer.readUInt8(34) !== 0,
                     },
-                    navigationDisplayRenderingMode: buffer.readUInt8(buffer.readUInt8(35)) as TerrainRenderingMode,
+                    navigationDisplayRenderingMode: buffer.readUInt8(35) as TerrainRenderingMode,
                 };
 
                 this.callbacks.aircraftStatusUpdate(status);
