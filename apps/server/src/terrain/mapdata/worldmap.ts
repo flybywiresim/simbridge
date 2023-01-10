@@ -118,6 +118,14 @@ export class Worldmap {
         return tiles;
     }
 
+    public resetInternalData(): void {
+        this.TileManager.grid.forEach((row) => {
+            row.forEach((column) => {
+                column.elevationmap = undefined;
+            });
+        });
+    }
+
     public updatePosition(position: PositionData): TileLoadingData {
         const tiles = this.findRelevantTiles(position, this.VisibilityRange);
 
