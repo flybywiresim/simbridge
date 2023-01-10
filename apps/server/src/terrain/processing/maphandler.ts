@@ -872,8 +872,6 @@ class MapHandler {
 
             // send the threshold data for the map
             const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
-            thresholdData.ImageWidth = config.mapWidth;
-            thresholdData.ImageHeight = config.mapHeight;
 
             if (!startup) {
                 switch (this.aircraftStatus.navigationDisplayRenderingMode) {

@@ -5,10 +5,6 @@ export enum TerrainLevelMode {
 }
 
 export class NavigationDisplayData {
-    public ImageWidth: number = 0;
-
-    public ImageHeight: number = 0;
-
     public MinimumElevation: number = Infinity;
 
     public MinimumElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
