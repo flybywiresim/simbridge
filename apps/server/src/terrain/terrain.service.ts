@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { FileService } from '../utilities/file.service';
+import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { TerrainMap } from './fileformat/terrainmap';
 
 @Injectable()
@@ -13,6 +14,21 @@ export class TerrainService implements OnApplicationShutdown {
     private mapHandler: Worker = null;
 
     private terrainDirectory = 'terrain/';
+
+    private frameDataTimestampCallbacks: { [side: string]: { callback: (timestamp: number) => void } } = {
+        L: { callback: null },
+        R: { callback: null },
+    };
+
+    private frameDataThresholdsCallbacks: { [side: string]: { callback: (thresholds: NavigationDisplayThresholdsDto) => void } } = {
+        L: { callback: null },
+        R: { callback: null },
+    };
+
+    private frameDataCallbacks: { [side: string]: { callback: (data: { timestamp: number, frames: Uint8ClampedArray[] }) => void } } = {
+        L: { callback: null },
+        R: { callback: null },
+    };
 
     constructor(private fileService: FileService) {
         this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
@@ -30,6 +46,21 @@ export class TerrainService implements OnApplicationShutdown {
                 this.logger.warn(message.response as string);
             } else if (message.request === 'LOGERROR') {
                 this.logger.error(message.response as string);
+            } else if (message.request === 'FRAME_DATA_TIMESTAMP') {
+                const response = message.response as { side: string; timestamp: number };
+                if (this.frameDataTimestampCallbacks[response.side].callback !== null) {
+                    this.frameDataTimestampCallbacks[response.side].callback(response.timestamp);
+                }
+            } else if (message.request === 'FRAME_DATA_THRESHOLDS') {
+                const response = message.response as { side: string; thresholds: NavigationDisplayThresholdsDto };
+                if (this.frameDataThresholdsCallbacks[response.side].callback !== null) {
+                    this.frameDataThresholdsCallbacks[response.side].callback(response.thresholds);
+                }
+            } else if (message.request === 'FRAME_DATA') {
+                const response = message.response as { side: string; data: { timestamp: number, frames: Uint8ClampedArray[] } };
+                if (this.frameDataCallbacks[response.side].callback !== null) {
+                    this.frameDataCallbacks[response.side].callback(response.data);
+                }
             } else if (message.request === 'SHUTDOWN') {
                 this.mapHandler.terminate();
             }
@@ -58,5 +89,35 @@ export class TerrainService implements OnApplicationShutdown {
             this.logger.warn(err);
             return undefined;
         }
+    }
+
+    public async frameDataTimestamp(display: string): Promise<number> {
+        return new Promise<number>((resolve, _reject) => {
+            this.mapHandler.postMessage({ type: 'FRAME_DATA_TIMESTAMP', instance: display });
+            this.frameDataTimestampCallbacks[display].callback = (timestamp: number) => {
+                this.frameDataTimestampCallbacks[display] = null;
+                resolve(timestamp);
+            };
+        });
+    }
+
+    public async frameDataThresholds(display: string): Promise<NavigationDisplayThresholdsDto> {
+        return new Promise<NavigationDisplayThresholdsDto>((resolve, _reject) => {
+            this.mapHandler.postMessage({ type: 'FRAME_DATA_THRESHOLDS', instance: display });
+            this.frameDataThresholdsCallbacks[display].callback = (thresholds: NavigationDisplayThresholdsDto) => {
+                this.frameDataThresholdsCallbacks[display] = null;
+                resolve(thresholds);
+            };
+        });
+    }
+
+    public async frameData(display: string): Promise<{ timestamp: number, frames: Uint8ClampedArray[] }> {
+        return new Promise<{ timestamp: number, frames: Uint8ClampedArray[] }>((resolve, _reject) => {
+            this.mapHandler.postMessage({ type: 'FRAME_DATA', instance: display });
+            this.frameDataCallbacks[display].callback = (data: { timestamp: number, frames: Uint8ClampedArray[] }) => {
+                this.frameDataCallbacks[display] = null;
+                resolve(data);
+            };
+        });
     }
 }
