@@ -142,6 +142,10 @@ class MapHandler {
         }
     } = {}
 
+    private onConnectionLost(): void {
+        this.stopRendering();
+    }
+
     private onPositionUpdate(data: PositionData): void {
         this.updatePosition(data, false);
     }
@@ -296,6 +300,7 @@ class MapHandler {
 
     public initialize(terrainmap: TerrainMap): void {
         this.simconnect = new SimConnect();
+        this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());
         this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
         this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
 

@@ -16,6 +16,7 @@ import { NavigationDisplayData } from '../processing/navigationdisplaydata';
 import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
 
 export type UpdateCallbacks = {
+    connectionLost: () => void;
     positionUpdate: (data: PositionData) => void;
     aircraftStatusUpdate: (data: AircraftStatus) => void;
 }
@@ -43,6 +44,7 @@ const NavigationDisplayThresholdByteCount = 14;
 
 export class SimConnect {
     private callbacks: UpdateCallbacks = {
+        connectionLost: null,
         positionUpdate: null,
         aircraftStatusUpdate: null,
     };
@@ -179,6 +181,10 @@ export class SimConnect {
     }
 
     private simConnectQuit(): void {
+        if (this.callbacks.connectionLost !== null) {
+            this.callbacks.connectionLost();
+        }
+
         this.resetConnection();
         parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Received a quit signal. Trying to reconnect...' });
         parentPort.postMessage({ request: 'SIMCONNECT_QUIT', response: undefined });
