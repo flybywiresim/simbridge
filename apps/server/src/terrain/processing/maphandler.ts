@@ -25,6 +25,7 @@ import { uploadTextureData } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
+import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
 
 const sharp = require('sharp');
 
@@ -952,6 +953,12 @@ parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
         maphandler.initialize(data.instance as TerrainMap);
         parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
+    } else if (data.type === 'FRAME_DATA_TIMESTAMP') {
+        parentPort.postMessage({ request: data.type, response: { side: data.instance, timestamp: maphandler.frameData(data.instance as string).timestamp } });
+    } else if (data.type === 'FRAME_DATA_THRESHOLDS') {
+        parentPort.postMessage({ request: data.type, response: { side: data.instance, thresholds: maphandler.frameData(data.instance as string).thresholds } });
+    } else if (data.type === 'FRAME_DATA') {
+        parentPort.postMessage({ request: data.type, response: { side: data.instance, data: maphandler.frameData(data.instance as string) } });
     } else if (data.type === 'STOP_RENDERING') {
         maphandler.stopRendering();
     } else if (data.type === 'SHUTDOWN') {
