@@ -509,6 +509,15 @@ class MapHandler {
                     this.navigationDisplayRendering[display].lastTransitionData.timestamp = 0;
                     this.navigationDisplayRendering[display].lastTransitionData.frames = [];
                     this.navigationDisplayRendering[display].lastFrame = null;
+
+                    // reset also the aircraft data
+                    this.simconnect.sendNavigationDisplayTerrainMapMetadata(display, {
+                        MinimumElevation: -1,
+                        MinimumElevationMode: TerrainLevelMode.PeaksMode,
+                        MaximumElevation: -1,
+                        MaximumElevationMode: TerrainLevelMode.PeaksMode,
+                        FrameByteCount: 0,
+                    });
                 }
 
                 if (startRendering || (resetRendering && config.active === true)) {
