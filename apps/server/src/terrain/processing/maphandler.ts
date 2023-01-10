@@ -34,14 +34,6 @@ const FeetPerNauticalMile = 6076.12;
 const ThreeNauticalMilesInFeet = 18228.3;
 const MetresToNauticalMiles = 1852;
 
-// debugging parameters
-const DebugWorldCache = false;
-const DebugLocalElevationMap = false;
-const DebugHistogram = false;
-const DebugCutOffAltitude = false;
-const DebugRendering = false;
-const DebugTransition = false;
-
 // map grid creation
 const InvalidElevation = 32767;
 const UnknownElevation = 32766;
@@ -731,13 +723,6 @@ class MapHandler {
             this.aircraftStatus.gearIsDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
         ) as KernelOutput;
-
-        if (DebugRendering) {
-            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap as number[][]));
-            sharp(image, { raw: { width: RenderingMaxPixelWidth, height: RenderingMaxPixelHeight, channels: RenderingColorChannelCount } })
-                .png()
-                .toFile('navigationdisplay.png');
-        }
 
         return terrainmap;
     }
