@@ -1,8 +1,5 @@
 import { parentPort } from 'worker_threads';
-import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
-import { a32nxDrawHighDensityPixel } from './gpu/A32NX/highdensitypixel';
-import { a32nxDrawLowDensityPixel } from './gpu/A32NX/lowdensitypixel';
-import { a32nxDrawWaterDensityPixel } from './gpu/A32NX/waterpixel';
+import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -10,27 +7,24 @@ import { deg2rad, distanceWgs84, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
 import { normalizeHeading, projectWgs84 } from './gpu/helper';
 import {
-    a32nxCalculateNormalModeGreenThresholds,
-    a32nxCalculateNormalModeWarningThresholds,
-    a32nxCalculatePeaksModeThresholds,
-    a32nxRenderNavigationDisplay,
-    a32nxRenderNormalMode,
-    a32nxRenderPeaksMode,
-} from './gpu/A32NX/navigationdisplay';
-import {
-    a32nxInitialNavigationDisplayTransition,
-    a32nxUpdateNavigationDisplayTransition,
-} from './gpu/A32NX/transition';
+    calculateNormalModeGreenThresholds,
+    calculateNormalModeWarningThresholds,
+    calculatePeaksModeThresholds,
+    renderNavigationDisplay,
+    renderNormalMode,
+    renderPeaksMode,
+    drawDensityPixel,
+} from './gpu/rendering';
 import {
     HistogramConstants,
     LocalElevationMapConstants,
     NavigationDisplayConstants,
-    NavigationDisplayTransitionConstants,
 } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
-import { uploadElevationmap } from './gpu/upload';
+import { uploadTextureData } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
+import { createArcModePatternMap } from './gpu/patterns/arcmode';
 
 const sharp = require('sharp');
 
@@ -61,7 +55,11 @@ const HistogramBinCount = Math.ceil((HistogramMaximumElevation - HistogramMinimu
 const HistogramPatchSize = 128;
 
 // rendering parameters
+const RenderingMaxPixelWidth = 768;
+const RenderingMaxPixelHeight = 492;
+const RenderingArcModePixelWidth = 768;
 const RenderingArcModePixelHeight = 492;
+const RenderingRoseModePixelWidth = 678;
 const RenderingRoseModePixelHeight = 250;
 const RenderingCutOffAltitudeMinimimum = 200;
 const RenderingCutOffAltitudeMaximum = 400;
@@ -76,15 +74,12 @@ const RenderingNormalModeHighDensityRedOffset = 2000;
 const RenderingGearDownOffset = 250;
 const RenderingNonGearDownOffset = 500;
 const RenderingDensityPatchSize = 13;
-const RenderingMaxNavigationDisplayWidth = 768;
-const RenderingColorChannelCount = 3;
-
-// transition parameters
-const TransitionFPS = 15;
-const TransitionDuration = 1.5;
-const TransitionUpdateDelay = Math.floor(1000 / TransitionFPS);
-const TransitionMapUpdateCycletime = 2000;
-const TransitionOverallCycleTime = TransitionDuration * 1000 + TransitionMapUpdateCycletime;
+const RenderingColorChannelCount = 4;
+const RenderingMapTransitionDeltaTime = 40;
+const RenderingMapTransitionDuration = 1000;
+const RenderingMapUpdateTimeout = 1500;
+const RenderingMapFrameValidityTime = RenderingMapTransitionDuration + RenderingMapUpdateTimeout;
+const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
 
 class MapHandler {
     private simconnect: SimConnect = null;
@@ -95,11 +90,15 @@ class MapHandler {
 
     public Initialized = false;
 
-    private currentPosition: PositionData = null;
+    private currentPosition: PositionData = undefined;
 
     private uploadWorldMapToGPU: IKernelRunShortcut = null;
 
     private gpuWorldMap: Texture = null;
+
+    private uploadPatternMapToGPU: IKernelRunShortcut = null;
+
+    private patternMap: Texture = null;
 
     private worldMapMetadata: {
         southwest: { latitude: number, longitude: number },
@@ -131,11 +130,15 @@ class MapHandler {
         [side: string]: {
             config: NavigationDisplay,
             timeout: NodeJS.Timeout,
+            durationInterval: NodeJS.Timer,
             startupTimestamp: number,
             finalMap: IKernelRunShortcut,
-            initialTransition: IKernelRunShortcut,
-            updateTransition: IKernelRunShortcut,
-            lastFrame: Texture,
+            lastFrame: Uint8ClampedArray,
+            lastTransitionData: {
+                timestamp: number,
+                thresholds: NavigationDisplayThresholdsDto,
+                frames: Uint8ClampedArray[],
+            },
         }
     } = {}
 
@@ -143,96 +146,22 @@ class MapHandler {
         this.updatePosition(data, false);
     }
 
-    private onAircraftStatusUpdate(data: AircraftStatus): void {
-        this.aircraftStatus = data;
-        this.configureNavigationDisplay('L', this.aircraftStatus.navigationDisplayCapt);
-        this.configureNavigationDisplay('R', this.aircraftStatus.navigationDisplayFO);
-    }
-
-    private createRenderingKernelsA32NX(): void {
-        /* create the sides */
-        this.navigationDisplayRendering.L = {
-            config: null,
-            timeout: null,
-            startupTimestamp: new Date().getTime(),
-            finalMap: null,
-            initialTransition: null,
-            updateTransition: null,
-            lastFrame: null,
-        };
-        this.navigationDisplayRendering.R = {
-            config: null,
-            timeout: null,
-            // offset the rendering to have a more realistic bahaviour
-            startupTimestamp: new Date().getTime() - 2000,
-            finalMap: null,
-            initialTransition: null,
-            updateTransition: null,
-            lastFrame: null,
-        };
-
-        for (const side in this.navigationDisplayRendering) {
-            if (side in this.navigationDisplayRendering) {
-                this.navigationDisplayRendering[side].finalMap = this.gpu
-                    .createKernel(a32nxRenderNavigationDisplay, {
-                        dynamicArguments: true,
-                        dynamicOutput: true,
-                        pipeline: true,
-                        immutable: true,
-                    })
-                    .setConstants<NavigationDisplayConstants>({
-                        histogramBinRange: HistogramBinRange,
-                        histogramMinElevation: HistogramMinimumElevation,
-                        histogramBinCount: HistogramBinCount,
-                        lowerPercentile: RenderingLowerPercentile,
-                        upperPercentile: RenderingUpperPercentile,
-                        flatEarthThreshold: RenderingFlatEarthThreshold,
-                        invalidElevation: InvalidElevation,
-                        unknownElevation: UnknownElevation,
-                        waterElevation: WaterElevation,
-                        normalModeLowDensityGreenOffset: RenderingNormalModeLowDensityGreenOffset,
-                        normalModeHighDensityGreenOffset: RenderingNormalModeHighDensityGreenOffset,
-                        normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
-                        normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
-                        densityPatchSize: RenderingDensityPatchSize,
-                        screenWidth: RenderingMaxNavigationDisplayWidth,
-                    })
-                    .setFunctions([
-                        a32nxCalculateNormalModeGreenThresholds,
-                        a32nxCalculateNormalModeWarningThresholds,
-                        a32nxCalculatePeaksModeThresholds,
-                        a32nxRenderNormalMode,
-                        a32nxRenderPeaksMode,
-                        a32nxDrawHighDensityPixel,
-                        a32nxDrawLowDensityPixel,
-                        a32nxDrawWaterDensityPixel,
-                    ]);
-
-                this.navigationDisplayRendering[side].initialTransition = this.gpu
-                    .createKernel(a32nxInitialNavigationDisplayTransition, {
-                        dynamicArguments: true,
-                        dynamicOutput: true,
-                        pipeline: false,
-                        immutable: true,
-                    })
-                    .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
-                    .setFunctions([
-                        rad2deg,
-                    ]);
-
-                this.navigationDisplayRendering[side].updateTransition = this.gpu
-                    .createKernel(a32nxUpdateNavigationDisplayTransition, {
-                        dynamicArguments: true,
-                        dynamicOutput: true,
-                        pipeline: false,
-                        immutable: true,
-                    })
-                    .setConstants<NavigationDisplayTransitionConstants>({ screenWidth: RenderingMaxNavigationDisplayWidth })
-                    .setFunctions([
-                        rad2deg,
-                    ]);
+    private onAircraftStatusUpdate(data: AircraftStatus, startup: boolean = false): void {
+        if (this.aircraftStatus === null || data.navigationDisplayRenderingMode !== this.aircraftStatus.navigationDisplayRenderingMode || this.patternMap === null) {
+            if (data.navigationDisplayRenderingMode === TerrainRenderingMode.ArcMode) {
+                const patternData = createArcModePatternMap();
+                this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
+                parentPort.postMessage({ request: 'LOGINFO', response: 'ARC-mode rendering activated' });
+            } else {
+                const patternData = createArcModePatternMap();
+                this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
+                parentPort.postMessage({ request: 'LOGERROR', response: 'No known rendering mode selected' });
             }
         }
+
+        this.aircraftStatus = data;
+        this.configureNavigationDisplay('L', this.aircraftStatus.navigationDisplayCapt, startup);
+        this.configureNavigationDisplay('R', this.aircraftStatus.navigationDisplayFO, startup);
     }
 
     private createKernels(): void {
@@ -240,13 +169,23 @@ class MapHandler {
 
         // register kernel to upload the map data
         this.uploadWorldMapToGPU = this.gpu
-            .createKernel(uploadElevationmap, {
+            .createKernel(uploadTextureData, {
                 argumentTypes: { texture: 'Array', width: 'Integer' },
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
                 tactic: 'speed',
             });
+
+        this.uploadPatternMapToGPU = this.gpu
+            .createKernel(uploadTextureData, {
+                argumentTypes: { texture: 'Array', width: 'Integer' },
+                dynamicArguments: true,
+                dynamicOutput: false,
+                pipeline: true,
+                tactic: 'speed',
+            })
+            .setOutput([RenderingMaxPixelWidth, RenderingMaxPixelHeight]);
 
         // register kernel to create the local map
         this.extractLocalElevationMap = this.gpu
@@ -259,7 +198,6 @@ class MapHandler {
             .setConstants<LocalElevationMapConstants>({
                 unknownElevation: UnknownElevation,
                 invalidElevation: InvalidElevation,
-                screenWidth: RenderingMaxNavigationDisplayWidth,
             })
             .setFunctions([
                 deg2rad,
@@ -280,7 +218,6 @@ class MapHandler {
                 invalidElevation: InvalidElevation,
                 unknownElevation: UnknownElevation,
                 waterElevation: WaterElevation,
-                screenWidth: RenderingMaxNavigationDisplayWidth,
                 binRange: HistogramBinRange,
                 binCount: HistogramBinCount,
                 patchSize: HistogramPatchSize,
@@ -293,9 +230,71 @@ class MapHandler {
             })
             .setLoopMaxIterations(500)
             .setOutput([HistogramBinCount]);
+
+        /* create the sides */
+        this.navigationDisplayRendering.L = {
+            config: null,
+            timeout: null,
+            durationInterval: null,
+            startupTimestamp: new Date().getTime(),
+            finalMap: null,
+            lastFrame: null,
+            lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
+        };
+        this.navigationDisplayRendering.R = {
+            config: null,
+            timeout: null,
+            durationInterval: null,
+            // offset the rendering to have a more realistic bahaviour
+            startupTimestamp: new Date().getTime() - 1500,
+            finalMap: null,
+            lastFrame: null,
+            lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
+        };
+
+        for (const side in this.navigationDisplayRendering) {
+            if (side in this.navigationDisplayRendering) {
+                this.navigationDisplayRendering[side].finalMap = this.gpu
+                    .createKernel(renderNavigationDisplay, {
+                        dynamicArguments: true,
+                        dynamicOutput: false,
+                        pipeline: false,
+                        immutable: true,
+                    })
+                    .setConstants<NavigationDisplayConstants>({
+                        histogramBinRange: HistogramBinRange,
+                        histogramMinElevation: HistogramMinimumElevation,
+                        histogramBinCount: HistogramBinCount,
+                        lowerPercentile: RenderingLowerPercentile,
+                        upperPercentile: RenderingUpperPercentile,
+                        flatEarthThreshold: RenderingFlatEarthThreshold,
+                        invalidElevation: InvalidElevation,
+                        unknownElevation: UnknownElevation,
+                        waterElevation: WaterElevation,
+                        normalModeLowDensityGreenOffset: RenderingNormalModeLowDensityGreenOffset,
+                        normalModeHighDensityGreenOffset: RenderingNormalModeHighDensityGreenOffset,
+                        normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
+                        normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
+                        maxImageWidth: RenderingMaxPixelWidth,
+                        maxImageHeight: RenderingMaxPixelHeight,
+                        densityPatchSize: RenderingDensityPatchSize,
+                        patternMapWidth: RenderingMaxPixelWidth,
+                        patternMapHeight: RenderingMaxPixelHeight,
+                    })
+                    .setFunctions([
+                        calculateNormalModeGreenThresholds,
+                        calculateNormalModeWarningThresholds,
+                        calculatePeaksModeThresholds,
+                        renderNormalMode,
+                        renderPeaksMode,
+                        drawDensityPixel,
+                    ])
+                    .setOutput([RenderingMaxPixelWidth * RenderingColorChannelCount, RenderingMaxPixelHeight + 1]);
+            }
+        }
     }
 
-    public initialize(aircraft: string, terrainmap: TerrainMap): void {
+    public initialize(terrainmap: TerrainMap): void {
         this.simconnect = new SimConnect();
         this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
         this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
@@ -304,25 +303,23 @@ class MapHandler {
 
         this.createKernels();
 
-        if (aircraft === 'A32NX') {
-            this.createRenderingKernelsA32NX();
-        }
-
         // initial call precompile the kernels and reduce first reaction time
         const startupConfig: NavigationDisplay = {
-            range: 10,
-            arcMode: true,
+            range: 20,
+            arcMode: false,
             active: true,
-            brightness: 1.0,
+            mapOffsetX: 0,
+            mapWidth: RenderingMaxPixelWidth,
+            mapHeight: RenderingRoseModePixelHeight,
         };
-        this.aircraftStatus = {
+        const startupStatus: AircraftStatus = {
             adiruDataValid: true,
-            latitude: 5.0,
-            longitude: 5.0,
-            altitude: 1000,
-            heading: 360,
+            latitude: 20.903682,
+            longitude: -156.424148,
+            altitude: 200,
+            heading: 220,
             verticalSpeed: 0,
-            gearIsDown: false,
+            gearIsDown: true,
             destinationDataValid: false,
             destinationLatitude: 0.0,
             destinationLongitude: 0.0,
@@ -331,25 +328,29 @@ class MapHandler {
             navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
         };
         const startupPosition: PositionData = {
-            latitude: 0,
-            longitude: 0,
+            latitude: 20.903682,
+            longitude: -156.424148,
         };
+
+        // run all process steps to precompile the kernels
+        this.onAircraftStatusUpdate(startupStatus, true);
         this.updatePosition(startupPosition, true);
-        const map = this.createLocalElevationMap(startupConfig);
-        const histogram = this.createElevationHistogram(map, startupConfig);
+        this.renderNavigationDisplay('L', true);
 
-        // left side
-        let display = this.createNavigationDisplayMap('L', startupConfig, map, histogram, 0);
-        this.createNavigationDisplayTransitionFrame('L', null, display, null, startupConfig, 0, 20.0, true);
-        this.createNavigationDisplayTransitionFrame('L', display, display, null, startupConfig, 0, 20.0, true);
-
-        // right side
-        display = this.createNavigationDisplayMap('R', startupConfig, map, histogram, 0);
-        this.createNavigationDisplayTransitionFrame('R', null, display, null, startupConfig, 0, 20.0, true);
-        this.createNavigationDisplayTransitionFrame('R', display, display, null, startupConfig, 0, 20.0, true);
-
-        this.currentPosition = undefined;
-        this.aircraftStatus = undefined;
+        // reset all initialization data
+        this.worldMapMetadata = {
+            southwest: { latitude: -100, longitude: -190 },
+            northeast: { latitude: -100, longitude: -190 },
+            currentGridPosition: { x: 0, y: 0 },
+            width: 0,
+            height: 0,
+        };
+        this.worldMapCache = null;
+        this.gpuWorldMap.delete();
+        this.gpuWorldMap = null;
+        this.currentPosition = null;
+        this.aircraftStatus = null;
+        this.worldmap.resetInternalData();
         this.Initialized = true;
     }
 
@@ -363,25 +364,24 @@ class MapHandler {
             if (side in this.navigationDisplayRendering) {
                 if (this.navigationDisplayRendering[side].timeout !== null) clearTimeout(this.navigationDisplayRendering[side].timeout);
                 this.navigationDisplayRendering[side].finalMap.destroy();
-                this.navigationDisplayRendering[side].initialTransition.destroy();
-                this.navigationDisplayRendering[side].updateTransition.destroy();
             }
         }
 
         // destroy all generic GPU related instances
+        if (this.patternMap !== null) this.patternMap.delete();
         if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
         if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
+        if (this.uploadPatternMapToGPU !== null) this.uploadPatternMapToGPU.destroy();
 
         // destroy the context iteslf
         if (this.gpu !== null) this.gpu.destroy();
     }
 
-    public updatePosition(position: PositionData, startup: boolean): void {
+    private updatePosition(position: PositionData, startup: boolean): void {
         if (!this.Initialized && !startup) return;
-
         this.currentPosition = position;
         const tiledata = this.worldmap.updatePosition(this.currentPosition);
 
@@ -462,24 +462,6 @@ class MapHandler {
             this.gpuWorldMap = this.uploadWorldMapToGPU(this.worldMapCache, worldWidth) as Texture;
 
             this.cachedTiles = tiledata.whitelist.length;
-
-            if (DebugWorldCache) {
-                let maxElevation = 0;
-                this.worldMapCache.forEach((entry) => {
-                    maxElevation = Math.max(entry, maxElevation);
-                });
-
-                const image = new Uint8ClampedArray(this.worldMapCache.length);
-                this.worldMapCache.forEach((entry, index) => {
-                    const gray = Math.max(Math.min((entry / maxElevation) * 255, 255), 0);
-                    image[index] = gray;
-                });
-
-                console.log(`World dimension: ${worldWidth}x${worldHeight}`);
-                sharp(image, { raw: { width: worldWidth, height: worldHeight, channels: 1 } })
-                    .png()
-                    .toFile('worldelevation.png');
-            }
         }
     }
 
@@ -502,24 +484,33 @@ class MapHandler {
         return this.worldMapCache[index];
     }
 
-    private configureNavigationDisplay(display: string, config: NavigationDisplay): void {
+    private configureNavigationDisplay(display: string, config: NavigationDisplay, startup: boolean): void {
         if (display in this.navigationDisplayRendering) {
-            if (this.navigationDisplayRendering[display].config !== null
-                && (this.navigationDisplayRendering[display].config.arcMode !== config.arcMode || config.active === false)
-            ) {
-                if (this.navigationDisplayRendering[display].lastFrame !== null) {
-                    this.navigationDisplayRendering[display].lastFrame.delete();
-                    this.navigationDisplayRendering[display].lastFrame = null;
-                }
-            }
+            const lastConfig = this.navigationDisplayRendering[display].config;
+            const startRendering = config.active === true && (lastConfig === null || lastConfig.active === false);
+            const resetRendering = config.active === false || lastConfig === null || (lastConfig.arcMode !== config.arcMode);
             this.navigationDisplayRendering[display].config = config;
 
-            // deactivate rendering, if needed
-            if (config.active === false && this.navigationDisplayRendering[display].timeout !== null) {
-                clearTimeout(this.navigationDisplayRendering[display].timeout);
-                this.navigationDisplayRendering[display].timeout = null;
-            } else {
-                this.startNavigationDisplayRenderingCycle(display);
+            if (!startup) {
+                if (resetRendering) {
+                    if (this.navigationDisplayRendering[display].durationInterval !== null) {
+                        clearInterval(this.navigationDisplayRendering[display].durationInterval);
+                        this.navigationDisplayRendering[display].durationInterval = null;
+                    }
+                    if (this.navigationDisplayRendering[display].timeout !== null) {
+                        clearTimeout(this.navigationDisplayRendering[display].timeout);
+                        this.navigationDisplayRendering[display].timeout = null;
+                    }
+
+                    this.navigationDisplayRendering[display].lastTransitionData.thresholds = null;
+                    this.navigationDisplayRendering[display].lastTransitionData.timestamp = 0;
+                    this.navigationDisplayRendering[display].lastTransitionData.frames = [];
+                    this.navigationDisplayRendering[display].lastFrame = null;
+                }
+
+                if (startRendering || (resetRendering && config.active === true)) {
+                    this.startNavigationDisplayRenderingCycle(display);
+                }
             }
         }
     }
@@ -542,16 +533,15 @@ class MapHandler {
     }
 
     private createLocalElevationMap(config: NavigationDisplay): Texture {
-        config.mapHeight = config.arcMode ? RenderingArcModePixelHeight : RenderingRoseModePixelHeight;
         let metresPerPixel = Math.round((config.range * MetresToNauticalMiles) / config.mapHeight);
         if (config.arcMode) metresPerPixel *= 2.0;
 
         // prepare the output buffer
         if (this.extractLocalElevationMap.output === null
-            || this.extractLocalElevationMap.output[0] !== RenderingMaxNavigationDisplayWidth
+            || this.extractLocalElevationMap.output[0] !== config.mapWidth
             || this.extractLocalElevationMap.output[1] !== config.mapHeight
         ) {
-            this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([RenderingMaxNavigationDisplayWidth, config.mapHeight]);
+            this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
         }
 
         // create the local elevation map
@@ -568,36 +558,18 @@ class MapHandler {
             this.worldMapMetadata.southwest.longitude,
             this.worldMapMetadata.northeast.latitude,
             this.worldMapMetadata.northeast.longitude,
+            config.mapWidth,
             config.mapHeight,
             metresPerPixel,
             config.arcMode,
         ) as Texture;
-
-        if (DebugLocalElevationMap) {
-            const map = MapHandler.fastFlatten(localElevationMap.toArray() as number[][]);
-
-            let maxElevation = 0;
-            map.forEach((entry) => {
-                maxElevation = Math.max(entry, maxElevation);
-            });
-
-            const image = new Uint8ClampedArray(map.length);
-            map.forEach((entry, index) => {
-                const gray = Math.max(Math.min((entry / maxElevation) * 255, 255), 0);
-                image[index] = gray;
-            });
-
-            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: 1 } })
-                .png()
-                .toFile('localelevationmap.png');
-        }
 
         return localElevationMap;
     }
 
     private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplay): Texture {
         // create the histogram statistics
-        const patchesInX = Math.ceil(RenderingMaxNavigationDisplayWidth / HistogramPatchSize);
+        const patchesInX = Math.ceil(config.mapWidth / HistogramPatchSize);
         const patchesInY = Math.ceil(config.mapHeight / HistogramPatchSize);
         const patchCount = patchesInX * patchesInY;
 
@@ -610,25 +582,13 @@ class MapHandler {
 
         const localHistograms = this.localElevationHistogram(
             localElevationMap,
+            config.mapWidth,
             config.mapHeight,
         ) as Texture;
         const histogram = this.elevationHistogram(
             localHistograms,
             patchCount,
         ) as Texture;
-
-        if (DebugHistogram) {
-            let entryCount = 0;
-            (histogram.toArray() as number[]).forEach((entry, index) => {
-                if (entry !== 0) {
-                    const lowerElevation = index * HistogramBinRange + HistogramMinimumElevation;
-                    const upperElevation = (index + 1) * HistogramBinRange + HistogramMinimumElevation;
-                    console.log(`[${lowerElevation}, ${upperElevation}[ = ${entry}`);
-                    entryCount += entry;
-                }
-            });
-            console.log(`${entryCount} of ${config.mapHeight * RenderingMaxNavigationDisplayWidth} px`);
-        }
 
         return histogram;
     }
@@ -651,11 +611,6 @@ class MapHandler {
             );
             if (distance <= RenderingMaxAirportDistance) {
                 const distanceFeet = distance * FeetPerNauticalMile;
-                if (DebugCutOffAltitude) {
-                    console.log(`Distance to destination: ${distance}`);
-                    console.log(`Destination elevation: ${destinationElevation}`);
-                    console.log(`Altitude: ${this.aircraftStatus.altitude}`);
-                }
 
                 // calculate the glide until touchdown
                 const opposite = this.aircraftStatus.altitude - destinationElevation;
@@ -664,15 +619,12 @@ class MapHandler {
                     // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
                     glideRadian = Math.atan(opposite / distanceFeet);
                 }
-                if (DebugCutOffAltitude) console.log(`Glide slope: ${rad2deg(glideRadian)}`);
 
                 // check if the glide is greater or equal 3°
                 if (glideRadian < 0.0523599) {
-                    if (DebugCutOffAltitude) console.log('Glide slope based cut off altitude');
                     if (distance <= 1.0 || glideRadian === 0.0) {
                         // use the minimum value close to the airport
                         cutOffAltitude = RenderingCutOffAltitudeMinimimum;
-                        if (DebugCutOffAltitude) console.log('Use minimum cut off altitude');
                     } else {
                         // use a linear model from max to min for 4 nm to 1 nm
                         const slope = (RenderingCutOffAltitudeMinimimum - RenderingCutOffAltitudeMaximum) / ThreeNauticalMilesInFeet;
@@ -685,7 +637,6 @@ class MapHandler {
                 }
             }
 
-            if (DebugCutOffAltitude) console.log(`Cut off altitude: ${cutOffAltitude}`);
             return cutOffAltitude;
         }
 
@@ -761,23 +712,23 @@ class MapHandler {
         elevationMap: Texture,
         histogram: Texture,
         cutOffAltitude: number,
-    ): Texture {
-        this.navigationDisplayRendering[side].finalMap = this.navigationDisplayRendering[side].finalMap
-            .setOutput([RenderingMaxNavigationDisplayWidth * 3, config.mapHeight + 1]);
-
+    ): KernelOutput {
         const terrainmap = this.navigationDisplayRendering[side].finalMap(
             elevationMap,
             histogram,
+            this.patternMap,
+            config.mapWidth,
             config.mapHeight,
+            config.mapOffsetX,
             this.aircraftStatus.altitude,
             this.aircraftStatus.verticalSpeed,
             this.aircraftStatus.gearIsDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
-        ) as Texture;
+        ) as KernelOutput;
 
         if (DebugRendering) {
-            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap.toArray() as number[][]));
-            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: 3 } })
+            const image = new Uint8ClampedArray(MapHandler.fastFlatten(terrainmap as number[][]));
+            sharp(image, { raw: { width: RenderingMaxPixelWidth, height: RenderingMaxPixelHeight, channels: RenderingColorChannelCount } })
                 .png()
                 .toFile('navigationdisplay.png');
         }
@@ -785,89 +736,132 @@ class MapHandler {
         return terrainmap;
     }
 
-    private createNavigationDisplayTransitionFrame(
-        side: string,
-        lastFrame: Texture,
-        nextFrame: Texture,
-        viewData: NavigationDisplayData,
+    private arcModeTransitionFrame(
         config: NavigationDisplay,
-        angleThresholdStart: number,
-        angleThresholdStop: number,
-        startup: boolean,
-    ): void {
-        let frame: number[][] = null;
+        oldFrame: Uint8ClampedArray,
+        newFrame: Uint8ClampedArray,
+        startAngle: number,
+        endAngle: number,
+    ): Uint8ClampedArray {
+        const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingMaxPixelHeight);
 
-        if (lastFrame === null) {
-            if (this.navigationDisplayRendering[side].initialTransition.output === null
-                || this.navigationDisplayRendering[side].initialTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
-                || this.navigationDisplayRendering[side].initialTransition.output[1] !== config.mapHeight
-            ) {
-                this.navigationDisplayRendering[side].initialTransition.setOutput([
-                    RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount,
-                    config.mapHeight,
-                ]);
+        // access data as uint32-array for performance reasons
+        const destination = new Uint32Array(result.buffer);
+        // UInt32-version of RGBA (4, 4, 5, 255)
+        destination.fill(4278518788);
+        const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
+        const newSource = new Uint32Array(newFrame.buffer);
+
+        let arrayIndex = 0;
+        for (let y = 0; y < config.mapHeight; ++y) {
+            for (let x = 0; x < RenderingMaxPixelWidth; ++x) {
+                if (x >= config.mapOffsetX && x < (config.mapOffsetX + config.mapWidth)) {
+                    const distance = Math.sqrt((x - RenderingMaxPixelWidth / 2) ** 2 + (config.mapHeight - y) ** 2);
+                    const angle = Math.acos((config.mapHeight - y) / distance) * (180.0 / Math.PI);
+
+                    if (startAngle <= angle && angle <= endAngle) {
+                        destination[arrayIndex] = newSource[arrayIndex];
+                    } else if (oldSource !== null) {
+                        destination[arrayIndex] = oldSource[arrayIndex];
+                    }
+                }
+
+                arrayIndex++;
             }
-
-            frame = this.navigationDisplayRendering[side].initialTransition(
-                nextFrame,
-                config.mapHeight,
-                angleThresholdStart,
-                angleThresholdStop,
-            ) as number[][];
-        } else {
-            if (this.navigationDisplayRendering[side].updateTransition.output === null
-                || this.navigationDisplayRendering[side].updateTransition.output[0] !== RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount
-                || this.navigationDisplayRendering[side].updateTransition.output[1] !== config.mapHeight
-            ) {
-                this.navigationDisplayRendering[side].updateTransition.setOutput([
-                    RenderingMaxNavigationDisplayWidth * RenderingColorChannelCount,
-                    config.mapHeight,
-                ]);
-            }
-
-            frame = this.navigationDisplayRendering[side].updateTransition(
-                lastFrame,
-                nextFrame,
-                config.mapHeight,
-                angleThresholdStop,
-            ) as number[][];
         }
 
-        let image = null;
-
-        // send the data via SimConnect
-        if (startup === false) {
-            image = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
-            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: RenderingColorChannelCount } })
-                .png()
-                .toBuffer()
-                .then((buffer) => {
-                    viewData.FrameByteCount = buffer.byteLength;
-                    this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, viewData);
-                    this.simconnect.sendNavigationDisplayTerrainMapFrame(side, buffer);
-                });
-        }
-
-        if (DebugTransition && image !== null) {
-            sharp(image, { raw: { width: RenderingMaxNavigationDisplayWidth, height: config.mapHeight, channels: RenderingColorChannelCount } })
-                .png()
-                .toFile(`${lastFrame === null ? 'initial' : 'update'}_${Math.round(angleThresholdStop)}.png`);
-        }
+        return result;
     }
 
-    public renderNavigationDisplay(
-        side: string,
-        frameCount: number,
-        angularStep: number,
-        angleThresholdStart: number,
-    ): void {
+    private arcModeTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
+        const transitionFrames: Uint8ClampedArray[] = [];
+
+        let startAngle = 0;
+        if (this.navigationDisplayRendering[side].lastFrame === null) {
+            const timeSinceStart = new Date().getTime() - this.navigationDisplayRendering[side].startupTimestamp;
+            const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
+            const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
+            startAngle = Math.floor(90 * ratioSinceLastFrame);
+        }
+
+        let angle = 0;
+        let lastFrame = null;
+        this.navigationDisplayRendering[side].durationInterval = setInterval(() => {
+            angle += RenderingMapTransitionAngularStep;
+            let stopInterval = false;
+            let frame = null;
+
+            if (angle < 90) {
+                frame = this.arcModeTransitionFrame(config, this.navigationDisplayRendering[side].lastFrame, frameData, startAngle, angle);
+            } else {
+                stopInterval = true;
+
+                // do not overwrite the last frame of the initialization
+                if (startAngle === 0) {
+                    this.navigationDisplayRendering[side].lastFrame = frameData;
+                    frame = frameData;
+                } else {
+                    this.navigationDisplayRendering[side].lastFrame = lastFrame;
+                }
+            }
+
+            // transfer the transition frame
+            if (frame !== null) {
+                sharp(frame, { raw: { width: config.mapWidth, height: config.mapHeight, channels: RenderingColorChannelCount } })
+                    .png()
+                    .toBuffer()
+                    .then((buffer) => {
+                        thresholdData.FrameByteCount = buffer.byteLength;
+                        this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, thresholdData);
+                        this.simconnect.sendNavigationDisplayTerrainMapFrame(side, buffer);
+
+                        // store the data for the web UI
+                        transitionFrames.push(new Uint8ClampedArray(buffer));
+                    });
+            }
+
+            if (stopInterval) {
+                clearInterval(this.navigationDisplayRendering[side].durationInterval);
+                this.navigationDisplayRendering[side].durationInterval = null;
+
+                this.navigationDisplayRendering[side].lastTransitionData.timestamp = new Date().getTime();
+                this.navigationDisplayRendering[side].lastTransitionData.frames = transitionFrames;
+                this.navigationDisplayRendering[side].lastTransitionData.thresholds = {
+                    minElevation: thresholdData.MinimumElevation,
+                    minElevationIsWarning: thresholdData.MinimumElevationMode === TerrainLevelMode.Warning,
+                    minElevationIsCaution: thresholdData.MinimumElevationMode === TerrainLevelMode.Caution,
+                    maxElevation: thresholdData.MaximumElevation,
+                    maxElevationIsWarning: thresholdData.MaximumElevationMode === TerrainLevelMode.Warning,
+                    maxElevationIsCaution: thresholdData.MaximumElevationMode === TerrainLevelMode.Warning,
+                };
+
+                this.navigationDisplayRendering[side].timeout = setTimeout(() => this.renderNavigationDisplay(side), RenderingMapUpdateTimeout);
+            }
+
+            lastFrame = frame;
+        }, RenderingMapTransitionDeltaTime);
+    }
+
+    private renderNavigationDisplay(side: string, startup: boolean = false): void {
+        if (this.navigationDisplayRendering[side].timeout !== null) {
+            clearTimeout(this.navigationDisplayRendering[side].timeout);
+            this.navigationDisplayRendering[side].timeout = null;
+        }
+        if (this.navigationDisplayRendering[side].durationInterval !== null) {
+            clearInterval(this.navigationDisplayRendering[side].durationInterval);
+            this.navigationDisplayRendering[side].durationInterval = null;
+        }
+
         // no valid position data received
         if (this.currentPosition === undefined) {
             parentPort.postMessage({ request: 'LOGWARN', response: 'No valid position received for rendering' });
         } else if (this.navigationDisplayRendering[side].config === undefined) {
-            console.log({ request: 'LOGWARN', response: 'No navigation display configuration received' });
+            parentPort.postMessage({ request: 'LOGWARN', response: 'No navigation display configuration received' });
         } else {
             const { config } = this.navigationDisplayRendering[side];
+            config.mapWidth = config.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
+            config.mapHeight = config.arcMode ? RenderingArcModePixelHeight : RenderingRoseModePixelHeight;
+            config.mapOffsetX = Math.round((RenderingMaxPixelWidth - config.mapWidth) * 0.5);
 
             const elevationMap = this.createLocalElevationMap(config);
             const histogram = this.createElevationHistogram(elevationMap, config);
@@ -876,37 +870,26 @@ class MapHandler {
 
             // create the final map
             const renderingData = this.createNavigationDisplayMap(side, config, elevationMap, histogram, cutOffAltitude);
-            const frame = renderingData.toArray() as number[][];
+            const frame = renderingData as number[][];
             const metadata = frame.splice(frame.length - 1)[0];
+            const imageData = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
 
             // send the threshold data for the map
             const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
-            thresholdData.ImageWidth = RenderingMaxNavigationDisplayWidth;
+            thresholdData.ImageWidth = config.mapWidth;
             thresholdData.ImageHeight = config.mapHeight;
 
-            // render the frames
-            let counter = 0;
-            const interval = setInterval(() => {
-                if (counter > frameCount) {
-                    clearInterval(interval);
-                    // store the map for the next run
-                    if (this.navigationDisplayRendering[side].lastFrame !== null) this.navigationDisplayRendering[side].lastFrame.delete();
-                    this.navigationDisplayRendering[side].lastFrame = renderingData.clone();
-                } else {
-                    this.createNavigationDisplayTransitionFrame(
-                        side,
-                        this.navigationDisplayRendering[side].lastFrame,
-                        renderingData,
-                        thresholdData,
-                        config,
-                        angleThresholdStart,
-                        angularStep * counter + angleThresholdStart,
-                        false,
-                    );
+            if (!startup) {
+                switch (this.aircraftStatus.navigationDisplayRenderingMode) {
+                case TerrainRenderingMode.ArcMode:
+                    this.arcModeTransition(side, config, imageData, thresholdData);
+                    break;
+                default:
+                    this.arcModeTransition(side, config, imageData, thresholdData);
+                    parentPort.postMessage({ request: 'LOGERROR', response: `Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}` });
+                    break;
                 }
-
-                counter += 1;
-            }, TransitionUpdateDelay);
+            }
         }
     }
 
@@ -917,56 +900,7 @@ class MapHandler {
         }
 
         if (side in this.navigationDisplayRendering) {
-            if (this.navigationDisplayRendering[side].config === null || this.navigationDisplayRendering[side].config.active === false) return;
-
-            const overallFrameCount = Math.ceil(TransitionFPS * TransitionDuration);
-            const angularStep = 90.0 / overallFrameCount;
-
-            if (this.navigationDisplayRendering[side].lastFrame === null) {
-                // new iteration cycle
-                const deltaTime = Math.round(new Date().getTime() - this.navigationDisplayRendering[side].startupTimestamp);
-                const cycleDelta = deltaTime % TransitionOverallCycleTime;
-
-                if (cycleDelta > TransitionMapUpdateCycletime) {
-                    const transitionDurationMilli = TransitionDuration * 1000;
-                    const ratio = (cycleDelta - TransitionMapUpdateCycletime) / transitionDurationMilli;
-
-                    if (ratio > 0.8) {
-                        // wait for next cycle
-                        const skipTime = transitionDurationMilli - transitionDurationMilli * ratio;
-                        this.navigationDisplayRendering[side].timeout = setTimeout(
-                            () => this.startNavigationDisplayRenderingCycle(side),
-                            TransitionMapUpdateCycletime + skipTime,
-                        );
-                        return;
-                    }
-
-                    // calculate the remaining frame count
-                    const remainingFrameCount = overallFrameCount - Math.floor(ratio * overallFrameCount);
-
-                    // calculate the angular thresholds
-                    const angleThresholdStart = (overallFrameCount - remainingFrameCount) * angularStep;
-
-                    // render the remaining start
-                    this.renderNavigationDisplay(side, remainingFrameCount, angularStep, angleThresholdStart);
-
-                    this.navigationDisplayRendering[side].timeout = setTimeout(
-                        () => this.startNavigationDisplayRenderingCycle(side),
-                        TransitionOverallCycleTime,
-                    );
-                } else {
-                    this.navigationDisplayRendering[side].timeout = setTimeout(
-                        () => this.startNavigationDisplayRenderingCycle(side),
-                        TransitionMapUpdateCycletime - cycleDelta,
-                    );
-                }
-            } else {
-                this.renderNavigationDisplay(side, overallFrameCount, angularStep, 0);
-                this.navigationDisplayRendering[side].timeout = setTimeout(
-                    () => this.startNavigationDisplayRenderingCycle(side),
-                    TransitionOverallCycleTime,
-                );
-            }
+            this.renderNavigationDisplay(side);
         }
     }
 
@@ -974,18 +908,36 @@ class MapHandler {
         if (this.navigationDisplayRendering.L.config !== null) {
             this.navigationDisplayRendering.L.config.active = false;
         }
+        if (this.navigationDisplayRendering.L.durationInterval !== null) {
+            clearInterval(this.navigationDisplayRendering.L.durationInterval);
+            this.navigationDisplayRendering.L.durationInterval = null;
+        }
         if (this.navigationDisplayRendering.L.timeout !== null) {
             clearTimeout(this.navigationDisplayRendering.L.timeout);
             this.navigationDisplayRendering.L.timeout = null;
         }
+        this.navigationDisplayRendering.L.lastFrame = null;
 
         if (this.navigationDisplayRendering.R.config !== null) {
             this.navigationDisplayRendering.R.config.active = false;
+        }
+        if (this.navigationDisplayRendering.R.durationInterval !== null) {
+            clearInterval(this.navigationDisplayRendering.R.durationInterval);
+            this.navigationDisplayRendering.R.durationInterval = null;
         }
         if (this.navigationDisplayRendering.R.timeout !== null) {
             clearTimeout(this.navigationDisplayRendering.R.timeout);
             this.navigationDisplayRendering.R.timeout = null;
         }
+        this.navigationDisplayRendering.R.lastFrame = null;
+    }
+
+    public frameData(side: string): { timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] } {
+        if (side in this.navigationDisplayRendering) {
+            return this.navigationDisplayRendering[side].lastTransitionData;
+        }
+
+        return { timestamp: 0, thresholds: null, frames: [] };
     }
 }
 
@@ -993,7 +945,7 @@ const maphandler = new MapHandler();
 
 parentPort.on('message', (data: { type: string, instance: any }) => {
     if (data.type === 'INITIALIZATION') {
-        maphandler.initialize(data.instance.aircraft as string, data.instance.map as TerrainMap);
+        maphandler.initialize(data.instance as TerrainMap);
         parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
     } else if (data.type === 'STOP_RENDERING') {
         maphandler.stopRendering();

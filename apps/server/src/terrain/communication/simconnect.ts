@@ -7,10 +7,6 @@ import {
     ExceptionMessage,
     OpenMessage,
     Receiver,
-    SimulatorDataArea,
-    SimulatorDataType,
-    SimulatorDataPeriod,
-    SimulatorDataRequestMessage,
     ClientDataRequestMessage,
     ClientDataPeriod,
     ClientDataRequest,
@@ -25,10 +21,6 @@ export type UpdateCallbacks = {
 }
 
 const SimConnectClientName = 'FBW_SIMBRIDGE_SIMCONNECT';
-
-const enum SimulatorDataId {
-    AircraftPosition = 0,
-}
 
 const enum ClientDataId {
     EnhancedGpwcAircraftStatus = 0,
@@ -46,7 +38,7 @@ const enum DataDefinitionId {
     NavigationDisplayFrameAreaRight = 4,
 }
 
-const EnhancedGpwcAircraftStatusByteCount = 48;
+const EnhancedGpwcAircraftStatusByteCount = 44;
 const NavigationDisplayThresholdByteCount = 14;
 
 export class SimConnect {
@@ -61,8 +53,6 @@ export class SimConnect {
 
     private receiver: Receiver = null;
 
-    private simulatorData: SimulatorDataArea = null;
-
     private egpwcAircraftStatus: ClientDataArea = null;
 
     private frameMetadataLeft: ClientDataArea = null;
@@ -73,21 +63,32 @@ export class SimConnect {
 
     private frameDataRight: ClientDataArea = null;
 
-    private registerEgpwcAircraftStatus(): void {
+    private registerEgpwcAircraftStatus(): boolean {
         this.egpwcAircraftStatus = new ClientDataArea(this.connection, ClientDataId.EnhancedGpwcAircraftStatus);
-        this.egpwcAircraftStatus.mapNameToId('FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS');
-        this.egpwcAircraftStatus.addDataDefinition({
+        if (!this.egpwcAircraftStatus.mapNameToId('FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS')) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map aircraft status: ${this.egpwcAircraftStatus.lastError()}` });
+            return false;
+        }
+
+        const addedDefinition = this.egpwcAircraftStatus.addDataDefinition({
             definitionId: DataDefinitionId.EnhancedGpwcAircraftStatus,
             offset: ClientDataOffsetAuto,
             sizeOrType: EnhancedGpwcAircraftStatusByteCount,
             epsilon: 0,
             memberName: 'AircraftStatus',
         });
+        if (!addedDefinition) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to define aircraft status data: ${this.egpwcAircraftStatus.lastError()}` });
+        }
+
+        return addedDefinition;
     }
 
     private registerNavigationDisplayMetadata(clientId: ClientDataId, mapName: string, dataDefinitionId: DataDefinitionId): ClientDataArea {
         const metadata = new ClientDataArea(this.connection, clientId);
-        metadata.mapNameToId(mapName);
+        if (!metadata.mapNameToId(mapName)) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map data for ${mapName}: ${metadata.lastError()}` });
+        }
 
         const addedDefinition = metadata.addDataDefinition({
             definitionId: dataDefinitionId,
@@ -97,13 +98,13 @@ export class SimConnect {
             memberName: 'ThresholdData',
         });
         if (addedDefinition === false) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the data definitions: ${this.connection.lastError()}` });
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the data definitions for ${mapName}: ${this.connection.lastError()}` });
+            return null;
         }
 
-        metadata.allocateArea(NavigationDisplayThresholdByteCount, true);
-
-        if (metadata === null) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the threshold client data area: ${this.connection.lastError()}` });
+        if (!metadata.allocateArea(NavigationDisplayThresholdByteCount, true)) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the threshold client data area for ${mapName}: ${this.connection.lastError()}` });
+            return null;
         }
 
         return metadata;
@@ -111,7 +112,11 @@ export class SimConnect {
 
     private registerNavigationDisplayData(): boolean {
         this.frameDataLeft = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameLeft);
-        this.frameDataLeft.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT');
+        if (!this.frameDataLeft.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT')) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}` });
+            return false;
+        }
+
         let addedDefinition = this.frameDataLeft.addDataDefinition({
             definitionId: DataDefinitionId.NavigationDisplayFrameAreaLeft,
             offset: ClientDataOffsetAuto,
@@ -119,10 +124,22 @@ export class SimConnect {
             epsilon: 0,
             memberName: 'FrameData',
         });
-        this.frameDataLeft.allocateArea(ClientDataMaxSize, true);
+        if (!addedDefinition) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}` });
+            return false;
+        }
+
+        if (!this.frameDataLeft.allocateArea(ClientDataMaxSize, true)) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}` });
+            return false;
+        }
 
         this.frameDataRight = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameRight);
-        this.frameDataRight.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT');
+        if (!this.frameDataRight.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT')) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}` });
+            return false;
+        }
+
         addedDefinition = this.frameDataRight.addDataDefinition({
             definitionId: DataDefinitionId.NavigationDisplayFrameAreaRight,
             offset: ClientDataOffsetAuto,
@@ -130,42 +147,24 @@ export class SimConnect {
             epsilon: 0,
             memberName: 'FrameData',
         });
-        this.frameDataRight.allocateArea(ClientDataMaxSize, true);
-
         if (!addedDefinition) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the frame client data area: ${this.connection.lastError()}` });
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}` });
+            return false;
         }
 
-        return addedDefinition;
-    }
-
-    private registerSimulatorData(): boolean {
-        this.simulatorData = new SimulatorDataArea(this.connection, SimulatorDataId.AircraftPosition);
-
-        let addedDefinition = this.simulatorData.addDataDefinition({
-            type: SimulatorDataType.Float64,
-            name: 'PLANE LATITUDE',
-            unit: 'DEGREES',
-            memberName: 'latitude',
-        });
-        addedDefinition = this.simulatorData.addDataDefinition({
-            type: SimulatorDataType.Float64,
-            name: 'PLANE LONGITUDE',
-            unit: 'DEGREES',
-            memberName: 'longitude',
-        });
-
-        if (!addedDefinition) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the simulation data area: ${this.simulatorData.lastError()}` });
+        if (!this.frameDataRight.allocateArea(ClientDataMaxSize, true)) {
+            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}` });
+            return false;
         }
 
-        return addedDefinition;
+        return true;
     }
 
     private simConnectOpen(_message: OpenMessage): void {
-        if (this.receiver !== null && this.simulatorData !== null) {
-            this.receiver.requestSimulatorData(this.simulatorData, SimulatorDataPeriod.Second);
-            this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.Second, ClientDataRequest.Default);
+        if (this.receiver !== null) {
+            if (!this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.OnSet, ClientDataRequest.Default)) {
+                parentPort.postMessage({ request: 'LOGERROR', response: 'Unable to request aircraft status data' });
+            }
         }
     }
 
@@ -176,7 +175,6 @@ export class SimConnect {
         this.frameMetadataRight = null;
         this.frameDataLeft = null;
         this.frameDataRight = null;
-        this.simulatorData = null;
         this.connection.close();
     }
 
@@ -201,57 +199,48 @@ export class SimConnect {
         setTimeout(() => this.connectToSim(), 10000);
     }
 
-    // Rust stores some values defragmented
-    private static readDefragmentedFloat(buffer: Buffer, indices: [number, number, number, number]): number {
-        const temporaryBuffer = new Uint8Array(4);
-        for (let i = 0; i < 4; ++i) {
-            temporaryBuffer[i] = buffer.at(indices[i]);
-        }
-        return Buffer.from(temporaryBuffer).readFloatLE(0);
-    }
-
     private simConnectReceivedClientData(message: ClientDataRequestMessage): void {
         if (message.clientDataId === ClientDataId.EnhancedGpwcAircraftStatus) {
             const entry = Object.entries(message.content)[0];
             const data = entry[1] as ArrayBuffer;
             const buffer = Buffer.from(data);
 
-            // offsets are found based on an reverse engineering of transmitted data
-            const status: AircraftStatus = {
-                adiruDataValid: buffer.readUInt16LE(34) !== 0,
-                latitude: SimConnect.readDefragmentedFloat(buffer, [28, 29, 0, 1]),
-                longitude: buffer.readFloatLE(2),
-                altitude: buffer.readInt32LE(6),
-                heading: buffer.readInt16LE(40),
-                verticalSpeed: buffer.readInt16LE(20),
-                gearIsDown: buffer.readUInt8(42) !== 0,
-                destinationDataValid: buffer.readUInt8(43) !== 0,
-                destinationLatitude: SimConnect.readDefragmentedFloat(buffer, [10, 11, 30, 31]),
-                destinationLongitude: SimConnect.readDefragmentedFloat(buffer, [32, 33, 38, 39]),
-                navigationDisplayCapt: {
-                    range: buffer.readUInt16LE(22),
-                    arcMode: buffer.readUInt8(24) !== 0,
-                    active: buffer.readUInt8(25) !== 0,
-                    brightness: buffer.readFloatLE(12),
-                },
-                navigationDisplayFO: {
-                    range: buffer.readUInt16LE(36),
-                    arcMode: buffer.readUInt8(26) !== 0,
-                    active: buffer.readUInt8(27) !== 0,
-                    brightness: buffer.readFloatLE(16),
-                },
-                navigationDisplayRenderingMode: buffer.readUInt8(buffer.readUInt8(45)) as TerrainRenderingMode,
-            };
+            if (this.callbacks.positionUpdate !== null) {
+                const positionData: PositionData = {
+                    latitude: buffer.readFloatLE(36),
+                    longitude: buffer.readFloatLE(40),
+                };
+
+                this.callbacks.positionUpdate(positionData);
+            }
 
             if (this.callbacks.aircraftStatusUpdate !== null) {
+                const status: AircraftStatus = {
+                    adiruDataValid: buffer.readUInt8(0) !== 0,
+                    latitude: buffer.readFloatLE(1),
+                    longitude: buffer.readFloatLE(5),
+                    altitude: buffer.readInt32LE(9),
+                    heading: buffer.readInt16LE(13),
+                    verticalSpeed: buffer.readInt16LE(15),
+                    gearIsDown: buffer.readUInt8(17) !== 0,
+                    destinationDataValid: buffer.readUInt8(18) !== 0,
+                    destinationLatitude: buffer.readFloatLE(19),
+                    destinationLongitude: buffer.readFloatLE(23),
+                    navigationDisplayCapt: {
+                        range: buffer.readUInt16LE(27),
+                        arcMode: buffer.readUInt8(29) !== 0,
+                        active: buffer.readUInt8(30) !== 0,
+                    },
+                    navigationDisplayFO: {
+                        range: buffer.readUInt16LE(31),
+                        arcMode: buffer.readUInt8(33) !== 0,
+                        active: buffer.readUInt8(34) !== 0,
+                    },
+                    navigationDisplayRenderingMode: buffer.readUInt8(buffer.readUInt8(35)) as TerrainRenderingMode,
+                };
+
                 this.callbacks.aircraftStatusUpdate(status);
             }
-        }
-    }
-
-    private simConnectReceivedSimulatorData(message: SimulatorDataRequestMessage): void {
-        if (message.definitionId === SimulatorDataId.AircraftPosition && this.callbacks.positionUpdate !== null) {
-            this.callbacks.positionUpdate(message.content as PositionData);
         }
     }
 
@@ -269,25 +258,37 @@ export class SimConnect {
         this.receiver = new Receiver(this.connection);
         this.receiver.addCallback('open', (message: OpenMessage) => this.simConnectOpen(message));
         this.receiver.addCallback('quit', () => this.simConnectQuit());
-        this.receiver.addCallback('simulatorData', (message: SimulatorDataRequestMessage) => this.simConnectReceivedSimulatorData(message));
         this.receiver.addCallback('clientData', (message: ClientDataRequestMessage) => this.simConnectReceivedClientData(message));
         this.receiver.addCallback('exception', (message: ExceptionMessage) => this.simConnectException(message));
         this.receiver.addCallback('error', (message: ErrorMessage) => this.simConnectError(message));
         this.receiver.start();
 
-        this.registerEgpwcAircraftStatus();
+        if (!this.registerEgpwcAircraftStatus()) {
+            setTimeout(() => this.resetConnection(), 10000);
+            return;
+        }
+
         this.frameMetadataLeft = this.registerNavigationDisplayMetadata(
             ClientDataId.NavigationDisplayMetdataLeft,
             'FBW_SIMBRIDGE_TERRONND_METADATA_LEFT',
             DataDefinitionId.NavigationDisplayMetadataAreaLeft,
         );
+        if (this.frameMetadataLeft === null) {
+            setTimeout(() => this.connectToSim(), 10000);
+            return;
+        }
+
         this.frameMetadataRight = this.registerNavigationDisplayMetadata(
             ClientDataId.NavigationDisplayMetdataRight,
             'FBW_SIMBRIDGE_TERRONND_METADATA_RIGHT',
             DataDefinitionId.NavigationDisplayMetadataAreaRight,
         );
-        const createdSimulatorData = this.registerSimulatorData();
-        if (this.frameMetadataLeft === null || this.frameMetadataRight === null || this.registerNavigationDisplayData() === false || createdSimulatorData === false) {
+        if (this.frameMetadataRight === null) {
+            setTimeout(() => this.connectToSim(), 10000);
+            return;
+        }
+
+        if (!this.registerNavigationDisplayData()) {
             this.receiver.stop();
             this.connection.close();
             setTimeout(() => this.connectToSim(), 10000);

@@ -3,7 +3,6 @@ import { IKernelFunctionThis } from 'gpu.js';
 export interface LocalElevationMapConstants {
     unknownElevation: number,
     invalidElevation: number,
-    screenWidth: number,
 }
 
 export type LocalElevationMapParameters = {
@@ -15,7 +14,6 @@ export interface HistogramConstants {
     invalidElevation: number,
     unknownElevation: number,
     waterElevation: number,
-    screenWidth: number,
     binRange: number,
     binCount: number,
     patchSize: number,
@@ -39,18 +37,13 @@ export interface NavigationDisplayConstants {
     normalModeHighDensityGreenOffset: number,
     normalModeHighDensityYellowOffset: number,
     normalModeHighDensityRedOffset: number,
+    maxImageWidth: number,
+    maxImageHeight: number,
     densityPatchSize: number,
-    screenWidth: number,
+    patternMapWidth: number,
+    patternMapHeight: number,
 }
 
 export type NavigationDisplayParameters = {
     constants: NavigationDisplayConstants,
-} & IKernelFunctionThis;
-
-export interface NavigationDisplayTransitionConstants {
-    screenWidth: number,
-}
-
-export type NavigationDisplayTransitionParameters = {
-    constants: NavigationDisplayTransitionConstants,
 } & IKernelFunctionThis;

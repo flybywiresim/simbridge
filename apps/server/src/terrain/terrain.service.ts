@@ -8,18 +8,18 @@ import { TerrainMap } from './fileformat/terrainmap';
 export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
-    private a32nxMapHandlerReady: boolean = false;
+    private mapHandlerReady: boolean = false;
 
-    private a32nxMapHandler: Worker = null;
+    private mapHandler: Worker = null;
 
     private terrainDirectory = 'terrain/';
 
     constructor(private fileService: FileService) {
-        this.a32nxMapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
-        this.a32nxMapHandler.on('message', (message: { request: string, response: any }) => {
+        this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
+        this.mapHandler.on('message', (message: { request: string, response: any }) => {
             if (message.request === 'INITIALIZATION') {
-                this.a32nxMapHandlerReady = message.response as boolean;
-                if (this.a32nxMapHandlerReady) {
+                this.mapHandlerReady = message.response as boolean;
+                if (this.mapHandlerReady) {
                     this.logger.log('Initialized map management');
                 } else {
                     this.logger.log('Unable to initialize the map handler');
@@ -31,17 +31,17 @@ export class TerrainService implements OnApplicationShutdown {
             } else if (message.request === 'LOGERROR') {
                 this.logger.error(message.response as string);
             } else if (message.request === 'SHUTDOWN') {
-                this.a32nxMapHandler.terminate();
+                this.mapHandler.terminate();
             }
         });
 
         this.readTerrainMap().then((map) => {
-            this.a32nxMapHandler.postMessage({ type: 'INITIALIZATION', instance: { aircraft: 'A32NX', map } });
+            this.mapHandler.postMessage({ type: 'INITIALIZATION', instance: map });
         });
     }
 
     onApplicationShutdown(_signal?: string) {
-        this.a32nxMapHandler.postMessage({ type: 'SHUTDOWN' });
+        this.mapHandler.postMessage({ type: 'SHUTDOWN' });
     }
 
     private async readTerrainMap(): Promise<TerrainMap | undefined> {

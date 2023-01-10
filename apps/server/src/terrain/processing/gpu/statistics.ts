@@ -3,16 +3,17 @@ import { HistogramParameters } from './interfaces';
 export function createLocalElevationHistogram(
     this: HistogramParameters,
     elevations: number[][],
+    width: number,
     height: number,
 ): number {
     // get the patch
-    const patchesInX = Math.ceil(this.constants.screenWidth / this.constants.patchSize);
+    const patchesInX = Math.ceil(width / this.constants.patchSize);
     const patchY = Math.floor(this.thread.y / patchesInX);
     const patchX = this.thread.y % patchesInX;
 
     // get the patch borders
     const xStart = patchX * this.constants.patchSize;
-    const xEnd = Math.min(this.constants.screenWidth, xStart + this.constants.patchSize);
+    const xEnd = Math.min(width, xStart + this.constants.patchSize);
     const yStart = patchY * this.constants.patchSize;
     const yEnd = Math.min(height, yStart + this.constants.patchSize);
 
