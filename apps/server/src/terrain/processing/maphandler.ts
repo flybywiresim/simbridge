@@ -803,7 +803,7 @@ class MapHandler {
 
             // transfer the transition frame
             if (frame !== null) {
-                sharp(frame, { raw: { width: config.mapWidth, height: config.mapHeight, channels: RenderingColorChannelCount } })
+                sharp(frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingMaxPixelHeight, channels: RenderingColorChannelCount } })
                     .png()
                     .toBuffer()
                     .then((buffer) => {
