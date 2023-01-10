@@ -145,14 +145,19 @@ class MapHandler {
 
     private onAircraftStatusUpdate(data: AircraftStatus, startup: boolean = false): void {
         if (this.aircraftStatus === null || data.navigationDisplayRenderingMode !== this.aircraftStatus.navigationDisplayRenderingMode || this.patternMap === null) {
-            if (data.navigationDisplayRenderingMode === TerrainRenderingMode.ArcMode) {
+            switch (data.navigationDisplayRenderingMode) {
+            case TerrainRenderingMode.ArcMode:
                 const patternData = createArcModePatternMap();
                 this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
-                parentPort.postMessage({ request: 'LOGINFO', response: 'ARC-mode rendering activated' });
-            } else {
-                const patternData = createArcModePatternMap();
-                this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
-                parentPort.postMessage({ request: 'LOGERROR', response: 'No known rendering mode selected' });
+                if (startup) {
+                    parentPort.postMessage({ request: 'LOGMESSAGE', response: 'ARC-mode rendering activated' });
+                }
+                break;
+            default:
+                if (startup) {
+                    parentPort.postMessage({ request: 'LOGERROR', response: 'No known rendering mode selected' });
+                }
+                break;
             }
         }
 
@@ -876,7 +881,6 @@ class MapHandler {
                     this.arcModeTransition(side, config, imageData, thresholdData);
                     break;
                 default:
-                    this.arcModeTransition(side, config, imageData, thresholdData);
                     parentPort.postMessage({ request: 'LOGERROR', response: `Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}` });
                     break;
                 }
