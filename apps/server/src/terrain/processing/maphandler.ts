@@ -49,6 +49,7 @@ const HistogramPatchSize = 128;
 
 // rendering parameters
 const RenderingMaxPixelWidth = 768;
+const RenderingScreenPixelHeight = 640;
 const RenderingMaxPixelHeight = 492;
 const RenderingArcModePixelWidth = 768;
 const RenderingArcModePixelHeight = 492;
@@ -278,7 +279,7 @@ class MapHandler {
                         normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
                         normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
                         maxImageWidth: RenderingMaxPixelWidth,
-                        maxImageHeight: RenderingMaxPixelHeight,
+                        maxImageHeight: RenderingScreenPixelHeight,
                         densityPatchSize: RenderingDensityPatchSize,
                         patternMapWidth: RenderingMaxPixelWidth,
                         patternMapHeight: RenderingMaxPixelHeight,
@@ -291,7 +292,7 @@ class MapHandler {
                         renderPeaksMode,
                         drawDensityPixel,
                     ])
-                    .setOutput([RenderingMaxPixelWidth * RenderingColorChannelCount, RenderingMaxPixelHeight + 1]);
+                    .setOutput([RenderingMaxPixelWidth * RenderingColorChannelCount, RenderingScreenPixelHeight + 1]);
             }
         }
     }
@@ -748,7 +749,7 @@ class MapHandler {
         startAngle: number,
         endAngle: number,
     ): Uint8ClampedArray {
-        const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingMaxPixelHeight);
+        const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingScreenPixelHeight);
 
         // access data as uint32-array for performance reasons
         const destination = new Uint32Array(result.buffer);
@@ -812,7 +813,7 @@ class MapHandler {
 
             // transfer the transition frame
             if (frame !== null) {
-                sharp(frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingMaxPixelHeight, channels: RenderingColorChannelCount } })
+                sharp(frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingScreenPixelHeight, channels: RenderingColorChannelCount } })
                     .png()
                     .toBuffer()
                     .then((buffer) => {
