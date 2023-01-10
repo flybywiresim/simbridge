@@ -18,6 +18,10 @@ import { HealthModule } from './health/health.module';
             rootPath: join(__dirname, '..', 'dist/mcdu'),
             serveRoot: '/interfaces/mcdu',
         }),
+        ServeStaticModule.forRoot({
+            rootPath: join(__dirname, '..', 'dist/dashboard'),
+            serveRoot: '/dashboard',
+        }),
         WinstonModule.forRootAsync({ useClass: WinstonConfigService }),
         ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig] }),
         CoRouteModule,
