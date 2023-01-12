@@ -276,7 +276,7 @@ export class SimConnect {
 
         this.frameMetadataLeft = this.registerNavigationDisplayMetadata(
             ClientDataId.NavigationDisplayMetdataLeft,
-            'FBW_SIMBRIDGE_TERRONND_METADATA_LEFT',
+            'FBW_SIMBRIDGE_TERRONND_THRESHOLDS_LEFT',
             DataDefinitionId.NavigationDisplayMetadataAreaLeft,
         );
         if (this.frameMetadataLeft === null) {
@@ -286,7 +286,7 @@ export class SimConnect {
 
         this.frameMetadataRight = this.registerNavigationDisplayMetadata(
             ClientDataId.NavigationDisplayMetdataRight,
-            'FBW_SIMBRIDGE_TERRONND_METADATA_RIGHT',
+            'FBW_SIMBRIDGE_TERRONND_THRESHOLDS_RIGHT',
             DataDefinitionId.NavigationDisplayMetadataAreaRight,
         );
         if (this.frameMetadataRight === null) {
