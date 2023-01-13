@@ -5,8 +5,6 @@ import { Tile } from '../fileformat/tile';
 import { projectWgs84 } from '../processing/gpu/helper';
 import { TileManager } from './tilemanager';
 
-require('sharp');
-
 export interface GridDefinition {
     rows: number,
     columns: number,

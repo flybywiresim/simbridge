@@ -1,5 +1,6 @@
 import { parentPort } from 'worker_threads';
 import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
+import * as sharp from 'sharp';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -26,8 +27,6 @@ import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
-
-const sharp = require('sharp');
 
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
