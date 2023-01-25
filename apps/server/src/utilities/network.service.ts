@@ -38,7 +38,13 @@ export class NetworkService implements OnApplicationShutdown {
         });
 
         this.mDNSServer.on('warning', (error) => {
-            this.logger.warn(`mDNS server warning: ${error.message}`);
+            if (error.message.startsWith('Cannot decode name (')) {
+                // Ignore this error as it usually comes from irrelevant malformed mDNS packets (particularly from Internet connected radios)
+                // and needlessly spams the log
+                return;
+            }
+
+            this.logger.warn(`mDNS server error: ${error.message}`);
         });
 
         this.mDNSServer.on('ready', () => {
