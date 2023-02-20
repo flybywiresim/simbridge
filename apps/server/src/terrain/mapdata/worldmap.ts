@@ -37,13 +37,7 @@ export class Worldmap {
     public VisibilityRange: number = 700;
 
     public static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
-        for (let i = 0; i < tiles.length; ++i) {
-            if (tiles[i].Southwest.latitude === latitude && tiles[i].Southwest.longitude === longitude) {
-                return i;
-            }
-        }
-
-        return -1;
+        return tiles.findIndex((t) => t.Southwest.latitude === latitude && t.Southwest.longitude === longitude);
     }
 
     constructor(private terrainData: TerrainMap) {

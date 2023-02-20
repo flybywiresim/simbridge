@@ -31,7 +31,7 @@ import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythreshol
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
 const ThreeNauticalMilesInFeet = 18228.3;
-const MetresToNauticalMiles = 1852;
+const NauticalMilesToMetres = 1852;
 
 // map grid creation
 const InvalidElevation = 32767;
@@ -496,28 +496,30 @@ class MapHandler {
 
             if (!startup) {
                 if (resetRendering) {
-                    if (this.navigationDisplayRendering[display].durationInterval !== null) {
-                        clearInterval(this.navigationDisplayRendering[display].durationInterval);
-                        this.navigationDisplayRendering[display].durationInterval = null;
-                    }
-                    if (this.navigationDisplayRendering[display].timeout !== null) {
-                        clearTimeout(this.navigationDisplayRendering[display].timeout);
-                        this.navigationDisplayRendering[display].timeout = null;
-                    }
+                    if (config.active === false && lastConfig.active === true) {
+                        if (this.navigationDisplayRendering[display].durationInterval !== null) {
+                            clearInterval(this.navigationDisplayRendering[display].durationInterval);
+                            this.navigationDisplayRendering[display].durationInterval = null;
+                        }
+                        if (this.navigationDisplayRendering[display].timeout !== null) {
+                            clearTimeout(this.navigationDisplayRendering[display].timeout);
+                            this.navigationDisplayRendering[display].timeout = null;
+                        }
 
-                    this.navigationDisplayRendering[display].lastTransitionData.thresholds = null;
-                    this.navigationDisplayRendering[display].lastTransitionData.timestamp = 0;
-                    this.navigationDisplayRendering[display].lastTransitionData.frames = [];
-                    this.navigationDisplayRendering[display].lastFrame = null;
+                        this.navigationDisplayRendering[display].lastTransitionData.thresholds = null;
+                        this.navigationDisplayRendering[display].lastTransitionData.timestamp = 0;
+                        this.navigationDisplayRendering[display].lastTransitionData.frames = [];
+                        this.navigationDisplayRendering[display].lastFrame = null;
 
-                    // reset also the aircraft data
-                    this.simconnect.sendNavigationDisplayTerrainMapMetadata(display, {
-                        MinimumElevation: -1,
-                        MinimumElevationMode: TerrainLevelMode.PeaksMode,
-                        MaximumElevation: -1,
-                        MaximumElevationMode: TerrainLevelMode.PeaksMode,
-                        FrameByteCount: 0,
-                    });
+                        // reset also the aircraft data
+                        this.simconnect.sendNavigationDisplayTerrainMapMetadata(display, {
+                            MinimumElevation: -1,
+                            MinimumElevationMode: TerrainLevelMode.PeaksMode,
+                            MaximumElevation: -1,
+                            MaximumElevationMode: TerrainLevelMode.PeaksMode,
+                            FrameByteCount: 0,
+                        });
+                    }
                 }
 
                 if (startRendering || (resetRendering && config.active === true)) {
@@ -545,7 +547,7 @@ class MapHandler {
     }
 
     private createLocalElevationMap(config: NavigationDisplay): Texture {
-        let metresPerPixel = Math.round((config.range * MetresToNauticalMiles) / config.mapHeight);
+        let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
         if (config.arcMode) metresPerPixel *= 2.0;
 
         // prepare the output buffer
