@@ -124,6 +124,7 @@ class MapHandler {
             config: NavigationDisplay,
             timeout: NodeJS.Timeout,
             durationInterval: NodeJS.Timer,
+            resetRenderingData: boolean,
             startupTimestamp: number,
             finalMap: IKernelRunShortcut,
             lastFrame: Uint8ClampedArray,
@@ -237,6 +238,7 @@ class MapHandler {
         this.navigationDisplayRendering.L = {
             config: null,
             timeout: null,
+            resetRenderingData: true,
             durationInterval: null,
             startupTimestamp: new Date().getTime(),
             finalMap: null,
@@ -246,6 +248,7 @@ class MapHandler {
         this.navigationDisplayRendering.R = {
             config: null,
             timeout: null,
+            resetRenderingData: true,
             durationInterval: null,
             // offset the rendering to have a more realistic bahaviour
             startupTimestamp: new Date().getTime() - 1500,
@@ -487,42 +490,47 @@ class MapHandler {
         return this.worldMapCache[index];
     }
 
+    private resetFrameData(side: string): void {
+        this.navigationDisplayRendering[side].lastTransitionData.thresholds = null;
+        this.navigationDisplayRendering[side].lastTransitionData.timestamp = 0;
+        this.navigationDisplayRendering[side].lastTransitionData.frames = [];
+        this.navigationDisplayRendering[side].lastFrame = null;
+    }
+
     private configureNavigationDisplay(display: string, config: NavigationDisplay, startup: boolean): void {
         if (display in this.navigationDisplayRendering) {
             const lastConfig = this.navigationDisplayRendering[display].config;
-            const startRendering = config.active === true && (lastConfig === null || lastConfig.active === false);
-            const resetRendering = config.active === false || lastConfig === null || (lastConfig.arcMode !== config.arcMode);
+            const stopRendering = !config.active && lastConfig !== null && lastConfig.active;
+            let startRendering = config.active && (lastConfig === null || !lastConfig.active);
+            startRendering ||= lastConfig !== null && ((lastConfig.range !== config.range) || (lastConfig.arcMode !== config.arcMode));
+
             this.navigationDisplayRendering[display].config = config;
 
             if (!startup) {
-                if (resetRendering) {
-                    if (config.active === false && lastConfig.active === true) {
-                        if (this.navigationDisplayRendering[display].durationInterval !== null) {
-                            clearInterval(this.navigationDisplayRendering[display].durationInterval);
-                            this.navigationDisplayRendering[display].durationInterval = null;
-                        }
-                        if (this.navigationDisplayRendering[display].timeout !== null) {
-                            clearTimeout(this.navigationDisplayRendering[display].timeout);
-                            this.navigationDisplayRendering[display].timeout = null;
-                        }
-
-                        this.navigationDisplayRendering[display].lastTransitionData.thresholds = null;
-                        this.navigationDisplayRendering[display].lastTransitionData.timestamp = 0;
-                        this.navigationDisplayRendering[display].lastTransitionData.frames = [];
-                        this.navigationDisplayRendering[display].lastFrame = null;
-
-                        // reset also the aircraft data
-                        this.simconnect.sendNavigationDisplayTerrainMapMetadata(display, {
-                            MinimumElevation: -1,
-                            MinimumElevationMode: TerrainLevelMode.PeaksMode,
-                            MaximumElevation: -1,
-                            MaximumElevationMode: TerrainLevelMode.PeaksMode,
-                            FrameByteCount: 0,
-                        });
+                if (stopRendering || startRendering) {
+                    if (this.navigationDisplayRendering[display].durationInterval !== null) {
+                        clearInterval(this.navigationDisplayRendering[display].durationInterval);
+                        this.navigationDisplayRendering[display].durationInterval = null;
                     }
+                    if (this.navigationDisplayRendering[display].timeout !== null) {
+                        clearTimeout(this.navigationDisplayRendering[display].timeout);
+                        this.navigationDisplayRendering[display].timeout = null;
+                    }
+
+                    this.navigationDisplayRendering[display].resetRenderingData = true;
+                    this.resetFrameData(display);
+
+                    // reset also the aircraft data
+                    this.simconnect.sendNavigationDisplayTerrainMapMetadata(display, {
+                        MinimumElevation: -1,
+                        MinimumElevationMode: TerrainLevelMode.PeaksMode,
+                        MaximumElevation: -1,
+                        MaximumElevationMode: TerrainLevelMode.PeaksMode,
+                        FrameByteCount: 0,
+                    });
                 }
 
-                if (startRendering || (resetRendering && config.active === true)) {
+                if (startRendering) {
                     this.startNavigationDisplayRenderingCycle(display);
                 }
             }
@@ -783,6 +791,11 @@ class MapHandler {
     private arcModeTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
         const transitionFrames: Uint8ClampedArray[] = [];
 
+        if (this.navigationDisplayRendering[side].resetRenderingData) {
+            this.navigationDisplayRendering[side].resetRenderingData = false;
+            this.resetFrameData(side);
+        }
+
         let startAngle = 0;
         if (this.navigationDisplayRendering[side].lastFrame === null) {
             const timeSinceStart = new Date().getTime() - this.navigationDisplayRendering[side].startupTimestamp;
@@ -827,7 +840,7 @@ class MapHandler {
                     });
             }
 
-            if (stopInterval) {
+            if (stopInterval && !this.navigationDisplayRendering[side].resetRenderingData) {
                 clearInterval(this.navigationDisplayRendering[side].durationInterval);
                 this.navigationDisplayRendering[side].durationInterval = null;
 
