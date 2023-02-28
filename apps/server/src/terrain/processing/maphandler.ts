@@ -412,7 +412,7 @@ class MapHandler {
             if (minWidthPerTile === 5000) minWidthPerTile = DefaultTileSize;
             if (minHeightPerTile === 5000) minHeightPerTile = DefaultTileSize;
 
-            const egoTileIndex = this.worldmap.worldMapIndices(this.currentPosition.latitude, this.currentPosition.longitude);
+            const egoTileIndex = this.worldmap.worldMapIndices(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
             const globalEgoOffset: { x: number, y: number } = { x: -1, y: -1 };
 
             const worldWidth = minWidthPerTile * (northeastGrid.column - southwestGrid.column);
