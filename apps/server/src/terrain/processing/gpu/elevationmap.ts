@@ -40,19 +40,15 @@ export function createLocalElevationMap(
 
     const projected = projectWgs84(latitude, longitude, bearing, distance);
 
-    // check if the projected point are out of bounds
-    if (worldMapSouthwestLat > projected[0] || worldMapNortheastLat < projected[0]
-        || worldMapSouthwestLong > projected[1] || worldMapNortheastLong < projected[1]
-    ) {
-        return this.constants.unknownElevation;
-    }
-
     // calculate the pixel movement out of the current position
     const latStep = (worldMapNortheastLat - worldMapSouthwestLat) / worldMapHeight;
     const longStep = (worldMapNortheastLong - worldMapSouthwestLong) / worldMapWidth;
     const latPixelDelta = (latitude - projected[0]) / latStep;
     const longPixelDelta = (projected[1] - longitude) / longStep;
 
-    // map everything from the current position
-    return worldMap[currentWorldGridY + latPixelDelta][currentWorldGridX + longPixelDelta];
+    const y = Math.floor(currentWorldGridY + latPixelDelta);
+    const x = Math.floor(currentWorldGridX + longPixelDelta);
+    if (y < 0 || y > worldMapHeight || x < 0 || x > worldMapWidth) return this.constants.unknownElevation;
+
+    return worldMap[y][x];
 }
