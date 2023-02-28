@@ -83,7 +83,7 @@ class MapHandler {
 
     public Initialized = false;
 
-    private currentPosition: PositionData = undefined;
+    private currentGroundTruthPosition: PositionData = undefined;
 
     private uploadWorldMapToGPU: IKernelRunShortcut = null;
 
@@ -141,7 +141,7 @@ class MapHandler {
     }
 
     private onPositionUpdate(data: PositionData): void {
-        this.updatePosition(data, false);
+        this.updateGroundTruthPositionAndCachedTiles(data, false);
     }
 
     private onAircraftStatusUpdate(data: AircraftStatus, startup: boolean = false): void {
@@ -340,7 +340,7 @@ class MapHandler {
 
         // run all process steps to precompile the kernels
         this.onAircraftStatusUpdate(startupStatus, true);
-        this.updatePosition(startupPosition, true);
+        this.updateGroundTruthPositionAndCachedTiles(startupPosition, true);
         this.renderNavigationDisplay('L', true);
 
         // reset all initialization data
@@ -354,7 +354,7 @@ class MapHandler {
         this.worldMapCache = null;
         this.gpuWorldMap.delete();
         this.gpuWorldMap = null;
-        this.currentPosition = null;
+        this.currentGroundTruthPosition = null;
         this.aircraftStatus = null;
         this.worldmap.resetInternalData();
         this.Initialized = true;
@@ -386,10 +386,10 @@ class MapHandler {
         if (this.gpu !== null) this.gpu.destroy();
     }
 
-    private updatePosition(position: PositionData, startup: boolean): void {
+    private updateGroundTruthPositionAndCachedTiles(position: PositionData, startup: boolean): void {
         if (!this.Initialized && !startup) return;
-        this.currentPosition = position;
-        const tiledata = this.worldmap.updatePosition(this.currentPosition);
+        this.currentGroundTruthPosition = position;
+        const tiledata = this.worldmap.updatePosition(this.currentGroundTruthPosition);
 
         if (tiledata.loadlist.length !== 0 || this.cachedTiles !== tiledata.whitelist.length) {
             const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.worldmap.VisibilityRange * 1852);
@@ -441,8 +441,8 @@ class MapHandler {
                         if (egoTileIndex.row === row && egoTileIndex.column === column && globalEgoOffset.x < 0) {
                             const latStep = this.worldmap.GridData.latitudeStep / minHeightPerTile;
                             const longStep = this.worldmap.GridData.longitudeStep / minWidthPerTile;
-                            const latDelta = this.currentPosition.latitude - cell.southwest.latitude;
-                            const longDelta = this.currentPosition.longitude - cell.southwest.longitude;
+                            const latDelta = this.currentGroundTruthPosition.latitude - cell.southwest.latitude;
+                            const longDelta = this.currentGroundTruthPosition.longitude - cell.southwest.longitude;
 
                             globalEgoOffset.x = xOffset + longDelta / longStep;
                             globalEgoOffset.y = yOffset + minHeightPerTile - latDelta / latStep;
@@ -479,8 +479,8 @@ class MapHandler {
         // calculate the pixel movement out of the current position
         const latStep = (this.worldMapMetadata.northeast.latitude - this.worldMapMetadata.southwest.latitude) / this.worldMapMetadata.height;
         const longStep = (this.worldMapMetadata.northeast.longitude - this.worldMapMetadata.southwest.longitude) / this.worldMapMetadata.width;
-        const latPixelDelta = (this.currentPosition.latitude - latitude) / latStep;
-        const longPixelDelta = (longitude - this.currentPosition.longitude) / longStep;
+        const latPixelDelta = (this.aircraftStatus.latitude - latitude) / latStep;
+        const longPixelDelta = (longitude - this.aircraftStatus.longitude) / longStep;
 
         // calculate the map index
         let index = (this.worldMapMetadata.currentGridPosition.y + latPixelDelta) * this.worldMapMetadata.width;
@@ -626,8 +626,8 @@ class MapHandler {
             let cutOffAltitude = RenderingCutOffAltitudeMaximum;
 
             const distance = distanceWgs84(
-                this.currentPosition.latitude,
-                this.currentPosition.longitude,
+                this.aircraftStatus.latitude,
+                this.aircraftStatus.longitude,
                 this.aircraftStatus.destinationLatitude,
                 this.aircraftStatus.destinationLongitude,
             );
@@ -873,7 +873,7 @@ class MapHandler {
         }
 
         // no valid position data received
-        if (this.currentPosition === undefined) {
+        if (this.currentGroundTruthPosition === undefined) {
             parentPort.postMessage({ request: 'LOGWARN', response: 'No valid position received for rendering' });
         } else if (this.navigationDisplayRendering[side].config === undefined) {
             parentPort.postMessage({ request: 'LOGWARN', response: 'No navigation display configuration received' });
