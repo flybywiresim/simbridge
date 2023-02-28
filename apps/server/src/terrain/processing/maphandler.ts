@@ -795,6 +795,10 @@ class MapHandler {
             this.navigationDisplayRendering[side].resetRenderingData = false;
             this.resetFrameData(side);
         }
+        if (this.navigationDisplayRendering[side].durationInterval !== null) {
+            clearInterval(this.navigationDisplayRendering[side].durationInterval);
+            this.navigationDisplayRendering[side].durationInterval = null;
+        }
 
         let startAngle = 0;
         if (this.navigationDisplayRendering[side].lastFrame === null) {
@@ -855,6 +859,10 @@ class MapHandler {
                     maxElevationIsCaution: thresholdData.MaximumElevationMode === TerrainLevelMode.Warning,
                 };
 
+                if (this.navigationDisplayRendering[side].timeout !== null) {
+                    clearTimeout(this.navigationDisplayRendering[side].timeout);
+                    this.navigationDisplayRendering[side].timeout = null;
+                }
                 this.navigationDisplayRendering[side].timeout = setTimeout(() => this.renderNavigationDisplay(side), RenderingMapUpdateTimeout);
             }
 
