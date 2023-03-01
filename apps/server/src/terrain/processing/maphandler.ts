@@ -878,7 +878,9 @@ class MapHandler {
                     clearTimeout(this.navigationDisplayRendering[side].timeout);
                     this.navigationDisplayRendering[side].timeout = null;
                 }
-                this.navigationDisplayRendering[side].timeout = setTimeout(() => this.renderNavigationDisplay(side), RenderingMapUpdateTimeout);
+                if (this.navigationDisplayRendering[side].config.active) {
+                    this.navigationDisplayRendering[side].timeout = setTimeout(() => this.renderNavigationDisplay(side), RenderingMapUpdateTimeout);
+                }
             }
 
             lastFrame = frame;
