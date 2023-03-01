@@ -315,19 +315,19 @@ class MapHandler {
 
         // initial call precompile the kernels and reduce first reaction time
         const startupConfig: NavigationDisplay = {
-            range: 20,
-            arcMode: false,
+            range: 10,
+            arcMode: true,
             active: true,
             mapOffsetX: 0,
             mapWidth: RenderingMaxPixelWidth,
-            mapHeight: RenderingRoseModePixelHeight,
+            mapHeight: RenderingArcModePixelHeight,
         };
         const startupStatus: AircraftStatus = {
             adiruDataValid: true,
-            latitude: 20.903682,
-            longitude: -156.424148,
-            altitude: 200,
-            heading: 220,
+            latitude: 47.26081085205078,
+            longitude: 11.349658966064453,
+            altitude: 1904,
+            heading: 260,
             verticalSpeed: 0,
             gearIsDown: true,
             destinationDataValid: false,
@@ -338,8 +338,8 @@ class MapHandler {
             navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
         };
         const startupPosition: PositionData = {
-            latitude: 20.903682,
-            longitude: -156.424148,
+            latitude: 47.26081085205078,
+            longitude: 11.349658966064453,
         };
 
         // run all process steps to precompile the kernels
