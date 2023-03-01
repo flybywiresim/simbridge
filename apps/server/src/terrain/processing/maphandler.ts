@@ -97,12 +97,16 @@ class MapHandler {
         southwest: { latitude: number, longitude: number },
         northeast: { latitude: number, longitude: number },
         currentGridPosition: { x: number, y: number },
+        minWidthPerTile: number,
+        minHeightPerTile: number,
         width: number,
         height: number,
     } = {
         southwest: { latitude: -100, longitude: -190 },
         northeast: { latitude: -100, longitude: -190 },
         currentGridPosition: { x: 0, y: 0 },
+        minWidthPerTile: 0,
+        minHeightPerTile: 0,
         width: 0,
         height: 0,
     };
@@ -348,6 +352,8 @@ class MapHandler {
             southwest: { latitude: -100, longitude: -190 },
             northeast: { latitude: -100, longitude: -190 },
             currentGridPosition: { x: 0, y: 0 },
+            minWidthPerTile: 0,
+            minHeightPerTile: 0,
             width: 0,
             height: 0,
         };
@@ -397,36 +403,33 @@ class MapHandler {
             const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.worldmap.VisibilityRange * 1852);
             const northeastGrid = this.worldmap.worldMapIndices(northeastLat, northeastLong);
 
-            let minWidthPerTile = 5000;
-            let minHeightPerTile = 5000;
+            this.worldMapMetadata.minWidthPerTile = 5000;
+            this.worldMapMetadata.minHeightPerTile = 5000;
             for (let { row } = northeastGrid; row >= southwestGrid.row; row--) {
                 for (let { column } = southwestGrid; column <= northeastGrid.column; column++) {
                     const cell = this.worldmap.TileManager.grid[row][column];
                     if (cell.tileIndex !== -1 && cell.elevationmap.Rows !== 0 && cell.elevationmap.Columns !== 0) {
-                        minWidthPerTile = Math.min(cell.elevationmap.Columns, minWidthPerTile);
-                        minHeightPerTile = Math.min(cell.elevationmap.Rows, minHeightPerTile);
+                        this.worldMapMetadata.minWidthPerTile = Math.min(cell.elevationmap.Columns, this.worldMapMetadata.minWidthPerTile);
+                        this.worldMapMetadata.minHeightPerTile = Math.min(cell.elevationmap.Rows, this.worldMapMetadata.minHeightPerTile);
                     }
                 }
             }
 
-            if (minWidthPerTile === 5000) minWidthPerTile = DefaultTileSize;
-            if (minHeightPerTile === 5000) minHeightPerTile = DefaultTileSize;
+            if (this.worldMapMetadata.minWidthPerTile === 5000) this.worldMapMetadata.minWidthPerTile = DefaultTileSize;
+            if (this.worldMapMetadata.minHeightPerTile === 5000) this.worldMapMetadata.minHeightPerTile = DefaultTileSize;
 
-            const egoTileIndex = this.worldmap.worldMapIndices(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
-            const globalEgoOffset: { x: number, y: number } = { x: -1, y: -1 };
-
-            const worldWidth = minWidthPerTile * (northeastGrid.column - southwestGrid.column);
-            const worldHeight = minHeightPerTile * (northeastGrid.row - southwestGrid.row);
+            const worldWidth = this.worldMapMetadata.minWidthPerTile * (northeastGrid.column - southwestGrid.column);
+            const worldHeight = this.worldMapMetadata.minHeightPerTile * (northeastGrid.row - southwestGrid.row);
             this.worldMapCache = new Int16Array(worldWidth * worldHeight);
             let yOffset = 0;
 
             for (let { row } = northeastGrid; row >= southwestGrid.row; row--) {
-                for (let y = 0; y < minHeightPerTile; y++) {
+                for (let y = 0; y < this.worldMapMetadata.minHeightPerTile; y++) {
                     let xOffset = 0;
 
                     for (let { column } = southwestGrid; column <= northeastGrid.column; column++) {
                         const cell = this.worldmap.TileManager.grid[row][column];
-                        for (let x = 0; x < minWidthPerTile; x++) {
+                        for (let x = 0; x < this.worldMapMetadata.minWidthPerTile; x++) {
                             const index = (y + yOffset) * worldWidth + xOffset + x;
 
                             if (cell.tileIndex === -1) {
@@ -438,36 +441,46 @@ class MapHandler {
                             }
                         }
 
-                        if (egoTileIndex.row === row && egoTileIndex.column === column && globalEgoOffset.x < 0) {
-                            const latStep = this.worldmap.GridData.latitudeStep / minHeightPerTile;
-                            const longStep = this.worldmap.GridData.longitudeStep / minWidthPerTile;
-                            const latDelta = this.currentGroundTruthPosition.latitude - cell.southwest.latitude;
-                            const longDelta = this.currentGroundTruthPosition.longitude - cell.southwest.longitude;
-
-                            globalEgoOffset.x = xOffset + longDelta / longStep;
-                            globalEgoOffset.y = yOffset + minHeightPerTile - latDelta / latStep;
-                        }
-
-                        xOffset += minWidthPerTile;
+                        xOffset += this.worldMapMetadata.minWidthPerTile;
                     }
                 }
 
-                yOffset += minHeightPerTile;
+                yOffset += this.worldMapMetadata.minHeightPerTile;
             }
 
             // update the world map metadata for the rendering
-            this.worldMapMetadata.southwest = this.worldmap.TileManager.grid[southwestGrid.row][southwestGrid.column].southwest;
-            this.worldMapMetadata.northeast = this.worldmap.TileManager.grid[northeastGrid.row][northeastGrid.column].southwest;
-            this.worldMapMetadata.northeast.latitude += this.worldmap.GridData.latitudeStep;
-            this.worldMapMetadata.northeast.longitude += this.worldmap.GridData.longitudeStep;
-            this.worldMapMetadata.currentGridPosition = globalEgoOffset;
+            this.worldMapMetadata.southwest.latitude = this.worldmap.TileManager.grid[southwestGrid.row][southwestGrid.column].southwest.latitude;
+            this.worldMapMetadata.southwest.longitude = this.worldmap.TileManager.grid[southwestGrid.row][southwestGrid.column].southwest.longitude;
+            this.worldMapMetadata.northeast.latitude = this.worldmap.TileManager.grid[northeastGrid.row][northeastGrid.column].southwest.latitude + this.worldmap.GridData.latitudeStep;
+            this.worldMapMetadata.northeast.longitude = this.worldmap.TileManager.grid[northeastGrid.row][northeastGrid.column].southwest.longitude + this.worldmap.GridData.longitudeStep;
             this.worldMapMetadata.width = worldWidth;
             this.worldMapMetadata.height = worldHeight;
 
+            if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
             this.gpuWorldMap = this.uploadWorldMapToGPU(this.worldMapCache, worldWidth) as Texture;
 
             this.cachedTiles = tiledata.whitelist.length;
+        }
+
+        // calculate the correct pixel coordinate in every step
+        const currentTile = this.worldmap.getTile(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
+        if (currentTile !== undefined) {
+            const latStep = this.worldmap.GridData.latitudeStep / this.worldMapMetadata.minHeightPerTile;
+            const longStep = this.worldmap.GridData.longitudeStep / this.worldMapMetadata.minWidthPerTile;
+            const latDelta = this.currentGroundTruthPosition.latitude - currentTile.Southwest.latitude;
+            const longDelta = this.currentGroundTruthPosition.longitude - currentTile.Southwest.longitude;
+
+            const yOffset = Math.floor(
+                (this.worldMapMetadata.northeast.latitude - this.currentGroundTruthPosition.latitude) / this.worldmap.GridData.latitudeStep,
+            ) * this.worldMapMetadata.minHeightPerTile;
+            const xOffset = Math.floor(
+                (this.currentGroundTruthPosition.longitude - this.worldMapMetadata.southwest.longitude) / this.worldmap.GridData.longitudeStep,
+            ) * this.worldMapMetadata.minWidthPerTile;
+            const globalEgoOffset: { x: number, y: number } = { x: xOffset + longDelta / longStep, y: yOffset + this.worldMapMetadata.minHeightPerTile - latDelta / latStep };
+            this.worldMapMetadata.currentGridPosition = globalEgoOffset;
+        } else {
+            this.worldMapMetadata.currentGridPosition = { x: this.worldMapMetadata.width / 2, y: this.worldMapMetadata.height / 2 };
         }
     }
 
@@ -571,6 +584,8 @@ class MapHandler {
             this.aircraftStatus.latitude,
             this.aircraftStatus.longitude,
             this.aircraftStatus.heading,
+            this.currentGroundTruthPosition.latitude,
+            this.currentGroundTruthPosition.longitude,
             this.worldMapMetadata.currentGridPosition.x,
             this.worldMapMetadata.currentGridPosition.y,
             this.gpuWorldMap,
