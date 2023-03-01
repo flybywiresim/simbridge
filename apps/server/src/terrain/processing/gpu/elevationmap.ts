@@ -7,6 +7,8 @@ export function createLocalElevationMap(
     latitude: number,
     longitude: number,
     heading: number,
+    groundTruthLatitude: number,
+    groundTruthLongitude: number,
     currentWorldGridX: number,
     currentWorldGridY: number,
     worldMap: number[][],
@@ -39,15 +41,15 @@ export function createLocalElevationMap(
     bearing = normalizeHeading(bearing + heading);
 
     const projected = projectWgs84(latitude, longitude, bearing, distance);
-
-    // calculate the pixel movement out of the current position
     const latStep = (worldMapNortheastLat - worldMapSouthwestLat) / worldMapHeight;
     const longStep = (worldMapNortheastLong - worldMapSouthwestLong) / worldMapWidth;
-    const latPixelDelta = (latitude - projected[0]) / latStep;
-    const longPixelDelta = (projected[1] - longitude) / longStep;
 
-    const y = Math.floor(currentWorldGridY + latPixelDelta);
-    const x = Math.floor(currentWorldGridX + longPixelDelta);
+    // calculate the pixel movement out of the current position
+    const latPixelDelta = (groundTruthLatitude - projected[0]) / latStep;
+    const longPixelDelta = (projected[1] - groundTruthLongitude) / longStep;
+
+    const y = currentWorldGridY + latPixelDelta;
+    const x = currentWorldGridX + longPixelDelta;
     if (y < 0 || y > worldMapHeight || x < 0 || x > worldMapWidth) return this.constants.unknownElevation;
 
     return worldMap[y][x];
