@@ -585,6 +585,8 @@ class MapHandler {
     }
 
     private createLocalElevationMap(config: NavigationDisplay): Texture {
+        if (this.gpuWorldMap === null) return null;
+
         let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
         if (config.arcMode) metresPerPixel *= 2.0;
 
@@ -622,6 +624,8 @@ class MapHandler {
     }
 
     private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplay): Texture {
+        if (localElevationMap === null) return null;
+
         // create the histogram statistics
         const patchesInX = Math.ceil(config.mapWidth / HistogramPatchSize);
         const patchesInY = Math.ceil(config.mapHeight / HistogramPatchSize);
@@ -770,6 +774,8 @@ class MapHandler {
         histogram: Texture,
         cutOffAltitude: number,
     ): KernelOutput {
+        if (elevationMap === null || histogram === null) return null;
+
         const terrainmap = this.navigationDisplayRendering[side].finalMap(
             elevationMap,
             histogram,
@@ -958,6 +964,8 @@ class MapHandler {
 
             // create the final map
             const renderingData = this.createNavigationDisplayMap(side, config, elevationMap, histogram, cutOffAltitude);
+            if (renderingData === null) return;
+
             const frame = renderingData as number[][];
             const metadata = frame.splice(frame.length - 1)[0];
             const imageData = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
