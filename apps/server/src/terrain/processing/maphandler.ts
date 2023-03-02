@@ -514,8 +514,8 @@ class MapHandler {
         }
 
         // calculate the pixel movement out of the current position
-        const latStep = (this.worldMapMetadata.northeast.latitude - this.worldMapMetadata.southwest.latitude) / this.worldMapMetadata.height;
-        const longStep = (this.worldMapMetadata.northeast.longitude - this.worldMapMetadata.southwest.longitude) / this.worldMapMetadata.width;
+        const latStep = this.worldmap.GridData.latitudeStep / this.worldMapMetadata.minHeightPerTile;
+        const longStep = this.worldmap.GridData.longitudeStep / this.worldMapMetadata.minWidthPerTile;
         const latPixelDelta = (this.aircraftStatus.latitude - latitude) / latStep;
         const longPixelDelta = (longitude - this.aircraftStatus.longitude) / longStep;
 
