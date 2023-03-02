@@ -16,7 +16,7 @@ export class ElevationGrid {
         this.northeast = northeast;
         this.Rows = rows;
         this.Columns = columns;
-        this.ElevationMap = new Int16Array(rows * columns * 2);
+        this.ElevationMap = new Int16Array(rows * columns);
     }
 
     public static worldToGridIndices(grid: ElevationGrid, coordinate: { latitude: number, longitude: number }): { row: number, column: number } {
