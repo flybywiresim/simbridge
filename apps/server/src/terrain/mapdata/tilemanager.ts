@@ -31,8 +31,6 @@ export class TileManager {
                 const idx = whitelist.findIndex((element) => element.column === col && element.row === row);
                 if (idx === -1) {
                     this.grid[row][col].elevationmap = undefined;
-                } else {
-                    whitelist.splice(idx, 1);
                 }
             }
         }
