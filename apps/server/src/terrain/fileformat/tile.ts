@@ -37,14 +37,13 @@ export class Tile {
         const compressed = new Uint8Array(tile.buffer).subarray(tile.BufferOffset, tile.BufferOffset + tile.BufferSize);
         const decompressed = gunzipSync(compressed);
         const decompressedBuffer = Buffer.from(decompressed);
-        const grid = new Int16Array(retval.Grid);
 
         let offset = 0;
         for (let row = 0; row < tile.GridDimension.rows; ++row) {
             for (let col = 0; col < tile.GridDimension.columns; ++col) {
-                grid[row * tile.GridDimension.columns + col] = decompressedBuffer.readInt16LE(offset);
-                if (grid[row * tile.GridDimension.columns + col] !== -1) {
-                    grid[row * tile.GridDimension.columns + col] = Math.round(grid[row * tile.GridDimension.columns + col] * 3.28084);
+                retval.ElevationMap[row * tile.GridDimension.columns + col] = decompressedBuffer.readInt16LE(offset);
+                if (retval.ElevationMap[row * tile.GridDimension.columns + col] !== -1) {
+                    retval.ElevationMap[row * tile.GridDimension.columns + col] = Math.round(retval.ElevationMap[row * tile.GridDimension.columns + col] * 3.28084);
                 }
                 offset += 2;
             }
