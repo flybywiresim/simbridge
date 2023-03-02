@@ -141,9 +141,28 @@ class MapHandler {
         }
     } = {}
 
-    private onConnectionLost(): void {
+    private resetFrameData(side: string): void {
+        this.navigationDisplayRendering[side].lastTransitionData.thresholds = null;
+        this.navigationDisplayRendering[side].lastTransitionData.timestamp = 0;
+        this.navigationDisplayRendering[side].lastTransitionData.frames = [];
+        this.navigationDisplayRendering[side].lastFrame = null;
+    }
+
+    private cleanupMemory(): void {
         this.stopRendering();
         this.worldmap.resetInternalData();
+        if (this.gpuWorldMap !== null) {
+            this.gpuWorldMap.delete();
+            this.gpuWorldMap = null;
+        }
+        this.worldMapCache = null;
+        this.resetFrameData('L');
+        this.resetFrameData('R');
+        this.cachedTiles = 0;
+    }
+
+    private onConnectionLost(): void {
+        this.cleanupMemory();
     }
 
     private onPositionUpdate(data: PositionData): void {
@@ -364,12 +383,9 @@ class MapHandler {
             width: 0,
             height: 0,
         };
-        this.worldMapCache = null;
-        this.gpuWorldMap.delete();
-        this.gpuWorldMap = null;
         this.currentGroundTruthPosition = null;
         this.aircraftStatus = null;
-        this.worldmap.resetInternalData();
+        this.cleanupMemory();
         this.Initialized = true;
     }
 
@@ -509,13 +525,6 @@ class MapHandler {
         index = Math.floor(index);
 
         return this.worldMapCache[index];
-    }
-
-    private resetFrameData(side: string): void {
-        this.navigationDisplayRendering[side].lastTransitionData.thresholds = null;
-        this.navigationDisplayRendering[side].lastTransitionData.timestamp = 0;
-        this.navigationDisplayRendering[side].lastTransitionData.frames = [];
-        this.navigationDisplayRendering[side].lastFrame = null;
     }
 
     private configureNavigationDisplay(display: string, config: NavigationDisplay, startup: boolean): void {
