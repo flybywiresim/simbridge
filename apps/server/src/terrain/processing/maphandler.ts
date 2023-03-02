@@ -143,6 +143,7 @@ class MapHandler {
 
     private onConnectionLost(): void {
         this.stopRendering();
+        this.worldmap.resetInternalData();
     }
 
     private onPositionUpdate(data: PositionData): void {
@@ -182,6 +183,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
+                immutable: true,
                 tactic: 'speed',
             });
 
@@ -191,6 +193,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: false,
                 pipeline: true,
+                immutable: true,
                 tactic: 'speed',
             })
             .setOutput([RenderingMaxPixelWidth, RenderingMaxPixelHeight]);
@@ -201,6 +204,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
+                immutable: true,
                 tactic: 'speed',
             })
             .setConstants<LocalElevationMapConstants>({
@@ -219,6 +223,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
+                immutable: true,
             })
             .setLoopMaxIterations(1000)
             .setConstants<HistogramConstants>({
@@ -235,6 +240,7 @@ class MapHandler {
             .createKernel(createElevationHistogram, {
                 dynamicArguments: true,
                 pipeline: true,
+                immutable: true,
             })
             .setLoopMaxIterations(500)
             .setOutput([HistogramBinCount]);
@@ -461,6 +467,7 @@ class MapHandler {
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
             this.gpuWorldMap = this.uploadWorldMapToGPU(this.worldMapCache, worldWidth) as Texture;
 
+            this.worldmap.TileManager.cleanupElevationCache(tiledata.whitelist);
             this.cachedTiles = tiledata.whitelist.length;
         }
 
@@ -627,6 +634,9 @@ class MapHandler {
             localHistograms,
             patchCount,
         ) as Texture;
+
+        // remove tempory texture data
+        localHistograms.delete();
 
         return histogram;
     }
@@ -945,6 +955,10 @@ class MapHandler {
 
             // send the threshold data for the map
             const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
+
+            // cleanup texture data
+            elevationMap.delete();
+            histogram.delete();
 
             if (!startup) {
                 switch (this.aircraftStatus.navigationDisplayRenderingMode) {
