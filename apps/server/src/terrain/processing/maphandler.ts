@@ -48,12 +48,13 @@ const HistogramPatchSize = 128;
 
 // rendering parameters
 const RenderingMaxPixelWidth = 768;
-const RenderingScreenPixelHeight = 640;
-const RenderingMaxPixelHeight = 492;
+const RenderingScreenPixelHeight = 768;
+const RenderingMapStartOffsetY = 128;
 const RenderingArcModePixelWidth = 768;
 const RenderingArcModePixelHeight = 492;
 const RenderingRoseModePixelWidth = 678;
 const RenderingRoseModePixelHeight = 250;
+const RenderingMaxPixelHeight = Math.max(RenderingArcModePixelHeight, RenderingRoseModePixelHeight);
 const RenderingCutOffAltitudeMinimimum = 200;
 const RenderingCutOffAltitudeMaximum = 400;
 const RenderingLowerPercentile = 0.85;
@@ -285,7 +286,7 @@ class MapHandler {
                         normalModeHighDensityYellowOffset: RenderingNormalModeHighDensityYellowOffset,
                         normalModeHighDensityRedOffset: RenderingNormalModeHighDensityRedOffset,
                         maxImageWidth: RenderingMaxPixelWidth,
-                        maxImageHeight: RenderingScreenPixelHeight,
+                        maxImageHeight: RenderingMaxPixelHeight,
                         densityPatchSize: RenderingDensityPatchSize,
                         patternMapWidth: RenderingMaxPixelWidth,
                         patternMapHeight: RenderingMaxPixelHeight,
@@ -298,7 +299,7 @@ class MapHandler {
                         renderPeaksMode,
                         drawDensityPixel,
                     ])
-                    .setOutput([RenderingMaxPixelWidth * RenderingColorChannelCount, RenderingScreenPixelHeight + 1]);
+                    .setOutput([RenderingMaxPixelWidth * RenderingColorChannelCount, RenderingMaxPixelHeight + 1]);
             }
         }
     }
@@ -782,7 +783,7 @@ class MapHandler {
         const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
         const newSource = new Uint32Array(newFrame.buffer);
 
-        let arrayIndex = 0;
+        let arrayIndex = RenderingMapStartOffsetY * RenderingMaxPixelWidth;
         for (let y = 0; y < config.mapHeight; ++y) {
             for (let x = 0; x < RenderingMaxPixelWidth; ++x) {
                 if (x >= config.mapOffsetX && x < (config.mapOffsetX + config.mapWidth)) {
@@ -887,6 +888,29 @@ class MapHandler {
         }, RenderingMapTransitionDeltaTime);
     }
 
+    private createScreenResolutionFrame(config: NavigationDisplay, gpuData: Uint8ClampedArray): Uint8ClampedArray {
+        const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingScreenPixelHeight);
+
+        // access data as uint32-array for performance reasons
+        const destination = new Uint32Array(result.buffer);
+        // UInt32-version of RGBA (4, 4, 5, 255)
+        destination.fill(4278518788);
+        const source = new Uint32Array(gpuData.buffer);
+
+        // manual iteration is 2x faster compared to splice
+        let sourceIndex = 0;
+        let destinationIndex = RenderingMapStartOffsetY * RenderingMaxPixelWidth;
+        for (let y = 0; y < config.mapHeight; ++y) {
+            for (let x = 0; x < RenderingMaxPixelWidth; ++x) {
+                destination[destinationIndex] = source[sourceIndex];
+                destinationIndex++;
+                sourceIndex++;
+            }
+        }
+
+        return result;
+    }
+
     private renderNavigationDisplay(side: string, startup: boolean = false): void {
         if (this.navigationDisplayRendering[side].timeout !== null) {
             clearTimeout(this.navigationDisplayRendering[side].timeout);
@@ -925,7 +949,7 @@ class MapHandler {
             if (!startup) {
                 switch (this.aircraftStatus.navigationDisplayRenderingMode) {
                 case TerrainRenderingMode.ArcMode:
-                    this.arcModeTransition(side, config, imageData, thresholdData);
+                    this.arcModeTransition(side, config, this.createScreenResolutionFrame(config, imageData), thresholdData);
                     break;
                 default:
                     parentPort.postMessage({ request: 'LOGERROR', response: `Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}` });
