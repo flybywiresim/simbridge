@@ -866,6 +866,10 @@ class MapHandler {
                 frame = this.arcModeTransitionFrame(config, this.navigationDisplayRendering[side].lastFrame, frameData, startAngle, angle);
             } else {
                 stopInterval = true;
+                if (angle - RenderingMapTransitionAngularStep < 90) {
+                    frame = this.arcModeTransitionFrame(config, this.navigationDisplayRendering[side].lastFrame, frameData, startAngle, 90);
+                    lastFrame = frame;
+                }
 
                 // do not overwrite the last frame of the initialization
                 if (startAngle === 0) {
