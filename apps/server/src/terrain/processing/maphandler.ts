@@ -88,7 +88,15 @@ class MapHandler {
 
     private uploadWorldMapToGPU: IKernelRunShortcut = null;
 
-    private gpuWorldMap: Texture = null;
+    private cachedElevationData: {
+        gpuData: Texture,
+        cpuData: Int16Array,
+        cachedTiles: number,
+    } = {
+        gpuData: null,
+        cpuData: null,
+        cachedTiles: 0,
+    }
 
     private uploadPatternMapToGPU: IKernelRunShortcut = null;
 
@@ -111,10 +119,6 @@ class MapHandler {
         width: 0,
         height: 0,
     };
-
-    private cachedTiles: number = 0;
-
-    private worldMapCache: Int16Array = null;
 
     private extractLocalElevationMap: IKernelRunShortcut = null;
 
@@ -151,14 +155,14 @@ class MapHandler {
     private cleanupMemory(): void {
         this.stopRendering();
         this.worldmap.resetInternalData();
-        if (this.gpuWorldMap !== null) {
-            this.gpuWorldMap.delete();
-            this.gpuWorldMap = null;
+        if (this.cachedElevationData.gpuData !== null) {
+            this.cachedElevationData.gpuData.delete();
+            this.cachedElevationData.gpuData = null;
         }
-        this.worldMapCache = null;
+        this.cachedElevationData.cachedTiles = 0;
+        this.cachedElevationData.cpuData = null;
         this.resetFrameData('L');
         this.resetFrameData('R');
-        this.cachedTiles = 0;
     }
 
     private onConnectionLost(): void {
@@ -404,7 +408,7 @@ class MapHandler {
 
         // destroy all generic GPU related instances
         if (this.patternMap !== null) this.patternMap.delete();
-        if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
+        if (this.cachedElevationData.gpuData !== null) this.cachedElevationData.gpuData.delete();
         if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
@@ -420,7 +424,7 @@ class MapHandler {
         this.currentGroundTruthPosition = position;
         const tiledata = this.worldmap.updatePosition(this.currentGroundTruthPosition);
 
-        if (tiledata.loadlist.length !== 0 || this.cachedTiles !== tiledata.whitelist.length) {
+        if (tiledata.loadlist.length !== 0 || this.cachedElevationData.cachedTiles !== tiledata.whitelist.length) {
             const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.worldmap.VisibilityRange * 1852);
             const southwestGrid = this.worldmap.worldMapIndices(southwestLat, southwestLong);
             const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.worldmap.VisibilityRange * 1852);
@@ -443,7 +447,7 @@ class MapHandler {
 
             const worldWidth = this.worldMapMetadata.minWidthPerTile * (northeastGrid.column - southwestGrid.column);
             const worldHeight = this.worldMapMetadata.minHeightPerTile * (northeastGrid.row - southwestGrid.row);
-            this.worldMapCache = new Int16Array(worldWidth * worldHeight);
+            this.cachedElevationData.cpuData = new Int16Array(worldWidth * worldHeight);
             let yOffset = 0;
 
             for (let { row } = northeastGrid; row >= southwestGrid.row; row--) {
@@ -456,11 +460,11 @@ class MapHandler {
                             const index = (y + yOffset) * worldWidth + xOffset + x;
 
                             if (cell.tileIndex === -1) {
-                                this.worldMapCache[index] = WaterElevation;
+                                this.cachedElevationData.cpuData[index] = WaterElevation;
                             } else if (!cell.elevationmap.MapLoaded) {
-                                this.worldMapCache[index] = UnknownElevation;
+                                this.cachedElevationData.cpuData[index] = UnknownElevation;
                             } else {
-                                this.worldMapCache[index] = cell.elevationmap.ElevationMap[y * cell.elevationmap.Columns + x];
+                                this.cachedElevationData.cpuData[index] = cell.elevationmap.ElevationMap[y * cell.elevationmap.Columns + x];
                             }
                         }
 
@@ -479,12 +483,12 @@ class MapHandler {
             this.worldMapMetadata.width = worldWidth;
             this.worldMapMetadata.height = worldHeight;
 
-            if (this.gpuWorldMap !== null) this.gpuWorldMap.delete();
+            if (this.cachedElevationData.gpuData !== null) this.cachedElevationData.gpuData.delete();
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
-            this.gpuWorldMap = this.uploadWorldMapToGPU(this.worldMapCache, worldWidth) as Texture;
+            this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(this.cachedElevationData.cpuData, worldWidth) as Texture;
 
             this.worldmap.TileManager.cleanupElevationCache(tiledata.whitelist);
-            this.cachedTiles = tiledata.whitelist.length;
+            this.cachedElevationData.cachedTiles = tiledata.whitelist.length;
         }
 
         // calculate the correct pixel coordinate in every step
@@ -509,7 +513,7 @@ class MapHandler {
     }
 
     private extractElevation(latitude: number, longitude: number): number {
-        if (this.worldMapCache === null || this.worldMapCache.length === 0) {
+        if (this.cachedElevationData.cpuData === null || this.cachedElevationData.cpuData.length === 0) {
             return InvalidElevation;
         }
 
@@ -524,7 +528,9 @@ class MapHandler {
         index += this.worldMapMetadata.currentGridPosition.x + longPixelDelta;
         index = Math.floor(index);
 
-        return this.worldMapCache[index];
+        if (index >= this.cachedElevationData.cpuData.length) return UnknownElevation;
+
+        return this.cachedElevationData.cpuData[index];
     }
 
     private configureNavigationDisplay(display: string, config: NavigationDisplay, startup: boolean): void {
@@ -585,7 +591,7 @@ class MapHandler {
     }
 
     private createLocalElevationMap(config: NavigationDisplay): Texture {
-        if (this.gpuWorldMap === null) return null;
+        if (this.cachedElevationData.gpuData === null) return null;
 
         let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
         if (config.arcMode) metresPerPixel *= 2.0;
@@ -607,7 +613,7 @@ class MapHandler {
             this.currentGroundTruthPosition.longitude,
             this.worldMapMetadata.currentGridPosition.x,
             this.worldMapMetadata.currentGridPosition.y,
-            this.gpuWorldMap,
+            this.cachedElevationData.gpuData,
             this.worldMapMetadata.width,
             this.worldMapMetadata.height,
             this.worldMapMetadata.southwest.latitude,
