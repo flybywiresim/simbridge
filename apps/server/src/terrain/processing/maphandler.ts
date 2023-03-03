@@ -225,7 +225,7 @@ class MapHandler {
         this.extractLocalElevationMap = this.gpu
             .createKernel(createLocalElevationMap, {
                 dynamicArguments: true,
-                dynamicOutput: true,
+                dynamicOutput: false,
                 pipeline: true,
                 immutable: false,
                 tactic: 'speed',
@@ -239,7 +239,8 @@ class MapHandler {
                 normalizeHeading,
                 rad2deg,
                 projectWgs84,
-            ]);
+            ])
+            .setOutput([RenderingMaxPixelWidth, RenderingMaxPixelHeight]);
 
         this.localElevationHistogram = this.gpu
             .createKernel(createLocalElevationHistogram, {
@@ -594,14 +595,6 @@ class MapHandler {
 
         let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
         if (config.arcMode) metresPerPixel *= 2.0;
-
-        // prepare the output buffer
-        if (this.extractLocalElevationMap.output === null
-            || this.extractLocalElevationMap.output[0] !== config.mapWidth
-            || this.extractLocalElevationMap.output[1] !== config.mapHeight
-        ) {
-            this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
-        }
 
         // create the local elevation map
         const localElevationMap = this.extractLocalElevationMap(
