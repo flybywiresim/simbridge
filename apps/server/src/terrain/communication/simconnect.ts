@@ -305,8 +305,8 @@ export class SimConnect {
     }
 
     public terminate(): void {
-        this.receiver.stop();
-        this.connection.close();
+        if (this.receiver !== null) this.receiver.stop();
+        if (this.connection !== null) this.connection.close();
     }
 
     public sendNavigationDisplayTerrainMapMetadata(side: string, metadata: NavigationDisplayData): void {
