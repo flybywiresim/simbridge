@@ -206,7 +206,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
-                immutable: true,
+                immutable: false,
                 tactic: 'speed',
             });
 
@@ -216,7 +216,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: false,
                 pipeline: true,
-                immutable: true,
+                immutable: false,
                 tactic: 'speed',
             })
             .setOutput([RenderingMaxPixelWidth, RenderingMaxPixelHeight]);
@@ -227,7 +227,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
-                immutable: true,
+                immutable: false,
                 tactic: 'speed',
             })
             .setConstants<LocalElevationMapConstants>({
@@ -246,7 +246,7 @@ class MapHandler {
                 dynamicArguments: true,
                 dynamicOutput: true,
                 pipeline: true,
-                immutable: true,
+                immutable: false,
             })
             .setLoopMaxIterations(1000)
             .setConstants<HistogramConstants>({
@@ -263,7 +263,7 @@ class MapHandler {
             .createKernel(createElevationHistogram, {
                 dynamicArguments: true,
                 pipeline: true,
-                immutable: true,
+                immutable: false,
             })
             .setLoopMaxIterations(500)
             .setOutput([HistogramBinCount]);
@@ -298,7 +298,7 @@ class MapHandler {
                         dynamicArguments: true,
                         dynamicOutput: false,
                         pipeline: false,
-                        immutable: true,
+                        immutable: false,
                     })
                     .setConstants<NavigationDisplayConstants>({
                         histogramBinRange: HistogramBinRange,
@@ -483,7 +483,6 @@ class MapHandler {
             this.worldMapMetadata.width = worldWidth;
             this.worldMapMetadata.height = worldHeight;
 
-            if (this.cachedElevationData.gpuData !== null) this.cachedElevationData.gpuData.delete();
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
             this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(this.cachedElevationData.cpuData, worldWidth) as Texture;
 
@@ -653,9 +652,6 @@ class MapHandler {
             localHistograms,
             patchCount,
         ) as Texture;
-
-        // remove tempory texture data
-        localHistograms.delete();
 
         return histogram;
     }
@@ -982,10 +978,6 @@ class MapHandler {
 
             // send the threshold data for the map
             const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
-
-            // cleanup texture data
-            elevationMap.delete();
-            histogram.delete();
 
             if (!startup) {
                 switch (this.aircraftStatus.navigationDisplayRenderingMode) {
