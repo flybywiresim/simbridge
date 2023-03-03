@@ -1,4 +1,3 @@
-import { parentPort } from 'worker_threads';
 import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import * as sharp from 'sharp';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
@@ -28,6 +27,7 @@ import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
 import { Logging } from './logging';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
+import { FileService } from '../../utilities/file.service';
 
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
@@ -76,14 +76,14 @@ const RenderingMapUpdateTimeout = 1500;
 const RenderingMapFrameValidityTime = RenderingMapTransitionDuration + RenderingMapUpdateTimeout;
 const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
 
-class MapHandler {
+export class MapHandler {
     private simconnect: SimConnect = null;
 
     private worldmap: Worldmap = null;
 
     private gpu: GPU = null;
 
-    public Initialized = false;
+    private initialized = false;
 
     private currentGroundTruthPosition: PositionData = undefined;
 
@@ -181,12 +181,12 @@ class MapHandler {
                 const patternData = createArcModePatternMap();
                 this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
                 if (startup) {
-                    Logging.info('ARC-mode rendering activated');
+                    this.logging.info('ARC-mode rendering activated');
                 }
                 break;
             default:
                 if (startup) {
-                    Logging.error('No known rendering mode selected');
+                    this.logging.error('No known rendering mode selected');
                 }
                 break;
             }
@@ -335,68 +335,85 @@ class MapHandler {
         }
     }
 
-    public initialize(terrainmap: TerrainMap): void {
-        this.simconnect = new SimConnect();
-        this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());
-        this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
-        this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
+    private async readTerrainMap(fileService: FileService): Promise<TerrainMap | undefined> {
+        try {
+            const buffer = await fileService.getFile('terrain/', 'terrain.map');
+            this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
 
-        this.worldmap = new Worldmap(terrainmap);
+            return new TerrainMap(buffer);
+        } catch (err) {
+            this.logging.warn('Did not find the terrain.map-file');
+            this.logging.warn(err);
+            return undefined;
+        }
+    }
 
-        this.createKernels();
+    constructor(private logging: Logging, fileService: FileService) {
+        this.readTerrainMap(fileService).then((terrainmap) => {
+            this.simconnect = new SimConnect(logging);
+            this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());
+            this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
+            this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
 
-        // initial call precompile the kernels and reduce first reaction time
-        const startupConfig: NavigationDisplay = {
-            range: 10,
-            arcMode: true,
-            active: true,
-            mapOffsetX: 0,
-            mapWidth: RenderingMaxPixelWidth,
-            mapHeight: RenderingArcModePixelHeight,
-        };
-        const startupStatus: AircraftStatus = {
-            adiruDataValid: true,
-            latitude: 47.26081085205078,
-            longitude: 11.349658966064453,
-            altitude: 1904,
-            heading: 260,
-            verticalSpeed: 0,
-            gearIsDown: true,
-            destinationDataValid: false,
-            destinationLatitude: 0.0,
-            destinationLongitude: 0.0,
-            navigationDisplayCapt: startupConfig,
-            navigationDisplayFO: startupConfig,
-            navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
-        };
-        const startupPosition: PositionData = {
-            latitude: 47.26081085205078,
-            longitude: 11.349658966064453,
-        };
+            this.worldmap = new Worldmap(terrainmap);
 
-        // run all process steps to precompile the kernels
-        this.onAircraftStatusUpdate(startupStatus, true);
-        this.updateGroundTruthPositionAndCachedTiles(startupPosition, true);
-        this.renderNavigationDisplay('L', true);
+            this.createKernels();
 
-        // reset all initialization data
-        this.worldMapMetadata = {
-            southwest: { latitude: -100, longitude: -190 },
-            northeast: { latitude: -100, longitude: -190 },
-            currentGridPosition: { x: 0, y: 0 },
-            minWidthPerTile: 0,
-            minHeightPerTile: 0,
-            width: 0,
-            height: 0,
-        };
-        this.currentGroundTruthPosition = null;
-        this.aircraftStatus = null;
-        this.cleanupMemory();
-        this.Initialized = true;
+            // initial call precompile the kernels and reduce first reaction time
+            const startupConfig: NavigationDisplay = {
+                range: 10,
+                arcMode: true,
+                active: true,
+                mapOffsetX: 0,
+                mapWidth: RenderingMaxPixelWidth,
+                mapHeight: RenderingArcModePixelHeight,
+            };
+            const startupStatus: AircraftStatus = {
+                adiruDataValid: true,
+                latitude: 47.26081085205078,
+                longitude: 11.349658966064453,
+                altitude: 1904,
+                heading: 260,
+                verticalSpeed: 0,
+                gearIsDown: true,
+                destinationDataValid: false,
+                destinationLatitude: 0.0,
+                destinationLongitude: 0.0,
+                navigationDisplayCapt: startupConfig,
+                navigationDisplayFO: startupConfig,
+                navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
+            };
+            const startupPosition: PositionData = {
+                latitude: 47.26081085205078,
+                longitude: 11.349658966064453,
+            };
+
+            // run all process steps to precompile the kernels
+            this.onAircraftStatusUpdate(startupStatus, true);
+            this.updateGroundTruthPositionAndCachedTiles(startupPosition, true);
+            this.renderNavigationDisplay('L', true);
+
+            // reset all initialization data
+            this.worldMapMetadata = {
+                southwest: { latitude: -100, longitude: -190 },
+                northeast: { latitude: -100, longitude: -190 },
+                currentGridPosition: { x: 0, y: 0 },
+                minWidthPerTile: 0,
+                minHeightPerTile: 0,
+                width: 0,
+                height: 0,
+            };
+            this.currentGroundTruthPosition = null;
+            this.aircraftStatus = null;
+            this.cleanupMemory();
+            this.initialized = true;
+
+            this.logging.info('Initialized the map handler');
+        });
     }
 
     public shutdown(): void {
-        this.Initialized = false;
+        this.initialized = false;
 
         if (this.simconnect !== null) this.simconnect.terminate();
 
@@ -422,7 +439,7 @@ class MapHandler {
     }
 
     private updateGroundTruthPositionAndCachedTiles(position: PositionData, startup: boolean): void {
-        if (!this.Initialized && !startup) return;
+        if (!this.initialized && !startup) return;
         this.currentGroundTruthPosition = position;
         const tiledata = this.worldmap.updatePosition(this.currentGroundTruthPosition);
 
@@ -948,9 +965,9 @@ class MapHandler {
 
         // no valid position data received
         if (this.currentGroundTruthPosition === undefined) {
-            Logging.warn('No valid position received for rendering');
+            this.logging.warn('No valid position received for rendering');
         } else if (this.navigationDisplayRendering[side].config === undefined) {
-            Logging.warn('No navigation display configuration received');
+            this.logging.warn('No navigation display configuration received');
         } else {
             const { config } = this.navigationDisplayRendering[side];
             config.mapWidth = config.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
@@ -979,7 +996,7 @@ class MapHandler {
                     this.arcModeTransition(side, config, this.createScreenResolutionFrame(config, imageData), thresholdData);
                     break;
                 default:
-                    Logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
+                    this.logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
                     break;
                 }
             }
@@ -1033,23 +1050,3 @@ class MapHandler {
         return { timestamp: 0, thresholds: null, frames: [] };
     }
 }
-
-const maphandler = new MapHandler();
-
-parentPort.on('message', (data: { type: string, instance: any }) => {
-    if (data.type === 'INITIALIZATION') {
-        maphandler.initialize(data.instance as TerrainMap);
-        parentPort.postMessage({ request: data.type, response: maphandler.Initialized });
-    } else if (data.type === 'FRAME_DATA_TIMESTAMP') {
-        parentPort.postMessage({ request: data.type, response: { side: data.instance, timestamp: maphandler.frameData(data.instance as string).timestamp } });
-    } else if (data.type === 'FRAME_DATA_THRESHOLDS') {
-        parentPort.postMessage({ request: data.type, response: { side: data.instance, thresholds: maphandler.frameData(data.instance as string).thresholds } });
-    } else if (data.type === 'FRAME_DATA') {
-        parentPort.postMessage({ request: data.type, response: { side: data.instance, data: maphandler.frameData(data.instance as string) } });
-    } else if (data.type === 'STOP_RENDERING') {
-        maphandler.stopRendering();
-    } else if (data.type === 'SHUTDOWN') {
-        maphandler.shutdown();
-        parentPort.postMessage({ request: data.type, response: undefined });
-    }
-});

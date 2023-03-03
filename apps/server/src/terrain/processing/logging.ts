@@ -1,15 +1,17 @@
-import { parentPort } from 'worker_threads';
+import { Logger } from '@nestjs/common/services/logger.service';
 
 export class Logging {
-    static info(message: string): void {
-        parentPort.postMessage({ request: 'LOGMESSAGE', response: message });
+    constructor(private logger: Logger) {}
+
+    public info(message: string): void {
+        this.logger.log(message);
     }
 
-    static warn(message: string): void {
-        parentPort.postMessage({ request: 'LOGWARN', response: message });
+    public warn(message: string): void {
+        this.logger.warn(message);
     }
 
-    static error(message: string): void {
-        parentPort.postMessage({ request: 'LOGERROR', response: message });
+    public error(message: string): void {
+        this.logger.error(message);
     }
 }

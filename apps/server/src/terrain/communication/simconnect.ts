@@ -68,7 +68,7 @@ export class SimConnect {
     private registerEgpwcAircraftStatus(): boolean {
         this.egpwcAircraftStatus = new ClientDataArea(this.connection, ClientDataId.EnhancedGpwcAircraftStatus);
         if (!this.egpwcAircraftStatus.mapNameToId('FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS')) {
-            Logging.error(`Unable to map aircraft status: ${this.egpwcAircraftStatus.lastError()}`);
+            this.logging.error(`Unable to map aircraft status: ${this.egpwcAircraftStatus.lastError()}`);
             return false;
         }
 
@@ -80,7 +80,7 @@ export class SimConnect {
             memberName: 'AircraftStatus',
         });
         if (!addedDefinition) {
-            Logging.error(`Unable to define aircraft status data: ${this.egpwcAircraftStatus.lastError()}`);
+            this.logging.error(`Unable to define aircraft status data: ${this.egpwcAircraftStatus.lastError()}`);
         }
 
         return addedDefinition;
@@ -89,7 +89,7 @@ export class SimConnect {
     private registerNavigationDisplayMetadata(clientId: ClientDataId, mapName: string, dataDefinitionId: DataDefinitionId): ClientDataArea {
         const metadata = new ClientDataArea(this.connection, clientId);
         if (!metadata.mapNameToId(mapName)) {
-            Logging.error(`Unable to map data for ${mapName}: ${metadata.lastError()}`);
+            this.logging.error(`Unable to map data for ${mapName}: ${metadata.lastError()}`);
         }
 
         const addedDefinition = metadata.addDataDefinition({
@@ -100,12 +100,12 @@ export class SimConnect {
             memberName: 'ThresholdData',
         });
         if (addedDefinition === false) {
-            Logging.error(`Unable to create the data definitions for ${mapName}: ${this.connection.lastError()}`);
+            this.logging.error(`Unable to create the data definitions for ${mapName}: ${this.connection.lastError()}`);
             return null;
         }
 
         if (!metadata.allocateArea(NavigationDisplayThresholdByteCount, true)) {
-            Logging.error(`Unable to create the threshold client data area for ${mapName}: ${this.connection.lastError()}`);
+            this.logging.error(`Unable to create the threshold client data area for ${mapName}: ${this.connection.lastError()}`);
             return null;
         }
 
@@ -115,7 +115,7 @@ export class SimConnect {
     private registerNavigationDisplayData(): boolean {
         this.frameDataLeft = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameLeft);
         if (!this.frameDataLeft.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT')) {
-            Logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
+            this.logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
             return false;
         }
 
@@ -127,18 +127,18 @@ export class SimConnect {
             memberName: 'FrameData',
         });
         if (!addedDefinition) {
-            Logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
+            this.logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
             return false;
         }
 
         if (!this.frameDataLeft.allocateArea(ClientDataMaxSize, true)) {
-            Logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
+            this.logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
             return false;
         }
 
         this.frameDataRight = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameRight);
         if (!this.frameDataRight.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT')) {
-            Logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
+            this.logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
             return false;
         }
 
@@ -150,12 +150,12 @@ export class SimConnect {
             memberName: 'FrameData',
         });
         if (!addedDefinition) {
-            Logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
+            this.logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
             return false;
         }
 
         if (!this.frameDataRight.allocateArea(ClientDataMaxSize, true)) {
-            Logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
+            this.logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
             return false;
         }
 
@@ -165,7 +165,7 @@ export class SimConnect {
     private simConnectOpen(_message: OpenMessage): void {
         if (this.receiver !== null) {
             if (!this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.OnSet, ClientDataRequest.Default)) {
-                Logging.error('Unable to request aircraft status data');
+                this.logging.error('Unable to request aircraft status data');
             }
         }
     }
@@ -186,7 +186,7 @@ export class SimConnect {
         }
 
         this.resetConnection();
-        Logging.info('Received a quit signal. Trying to reconnect...');
+        this.logging.info('Received a quit signal. Trying to reconnect...');
 
         this.connectToSim();
     }
@@ -254,7 +254,7 @@ export class SimConnect {
 
         this.connection = new Connection();
         if (this.connection.open(SimConnectClientName) === false) {
-            Logging.error(`Connection failed: ${this.connection.lastError()} - Retry in 10 seconds`);
+            this.logging.error(`Connection failed: ${this.connection.lastError()} - Retry in 10 seconds`);
             setTimeout(() => this.connectToSim(), 10000);
             return;
         }
@@ -300,7 +300,7 @@ export class SimConnect {
         }
     }
 
-    constructor() {
+    constructor(private logging: Logging) {
         this.connectToSim();
     }
 
@@ -321,10 +321,10 @@ export class SimConnect {
 
         if (side === 'L') {
             if (this.frameMetadataLeft.setData({ ThresholdData: packed.buffer }) === false) {
-                Logging.error(`Could not send metadata: ${this.frameMetadataLeft.lastError()}`);
+                this.logging.error(`Could not send metadata: ${this.frameMetadataLeft.lastError()}`);
             }
         } else if (this.frameMetadataRight.setData({ ThresholdData: packed.buffer }) === false) {
-            Logging.error(`Could not send metadata: ${this.frameMetadataRight.lastError()}`);
+            this.logging.error(`Could not send metadata: ${this.frameMetadataRight.lastError()}`);
         }
     }
 
@@ -344,10 +344,10 @@ export class SimConnect {
             // send the data
             if (side === 'L') {
                 if (this.frameDataLeft.setData({ FrameData: stream.buffer }) === false) {
-                    Logging.error(`Could not send frame data: ${this.frameDataLeft.lastError()}`);
+                    this.logging.error(`Could not send frame data: ${this.frameDataLeft.lastError()}`);
                 }
             } else if (this.frameDataRight.setData({ FrameData: stream.buffer }) === false) {
-                Logging.error(`Could not send frame data: ${this.frameDataRight.lastError()}`);
+                this.logging.error(`Could not send frame data: ${this.frameDataRight.lastError()}`);
             }
         }
     }
