@@ -3,10 +3,6 @@ import { ElevationGrid } from './elevationgrid';
 import { TerrainMap } from './terrainmap';
 
 export class Tile {
-    private parent: TerrainMap | undefined = undefined;
-
-    private buffer: SharedArrayBuffer | undefined = undefined;
-
     public Southwest: { latitude: number, longitude: number } = { latitude: 0, longitude: 0 };
 
     public BufferOffset: number = 0;
@@ -15,33 +11,28 @@ export class Tile {
 
     private GridDimension: { rows: number, columns: number } = { rows: 0, columns: 0 };
 
-    constructor(parent: TerrainMap, buffer: SharedArrayBuffer, offset: number) {
-        const arrBuffer = Buffer.from(buffer);
+    private compressedData: Buffer = null;
 
-        this.parent = parent;
-        this.buffer = buffer;
-
+    constructor(private readonly parent: TerrainMap, buffer: Buffer, offset: number) {
         // extract the tile header
-        this.GridDimension.rows = arrBuffer.readUInt16LE(offset);
-        this.GridDimension.columns = arrBuffer.readUInt16LE(offset + 2);
-        this.Southwest.latitude = arrBuffer.readInt8(offset + 4);
-        this.Southwest.longitude = arrBuffer.readInt16LE(offset + 5);
-        this.BufferSize = arrBuffer.readUInt32LE(offset + 7);
+        this.GridDimension.rows = buffer.readUInt16LE(offset);
+        this.GridDimension.columns = buffer.readUInt16LE(offset + 2);
+        this.Southwest.latitude = buffer.readInt8(offset + 4);
+        this.Southwest.longitude = buffer.readInt16LE(offset + 5);
+        this.BufferSize = buffer.readUInt32LE(offset + 7);
         this.BufferOffset = offset + 11;
+        this.compressedData = buffer.subarray(this.BufferOffset, this.BufferOffset + this.BufferSize);
     }
 
     public static loadElevationGrid(tile: Tile): ElevationGrid {
         const northeast = { latitude: tile.Southwest.latitude + tile.parent.AngularSteps.latitude, longitude: tile.Southwest.longitude + tile.parent.AngularSteps.longitude };
         const retval = new ElevationGrid(tile.Southwest, northeast, tile.GridDimension.columns, tile.GridDimension.rows);
-
-        const compressed = new Uint8Array(tile.buffer).subarray(tile.BufferOffset, tile.BufferOffset + tile.BufferSize);
-        const decompressed = gunzipSync(compressed);
-        const decompressedBuffer = Buffer.from(decompressed);
+        const decompressed = Buffer.from(gunzipSync(tile.compressedData));
 
         let offset = 0;
         for (let row = 0; row < tile.GridDimension.rows; ++row) {
             for (let col = 0; col < tile.GridDimension.columns; ++col) {
-                retval.ElevationMap[row * tile.GridDimension.columns + col] = decompressedBuffer.readInt16LE(offset);
+                retval.ElevationMap[row * tile.GridDimension.columns + col] = decompressed.readInt16LE(offset);
                 if (retval.ElevationMap[row * tile.GridDimension.columns + col] !== -1) {
                     retval.ElevationMap[row * tile.GridDimension.columns + col] = Math.round(retval.ElevationMap[row * tile.GridDimension.columns + col] * 3.28084);
                 }

@@ -339,7 +339,6 @@ export class MapHandler {
         try {
             const buffer = await fileService.getFile('terrain/', 'terrain.map');
             this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
-
             return new TerrainMap(buffer);
         } catch (err) {
             this.logging.warn('Did not find the terrain.map-file');
