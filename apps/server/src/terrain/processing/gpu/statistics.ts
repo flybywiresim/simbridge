@@ -21,11 +21,14 @@ export function createLocalElevationHistogram(
     let occurance = 0;
     for (let y = yStart; y < yEnd; y++) {
         for (let x = xStart; x < xEnd; x++) {
-            const elevation = elevations[y][x] - this.constants.minimumElevation;
-            const bin = Math.max(Math.min(Math.ceil(elevation / this.constants.binRange), this.constants.binCount), 0);
+            let elevation = elevations[y][x];
+            if (elevation !== this.constants.unknownElevation && elevation !== this.constants.invalidElevation && elevation !== this.constants.waterElevation) {
+                elevation -= this.constants.minimumElevation;
+                const bin = Math.max(Math.min(Math.ceil(elevation / this.constants.binRange), this.constants.binCount), 0);
 
-            if (bin === this.thread.x) {
-                occurance += 1;
+                if (bin === this.thread.x) {
+                    occurance += 1;
+                }
             }
         }
     }
