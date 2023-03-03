@@ -11,7 +11,7 @@ import {
     ClientDataPeriod,
     ClientDataRequest,
 } from '@flybywiresim/msfs-nodejs';
-import { parentPort } from 'worker_threads';
+import { Logging } from '../processing/logging';
 import { NavigationDisplayData } from '../processing/navigationdisplaydata';
 import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
 
@@ -68,7 +68,7 @@ export class SimConnect {
     private registerEgpwcAircraftStatus(): boolean {
         this.egpwcAircraftStatus = new ClientDataArea(this.connection, ClientDataId.EnhancedGpwcAircraftStatus);
         if (!this.egpwcAircraftStatus.mapNameToId('FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS')) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map aircraft status: ${this.egpwcAircraftStatus.lastError()}` });
+            Logging.error(`Unable to map aircraft status: ${this.egpwcAircraftStatus.lastError()}`);
             return false;
         }
 
@@ -80,7 +80,7 @@ export class SimConnect {
             memberName: 'AircraftStatus',
         });
         if (!addedDefinition) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to define aircraft status data: ${this.egpwcAircraftStatus.lastError()}` });
+            Logging.error(`Unable to define aircraft status data: ${this.egpwcAircraftStatus.lastError()}`);
         }
 
         return addedDefinition;
@@ -89,7 +89,7 @@ export class SimConnect {
     private registerNavigationDisplayMetadata(clientId: ClientDataId, mapName: string, dataDefinitionId: DataDefinitionId): ClientDataArea {
         const metadata = new ClientDataArea(this.connection, clientId);
         if (!metadata.mapNameToId(mapName)) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map data for ${mapName}: ${metadata.lastError()}` });
+            Logging.error(`Unable to map data for ${mapName}: ${metadata.lastError()}`);
         }
 
         const addedDefinition = metadata.addDataDefinition({
@@ -100,12 +100,12 @@ export class SimConnect {
             memberName: 'ThresholdData',
         });
         if (addedDefinition === false) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the data definitions for ${mapName}: ${this.connection.lastError()}` });
+            Logging.error(`Unable to create the data definitions for ${mapName}: ${this.connection.lastError()}`);
             return null;
         }
 
         if (!metadata.allocateArea(NavigationDisplayThresholdByteCount, true)) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to create the threshold client data area for ${mapName}: ${this.connection.lastError()}` });
+            Logging.error(`Unable to create the threshold client data area for ${mapName}: ${this.connection.lastError()}`);
             return null;
         }
 
@@ -115,7 +115,7 @@ export class SimConnect {
     private registerNavigationDisplayData(): boolean {
         this.frameDataLeft = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameLeft);
         if (!this.frameDataLeft.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT')) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}` });
+            Logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
             return false;
         }
 
@@ -127,18 +127,18 @@ export class SimConnect {
             memberName: 'FrameData',
         });
         if (!addedDefinition) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}` });
+            Logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
             return false;
         }
 
         if (!this.frameDataLeft.allocateArea(ClientDataMaxSize, true)) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}` });
+            Logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
             return false;
         }
 
         this.frameDataRight = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameRight);
         if (!this.frameDataRight.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT')) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}` });
+            Logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
             return false;
         }
 
@@ -150,12 +150,12 @@ export class SimConnect {
             memberName: 'FrameData',
         });
         if (!addedDefinition) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}` });
+            Logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
             return false;
         }
 
         if (!this.frameDataRight.allocateArea(ClientDataMaxSize, true)) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}` });
+            Logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
             return false;
         }
 
@@ -165,7 +165,7 @@ export class SimConnect {
     private simConnectOpen(_message: OpenMessage): void {
         if (this.receiver !== null) {
             if (!this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.OnSet, ClientDataRequest.Default)) {
-                parentPort.postMessage({ request: 'LOGERROR', response: 'Unable to request aircraft status data' });
+                Logging.error('Unable to request aircraft status data');
             }
         }
     }
@@ -186,8 +186,7 @@ export class SimConnect {
         }
 
         this.resetConnection();
-        parentPort.postMessage({ request: 'LOGMESSAGE', response: 'Received a quit signal. Trying to reconnect...' });
-        parentPort.postMessage({ request: 'SIMCONNECT_QUIT', response: undefined });
+        Logging.info('Received a quit signal. Trying to reconnect...');
 
         this.connectToSim();
     }
@@ -255,7 +254,7 @@ export class SimConnect {
 
         this.connection = new Connection();
         if (this.connection.open(SimConnectClientName) === false) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Connection failed: ${this.connection.lastError()} - Retry in 10 seconds` });
+            Logging.error(`Connection failed: ${this.connection.lastError()} - Retry in 10 seconds`);
             setTimeout(() => this.connectToSim(), 10000);
             return;
         }
@@ -322,10 +321,10 @@ export class SimConnect {
 
         if (side === 'L') {
             if (this.frameMetadataLeft.setData({ ThresholdData: packed.buffer }) === false) {
-                parentPort.postMessage({ request: 'LOGERROR', response: `Could not send metadata: ${this.frameMetadataLeft.lastError()}` });
+                Logging.error(`Could not send metadata: ${this.frameMetadataLeft.lastError()}`);
             }
         } else if (this.frameMetadataRight.setData({ ThresholdData: packed.buffer }) === false) {
-            parentPort.postMessage({ request: 'LOGERROR', response: `Could not send metadata: ${this.frameMetadataRight.lastError()}` });
+            Logging.error(`Could not send metadata: ${this.frameMetadataRight.lastError()}`);
         }
     }
 
@@ -345,10 +344,10 @@ export class SimConnect {
             // send the data
             if (side === 'L') {
                 if (this.frameDataLeft.setData({ FrameData: stream.buffer }) === false) {
-                    parentPort.postMessage({ request: 'LOGERROR', response: `Could not send frame data: ${this.frameDataLeft.lastError()}` });
+                    Logging.error(`Could not send frame data: ${this.frameDataLeft.lastError()}`);
                 }
             } else if (this.frameDataRight.setData({ FrameData: stream.buffer }) === false) {
-                parentPort.postMessage({ request: 'LOGERROR', response: `Could not send frame data: ${this.frameDataRight.lastError()}` });
+                Logging.error(`Could not send frame data: ${this.frameDataRight.lastError()}`);
             }
         }
     }

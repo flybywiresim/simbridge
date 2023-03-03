@@ -26,6 +26,7 @@ import { uploadTextureData } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
+import { Logging } from './logging';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
 
 // mathematical conversion constants
@@ -180,12 +181,12 @@ class MapHandler {
                 const patternData = createArcModePatternMap();
                 this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
                 if (startup) {
-                    parentPort.postMessage({ request: 'LOGMESSAGE', response: 'ARC-mode rendering activated' });
+                    Logging.info('ARC-mode rendering activated');
                 }
                 break;
             default:
                 if (startup) {
-                    parentPort.postMessage({ request: 'LOGERROR', response: 'No known rendering mode selected' });
+                    Logging.error('No known rendering mode selected');
                 }
                 break;
             }
@@ -947,9 +948,9 @@ class MapHandler {
 
         // no valid position data received
         if (this.currentGroundTruthPosition === undefined) {
-            parentPort.postMessage({ request: 'LOGWARN', response: 'No valid position received for rendering' });
+            Logging.warn('No valid position received for rendering');
         } else if (this.navigationDisplayRendering[side].config === undefined) {
-            parentPort.postMessage({ request: 'LOGWARN', response: 'No navigation display configuration received' });
+            Logging.warn('No navigation display configuration received');
         } else {
             const { config } = this.navigationDisplayRendering[side];
             config.mapWidth = config.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
@@ -978,7 +979,7 @@ class MapHandler {
                     this.arcModeTransition(side, config, this.createScreenResolutionFrame(config, imageData), thresholdData);
                     break;
                 default:
-                    parentPort.postMessage({ request: 'LOGERROR', response: `Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}` });
+                    Logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
                     break;
                 }
             }
