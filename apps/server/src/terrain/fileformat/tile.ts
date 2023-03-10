@@ -39,7 +39,6 @@ export class Tile {
                 offset += 2;
             }
         }
-        retval.MapLoaded = true;
 
         return retval;
     }
