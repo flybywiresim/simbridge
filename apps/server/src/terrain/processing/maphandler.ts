@@ -1,6 +1,7 @@
 import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import * as sharp from 'sharp';
 import { readFile } from 'fs/promises';
+import { parentPort } from 'worker_threads';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -26,6 +27,7 @@ import { uploadTextureData } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
+import { ThreadLogger } from './logging/threadlogger';
 import { Logger } from './logging/logger';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
 
@@ -79,7 +81,7 @@ const RenderingMapUpdateTimeout = 1500;
 const RenderingMapFrameValidityTime = RenderingMapTransitionDuration + RenderingMapUpdateTimeout;
 const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
 
-export class MapHandler {
+class MapHandler {
     private simconnect: SimConnect = null;
 
     private worldmap: Worldmap = null;
@@ -1061,11 +1063,27 @@ export class MapHandler {
         this.navigationDisplayRendering.R.lastFrame = null;
     }
 
-    public frameData(side: string): { timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] } {
+    public frameData(side: string): { side: string, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] } {
         if (side in this.navigationDisplayRendering) {
-            return this.navigationDisplayRendering[side].lastTransitionData;
+            return {
+                side,
+                timestamp: this.navigationDisplayRendering[side].lastTransitionData.timestamp,
+                thresholds: this.navigationDisplayRendering[side].lastTransitionData.thresholds,
+                frames: this.navigationDisplayRendering[side].lastTransitionData.frames,
+            };
         }
 
-        return { timestamp: 0, thresholds: null, frames: [] };
+        return { side, timestamp: 0, thresholds: null, frames: [] };
     }
 }
+
+const maphandler = new MapHandler(new ThreadLogger());
+
+parentPort.on('message', (data: { request: string, content: string }) => {
+    if (data.request === 'REQ_FRAME_DATA') {
+        parentPort.postMessage({ request: 'RES_FRAME_DATA', content: maphandler.frameData(data.content) });
+    } else if (data.request === 'REQ_SHUTDOWN') {
+        maphandler.shutdown();
+        parentPort.postMessage({ request: 'RES_SHUTDOWN', content: undefined });
+    }
+});

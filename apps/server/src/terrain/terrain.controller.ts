@@ -21,7 +21,7 @@ export class TerrainController {
         type: Number,
     })
     renderingTimestamp(@Query('display') display) {
-        return this.terrainService.frameData(display).timestamp;
+        return this.terrainService.frameData(display).then((data) => data.timestamp);
     }
 
     @Get('renderingThresholds')
@@ -32,7 +32,7 @@ export class TerrainController {
         type: NavigationDisplayThresholdsDto,
     })
     renderingThresholds(@Query('display') display) {
-        return this.terrainService.frameData(display).thresholds;
+        return this.terrainService.frameData(display).then((data) => data.thresholds);
     }
 
     @Get('renderingFrames')
@@ -43,10 +43,10 @@ export class TerrainController {
         type: [String],
     })
     renderingFrames(@Query('display') display) {
-        const data = this.terrainService.frameData(display);
-
-        const retval = [];
-        data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
-        return retval;
+        return this.terrainService.frameData(display).then((data) => {
+            const retval = [];
+            data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
+            return retval;
+        });
     }
 }
