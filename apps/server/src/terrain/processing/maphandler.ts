@@ -91,7 +91,7 @@ export class MapHandler {
 
     private cachedElevationData: {
         gpuData: Texture,
-        cpuData: Int16Array,
+        cpuData: Float32Array,
         cachedTiles: number,
     } = {
         gpuData: null,
@@ -465,7 +465,7 @@ export class MapHandler {
 
             const worldWidth = this.worldMapMetadata.minWidthPerTile * (northeastGrid.column - southwestGrid.column);
             const worldHeight = this.worldMapMetadata.minHeightPerTile * (northeastGrid.row - southwestGrid.row);
-            this.cachedElevationData.cpuData = new Int16Array(worldWidth * worldHeight);
+            this.cachedElevationData.cpuData = new Float32Array(worldWidth * worldHeight);
             let yOffset = 0;
 
             for (let { row } = northeastGrid; row >= southwestGrid.row; row--) {
