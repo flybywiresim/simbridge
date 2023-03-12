@@ -479,7 +479,7 @@ export class MapHandler {
 
                             if (cell.tileIndex === -1) {
                                 this.cachedElevationData.cpuData[index] = WaterElevation;
-                            } else if (!cell.elevationmap.MapLoaded) {
+                            } else if (cell.elevationmap.ElevationMap === undefined) {
                                 this.cachedElevationData.cpuData[index] = UnknownElevation;
                             } else {
                                 this.cachedElevationData.cpuData[index] = cell.elevationmap.ElevationMap[y * cell.elevationmap.Columns + x];
