@@ -25,7 +25,7 @@ import { uploadTextureData } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
-import { Logging } from './logging';
+import { Logger } from './logging/logger';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
 import { FileService } from '../../utilities/file.service';
 
@@ -352,7 +352,7 @@ export class MapHandler {
         }
     }
 
-    constructor(private logging: Logging, fileService: FileService) {
+    constructor(private logging: Logger, fileService: FileService) {
         this.readTerrainMap(fileService).then((terrainmap) => {
             this.simconnect = new SimConnect(logging);
             this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());

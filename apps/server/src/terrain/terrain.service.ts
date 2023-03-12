@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { FileService } from '../utilities/file.service';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
-import { Logging } from './processing/logging';
+import { NestLogger } from './processing/logging/nestlogger';
 import { MapHandler } from './processing/maphandler';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class TerrainService implements OnApplicationShutdown {
     // private terrainDirectory = 'terrain/';
 
     constructor(fileService: FileService) {
-        this.mapHandler = new MapHandler(new Logging(this.logger), fileService);
+        this.mapHandler = new MapHandler(new NestLogger(this.logger), fileService);
         // this.readTerrainMap().then((map) => {
         //     this.mapHandler = new MapHandler(new Logging(this.logger), map);
         // });

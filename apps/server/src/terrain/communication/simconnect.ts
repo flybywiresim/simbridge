@@ -11,7 +11,7 @@ import {
     ClientDataPeriod,
     ClientDataRequest,
 } from '@flybywiresim/msfs-nodejs';
-import { Logging } from '../processing/logging';
+import { Logger } from '../processing/logging/logger';
 import { NavigationDisplayData } from '../processing/navigationdisplaydata';
 import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
 
@@ -300,7 +300,7 @@ export class SimConnect {
         }
     }
 
-    constructor(private logging: Logging) {
+    constructor(private logging: Logger) {
         this.connectToSim();
     }
 

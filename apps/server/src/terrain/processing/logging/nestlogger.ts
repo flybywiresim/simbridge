@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common/services/logger.service';
+import { Logger as ProcessingLogger } from './logger';
 
-export class Logging {
+export class NestLogger implements ProcessingLogger {
     constructor(private logger: Logger) {}
 
     public info(message: string): void {
