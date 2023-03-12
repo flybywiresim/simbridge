@@ -29,6 +29,9 @@ import { Logging } from './logging';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
 import { FileService } from '../../utilities/file.service';
 
+// execution parameters
+const GpuProcessingActive = true;
+
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
 const ThreeNauticalMilesInFeet = 18228.3;
@@ -180,6 +183,8 @@ export class MapHandler {
             case TerrainRenderingMode.ArcMode:
                 const patternData = createArcModePatternMap();
                 this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
+                // some GPU drivers require the flush call to release internal memory
+                if (GpuProcessingActive) this.uploadPatternMapToGPU.context.flush();
                 if (startup) {
                     this.logging.info('ARC-mode rendering activated');
                 }
@@ -503,6 +508,8 @@ export class MapHandler {
 
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
             this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(this.cachedElevationData.cpuData, worldWidth) as Texture;
+            // some GPU drivers require the flush call to release internal memory
+            if (GpuProcessingActive) this.uploadWorldMapToGPU.context.flush();
 
             this.worldmap.TileManager.cleanupElevationCache(tiledata.whitelist);
             this.cachedElevationData.cachedTiles = tiledata.whitelist.length;
@@ -635,6 +642,9 @@ export class MapHandler {
             config.arcMode,
         ) as Texture;
 
+        // some GPU drivers require the flush call to release internal memory
+        if (GpuProcessingActive) this.extractLocalElevationMap.context.flush();
+
         return localElevationMap;
     }
 
@@ -662,6 +672,12 @@ export class MapHandler {
             localHistograms,
             patchCount,
         ) as Texture;
+
+        // some GPU drivers require the flush call to release internal memory
+        if (GpuProcessingActive) {
+            this.localElevationHistogram.context.flush();
+            this.elevationHistogram.context.flush();
+        }
 
         return histogram;
     }
@@ -800,6 +816,9 @@ export class MapHandler {
             this.aircraftStatus.gearIsDown ? RenderingGearDownOffset : RenderingNonGearDownOffset,
             cutOffAltitude,
         ) as KernelOutput;
+
+        // some GPU drivers require the flush call to release internal memory
+        if (GpuProcessingActive) this.navigationDisplayRendering[side].finalMap.context.flush();
 
         return terrainmap;
     }
