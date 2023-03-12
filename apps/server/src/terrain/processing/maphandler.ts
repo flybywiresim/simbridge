@@ -1,5 +1,6 @@
 import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import * as sharp from 'sharp';
+import { readFile } from 'fs/promises';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -27,7 +28,6 @@ import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
 import { Logger } from './logging/logger';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
-import { FileService } from '../../utilities/file.service';
 
 // execution parameters
 const GpuProcessingActive = true;
@@ -340,9 +340,10 @@ export class MapHandler {
         }
     }
 
-    private async readTerrainMap(fileService: FileService): Promise<TerrainMap | undefined> {
+    private async readTerrainMap(): Promise<TerrainMap | undefined> {
         try {
-            const buffer = await fileService.getFile('terrain/', 'terrain.map');
+            const buffer = await readFile('./terrain/terrain.map');
+            // const buffer = await fileService.getFile('terrain/', 'terrain.map');
             this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
             return new TerrainMap(buffer);
         } catch (err) {
@@ -352,8 +353,8 @@ export class MapHandler {
         }
     }
 
-    constructor(private logging: Logger, fileService: FileService) {
-        this.readTerrainMap(fileService).then((terrainmap) => {
+    constructor(private logging: Logger) {
+        this.readTerrainMap().then((terrainmap) => {
             this.simconnect = new SimConnect(logging);
             this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());
             this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
