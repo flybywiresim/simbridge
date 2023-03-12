@@ -40,7 +40,7 @@ const enum DataDefinitionId {
 }
 
 const EnhancedGpwcAircraftStatusByteCount = 44;
-const NavigationDisplayThresholdByteCount = 10;
+const NavigationDisplayThresholdByteCount = 11;
 
 export class SimConnect {
     private callbacks: UpdateCallbacks = {
@@ -317,7 +317,8 @@ export class SimConnect {
         packed.writeUInt8(metadata.MinimumElevationMode, 2);
         packed.writeInt16LE(metadata.MaximumElevation, 3);
         packed.writeUInt8(metadata.MaximumElevationMode, 5);
-        packed.writeUInt32LE(metadata.FrameByteCount, 6);
+        packed.writeUInt8(metadata.FirstFrame ? 1 : 0, 6);
+        packed.writeUInt32LE(metadata.FrameByteCount, 7);
 
         if (side === 'L') {
             if (this.frameMetadataLeft.setData({ ThresholdData: packed.buffer }) === false) {

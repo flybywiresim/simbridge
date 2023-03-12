@@ -589,6 +589,7 @@ class MapHandler {
                         MinimumElevationMode: TerrainLevelMode.PeaksMode,
                         MaximumElevation: -1,
                         MaximumElevationMode: TerrainLevelMode.PeaksMode,
+                        FirstFrame: true,
                         FrameByteCount: 0,
                     });
                 }
@@ -884,6 +885,7 @@ class MapHandler {
         }
 
         let angle = 0;
+        let firstFrame = true;
         let lastFrame = null;
         this.navigationDisplayRendering[side].durationInterval = setInterval(() => {
             angle += RenderingMapTransitionAngularStep;
@@ -915,11 +917,13 @@ class MapHandler {
                     .toBuffer()
                     .then((buffer) => {
                         thresholdData.FrameByteCount = buffer.byteLength;
+                        thresholdData.FirstFrame = firstFrame;
                         this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, thresholdData);
                         this.simconnect.sendNavigationDisplayTerrainMapFrame(side, buffer);
 
                         // store the data for the web UI
                         transitionFrames.push(new Uint8ClampedArray(buffer));
+                        firstFrame = false;
                     });
             }
 
