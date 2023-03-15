@@ -15,5 +15,9 @@ export class NavigationDisplayData {
 
     public FirstFrame: boolean = false;
 
+    public DisplayRange: number = 10;
+
+    public DisplayMode: number = 0;
+
     public FrameByteCount: number = 0;
 }

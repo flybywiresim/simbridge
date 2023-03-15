@@ -592,6 +592,8 @@ class MapHandler {
                         MaximumElevation: -1,
                         MaximumElevationMode: TerrainLevelMode.PeaksMode,
                         FirstFrame: true,
+                        DisplayRange: 0,
+                        DisplayMode: 0,
                         FrameByteCount: 0,
                     });
                 }
@@ -878,6 +880,9 @@ class MapHandler {
             this.navigationDisplayRendering[side].durationInterval = null;
         }
 
+        thresholdData.DisplayRange = config.range;
+        thresholdData.DisplayMode = config.efisMode;
+
         let startAngle = 0;
         if (this.navigationDisplayRendering[side].lastFrame === null) {
             const timeSinceStart = new Date().getTime() - this.navigationDisplayRendering[side].startupTimestamp;
@@ -920,6 +925,7 @@ class MapHandler {
                     .then((buffer) => {
                         thresholdData.FrameByteCount = buffer.byteLength;
                         thresholdData.FirstFrame = firstFrame;
+
                         this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, thresholdData);
                         this.simconnect.sendNavigationDisplayTerrainMapFrame(side, buffer);
 
