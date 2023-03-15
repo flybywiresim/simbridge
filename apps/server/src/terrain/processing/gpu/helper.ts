@@ -10,8 +10,18 @@ export function projectWgs84(latitude: number, longitude: number, bearing: numbe
     const bearingRad = deg2rad(bearing);
     const ratio = distance / 6371010.0;
 
-    const latDest = Math.asin(Math.sin(latRad) * Math.cos(ratio) + Math.cos(latRad) * Math.sin(ratio) * Math.cos(bearingRad));
-    const longDest = longRad + Math.atan2(Math.sin(bearingRad) * Math.sin(ratio) * Math.cos(latRad), Math.cos(ratio) - Math.sin(latRad) * Math.sin(latDest));
+    let latDest = Math.asin(Math.sin(latRad) * Math.cos(ratio) + Math.cos(latRad) * Math.sin(ratio) * Math.cos(bearingRad));
+    let longDest = longRad + Math.atan2(Math.sin(bearingRad) * Math.sin(ratio) * Math.cos(latRad), Math.cos(ratio) - Math.sin(latRad) * Math.sin(latDest));
 
-    return [rad2deg(latDest), rad2deg(longDest)];
+    // ensure that the latitude is between [-90.0, 90.0]
+    latDest = rad2deg(latDest);
+    if (latDest < -90.0) latDest = -180.0 - latDest;
+    if (latDest > 90.0) latDest = 180.0 - latDest;
+
+    // ensure that the longitude is between [-180.0, 180.0]
+    longDest = rad2deg(longDest);
+    if (longDest < -180.0) longDest = 360.0 + longDest;
+    if (longDest > 180.0) longDest -= 360.0;
+
+    return [latDest, longDest];
 }
