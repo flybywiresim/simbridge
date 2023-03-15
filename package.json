@@ -31,7 +31,7 @@
 		"copy:pdfjs:cmaps": "copyfiles -s -f \"node_modules/pdfjs-dist/cmaps/**/*.*\" build/node_modules/pdfjs-dist/cmaps",
 		"copy:nodehide": "copyfiles -s -f \"node_modules/node-hide-console-window/build/Release/**/*\" build/node_modules/node-hide-console-window/build/Release",
 		"copy:sharp": "copyfiles -s -f \"node_modules/sharp/build/Release/**/*\" build/node_modules/sharp/build/Release",
-		"copy:simconnect": "copyfiles -s -f \"C://MSFS SDK/SimConnect SDK/lib/SimConnect.dll\" build",
+		"copy:simconnect": "copyfiles -s -f simconnect/SimConnect.dll build",
 		"copy:open": "copyfiles -s -f \"node_modules/open/xdg-open\"  build/node_modules/open",
 		"fetch:terrain": "node scripts/terrain.js",
 		"start": "nest start server",
