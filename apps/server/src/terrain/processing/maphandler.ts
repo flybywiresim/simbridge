@@ -5,7 +5,7 @@ import { parentPort } from 'worker_threads';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
-import { deg2rad, distanceWgs84, rad2deg } from './generic/helper';
+import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
 import { normalizeHeading, projectWgs84 } from './gpu/helper';
 import {
@@ -605,23 +605,6 @@ class MapHandler {
         }
     }
 
-    private static fastFlatten<T>(arr: T[][]): T[] {
-        const numElementsUptoIndex = Array(arr.length);
-        numElementsUptoIndex[0] = 0;
-        for (let i = 1; i < arr.length; i++) {
-            numElementsUptoIndex[i] = numElementsUptoIndex[i - 1] + arr[i - 1].length;
-        }
-        const flattened = new Array(numElementsUptoIndex[arr.length - 1] + arr[arr.length - 1].length);
-        let skip;
-        for (let i = 0; i < arr.length; i++) {
-            skip = numElementsUptoIndex[i];
-            for (let j = 0; j < arr[i].length; j++) {
-                flattened[skip + j] = arr[i][j];
-            }
-        }
-        return flattened;
-    }
-
     private createLocalElevationMap(config: NavigationDisplay): Texture {
         if (this.cachedElevationData.gpuData === null) return null;
 
@@ -1018,7 +1001,7 @@ class MapHandler {
 
             const frame = renderingData as number[][];
             const metadata = frame.splice(frame.length - 1)[0];
-            const imageData = new Uint8ClampedArray(MapHandler.fastFlatten(frame));
+            const imageData = new Uint8ClampedArray(fastFlatten(frame));
 
             // send the threshold data for the map
             const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
