@@ -1,3 +1,4 @@
+import { fastFlatten } from '../processing/generic/helper';
 import { ElevationGrid } from '../fileformat/elevationgrid';
 import { Worldmap } from './worldmap';
 import { TerrainMap } from '../fileformat/terrainmap';
@@ -25,10 +26,12 @@ export class TileManager {
         }
     }
 
-    public cleanupElevationCache(whitelist: { row: number, column: number }[]): void {
+    public cleanupElevationCache(grid: { row: number, column: number }[][]): void {
+        const tiles = fastFlatten(grid);
+
         for (let row = 0; row < this.grid.length; ++row) {
             for (let col = 0; col < this.grid[row].length; ++col) {
-                const idx = whitelist.findIndex((element) => element.column === col && element.row === row);
+                const idx = tiles.findIndex((element) => element.row === row && element.column === col);
                 if (idx === -1) {
                     this.grid[row][col].elevationmap = undefined;
                 }

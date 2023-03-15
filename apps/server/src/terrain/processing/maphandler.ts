@@ -449,9 +449,11 @@ class MapHandler {
     private updateGroundTruthPositionAndCachedTiles(position: PositionData, startup: boolean): void {
         if (!this.initialized && !startup) return;
         this.currentGroundTruthPosition = position;
-        const tiledata = this.worldmap.updatePosition(this.currentGroundTruthPosition);
+        const grid = this.worldmap.createGridLookupTable(position);
+        const loadedTiles = this.worldmap.updatePosition(grid);
+        const relevantTileCount = grid.length * grid[0].length;
 
-        if (tiledata.loadlist.length !== 0 || this.cachedElevationData.cachedTiles !== tiledata.whitelist.length) {
+        if (loadedTiles || this.cachedElevationData.cachedTiles !== relevantTileCount) {
             const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.worldmap.VisibilityRange * 1852);
             const southwestGrid = this.worldmap.worldMapIndices(southwestLat, southwestLong);
             const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.worldmap.VisibilityRange * 1852);
@@ -459,30 +461,31 @@ class MapHandler {
 
             this.worldMapMetadata.minWidthPerTile = 5000;
             this.worldMapMetadata.minHeightPerTile = 5000;
-            for (let { row } = northeastGrid; row >= southwestGrid.row; row--) {
-                for (let { column } = southwestGrid; column <= northeastGrid.column; column++) {
-                    const cell = this.worldmap.TileManager.grid[row][column];
-                    if (cell.tileIndex !== -1 && cell.elevationmap.Rows !== 0 && cell.elevationmap.Columns !== 0) {
+            grid.forEach((row) => {
+                row.forEach((cellIdx) => {
+                    const cell = this.worldmap.TileManager.grid[cellIdx.row][cellIdx.column];
+                    if (cell.tileIndex !== -1 && cell.elevationmap && cell.elevationmap.Rows !== 0 && cell.elevationmap.Columns !== 0) {
                         this.worldMapMetadata.minWidthPerTile = Math.min(cell.elevationmap.Columns, this.worldMapMetadata.minWidthPerTile);
                         this.worldMapMetadata.minHeightPerTile = Math.min(cell.elevationmap.Rows, this.worldMapMetadata.minHeightPerTile);
                     }
-                }
-            }
+                });
+            });
 
             if (this.worldMapMetadata.minWidthPerTile === 5000) this.worldMapMetadata.minWidthPerTile = DefaultTileSize;
             if (this.worldMapMetadata.minHeightPerTile === 5000) this.worldMapMetadata.minHeightPerTile = DefaultTileSize;
 
-            const worldWidth = this.worldMapMetadata.minWidthPerTile * (northeastGrid.column - southwestGrid.column);
-            const worldHeight = this.worldMapMetadata.minHeightPerTile * (northeastGrid.row - southwestGrid.row);
+            const worldWidth = this.worldMapMetadata.minWidthPerTile * grid[0].length;
+            const worldHeight = this.worldMapMetadata.minHeightPerTile * grid.length;
             this.cachedElevationData.cpuData = new Float32Array(worldWidth * worldHeight);
             let yOffset = 0;
 
-            for (let { row } = northeastGrid; row >= southwestGrid.row; row--) {
+            grid.forEach((row) => {
                 for (let y = 0; y < this.worldMapMetadata.minHeightPerTile; y++) {
                     let xOffset = 0;
 
-                    for (let { column } = southwestGrid; column <= northeastGrid.column; column++) {
-                        const cell = this.worldmap.TileManager.grid[row][column];
+                    for (let x = 0; x < row.length; ++x) {
+                        const cellIdx = row[x];
+                        const cell = this.worldmap.TileManager.grid[cellIdx.row][cellIdx.column];
                         for (let x = 0; x < this.worldMapMetadata.minWidthPerTile; x++) {
                             const index = (y + yOffset) * worldWidth + xOffset + x;
 
@@ -500,7 +503,7 @@ class MapHandler {
                 }
 
                 yOffset += this.worldMapMetadata.minHeightPerTile;
-            }
+            });
 
             // update the world map metadata for the rendering
             this.worldMapMetadata.southwest.latitude = this.worldmap.TileManager.grid[southwestGrid.row][southwestGrid.column].southwest.latitude;
@@ -515,8 +518,8 @@ class MapHandler {
             // some GPU drivers require the flush call to release internal memory
             if (GpuProcessingActive) this.uploadWorldMapToGPU.context.flush();
 
-            this.worldmap.TileManager.cleanupElevationCache(tiledata.whitelist);
-            this.cachedElevationData.cachedTiles = tiledata.whitelist.length;
+            this.worldmap.TileManager.cleanupElevationCache(grid);
+            this.cachedElevationData.cachedTiles = relevantTileCount;
         }
 
         // calculate the correct pixel coordinate in every step
@@ -527,12 +530,23 @@ class MapHandler {
             const latDelta = this.currentGroundTruthPosition.latitude - currentTile.Southwest.latitude;
             const longDelta = this.currentGroundTruthPosition.longitude - currentTile.Southwest.longitude;
 
-            const yOffset = Math.floor(
-                (this.worldMapMetadata.northeast.latitude - this.currentGroundTruthPosition.latitude) / this.worldmap.GridData.latitudeStep,
-            ) * this.worldMapMetadata.minHeightPerTile;
-            const xOffset = Math.floor(
-                (this.currentGroundTruthPosition.longitude - this.worldMapMetadata.southwest.longitude) / this.worldmap.GridData.longitudeStep,
-            ) * this.worldMapMetadata.minWidthPerTile;
+            let yOffset = 0;
+            let xOffset = 0;
+            const egoIndex = this.worldmap.worldMapIndices(
+                this.currentGroundTruthPosition.latitude,
+                this.currentGroundTruthPosition.longitude,
+            );
+            grid.forEach((row, rowIdx) => {
+                if (row[0].row === egoIndex.row) {
+                    row.forEach((cell, columnIdx) => {
+                        if (cell.column === egoIndex.column) {
+                            yOffset = rowIdx * this.worldMapMetadata.minHeightPerTile;
+                            xOffset = columnIdx * this.worldMapMetadata.minWidthPerTile;
+                        }
+                    });
+                }
+            });
+
             const globalEgoOffset: { x: number, y: number } = { x: xOffset + longDelta / longStep, y: yOffset + this.worldMapMetadata.minHeightPerTile - latDelta / latStep };
             this.worldMapMetadata.currentGridPosition = globalEgoOffset;
         } else {

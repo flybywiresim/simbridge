@@ -18,12 +18,6 @@ export interface TileData {
     grid: ElevationGrid,
 }
 
-interface TileLoadingData {
-    whitelist: { row: number, column: number }[];
-
-    loadlist: { row: number, column: number, tileIndex: number }[];
-}
-
 export class Worldmap {
     public GridData: GridDefinition = {
         rows: 0,
@@ -50,66 +44,6 @@ export class Worldmap {
         this.GridData.longitudeStep = this.terrainData.AngularSteps.longitude;
     }
 
-    private findTileIndices(latitude: number, longitude0: number, longitude1: number): { row: number, column: number }[] {
-        const indices: { row: number, column: number }[] = [];
-
-        for (let lon = longitude0; lon <= longitude1; lon += this.terrainData.AngularSteps.longitude) {
-            const index = this.worldMapIndices(latitude, lon);
-            if (index !== undefined && Worldmap.validTile(this.terrainData, this.TileManager.grid, index) === true) {
-                indices.push(index);
-            }
-        }
-
-        return indices;
-    }
-
-    private filterTileIndexCandidates(tileIndices: { row: number, column: number}[]): TileLoadingData {
-        let loadlist: { row: number, column: number, tileIndex: number }[] = [];
-
-        tileIndices.forEach((index) => {
-            if (this.TileManager.grid[index.row][index.column].elevationmap === undefined) {
-                loadlist = loadlist.concat({ row: index.row, column: index.column, tileIndex: this.TileManager.grid[index.row][index.column].tileIndex });
-            }
-        });
-
-        return {
-            whitelist: tileIndices,
-            loadlist,
-        };
-    }
-
-    private findRelevantTiles(position: PositionData, rangeInNM: number): TileLoadingData {
-        let [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, rangeInNM * 1852);
-        let [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, rangeInNM * 1852);
-        const tiles: TileLoadingData = { whitelist: [], loadlist: [] };
-
-        // correct the borders to catch all tiles
-        southwestLat = Math.floor((southwestLat + 90) / this.GridData.latitudeStep) - 90;
-        southwestLong = Math.floor((southwestLong + 180) / this.GridData.longitudeStep) - 180;
-        northeastLat = Math.ceil((northeastLat + 90) / this.GridData.latitudeStep) - 90;
-        northeastLong = Math.ceil((northeastLong + 180) / this.GridData.longitudeStep) - 180;
-
-        // wrap around at 180°
-        if (southwestLong > northeastLong) {
-            for (let lat = southwestLat; lat <= northeastLat; lat += this.terrainData.AngularSteps.latitude) {
-                let indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwestLong, 180));
-                tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
-                tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
-                indices = this.filterTileIndexCandidates(this.findTileIndices(lat, -180, northeastLong));
-                tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
-                tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
-            }
-        } else {
-            for (let lat = southwestLat; lat <= northeastLat; lat += this.terrainData.AngularSteps.latitude) {
-                const indices = this.filterTileIndexCandidates(this.findTileIndices(lat, southwestLong, northeastLong));
-                tiles.loadlist = tiles.loadlist.concat(indices.loadlist);
-                tiles.whitelist = tiles.whitelist.concat(indices.whitelist);
-            }
-        }
-
-        return tiles;
-    }
-
     public resetInternalData(): void {
         this.TileManager.grid.forEach((row) => {
             row.forEach((column) => {
@@ -118,18 +52,66 @@ export class Worldmap {
         });
     }
 
-    public updatePosition(position: PositionData): TileLoadingData {
-        const tiles = this.findRelevantTiles(position, this.VisibilityRange);
+    public createGridLookupTable(position: PositionData): { row: number; column: number }[][] {
+        const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.VisibilityRange * 1852);
+        const southwestGrid = this.worldMapIndices(southwestLat, southwestLong);
+        const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.VisibilityRange * 1852);
+        const northeastGrid = this.worldMapIndices(northeastLat, northeastLong);
 
-        // load all missing tiles
-        tiles.loadlist.forEach((index) => {
-            const map = Tile.loadElevationGrid(this.terrainData.Tiles[index.tileIndex]);
-            if (map !== null) {
-                this.TileManager.setElevationMap(index, map);
+        let rowCount = northeastGrid.row - southwestGrid.row;
+        let rowDirection = 1;
+        if (southwestLat >= position.latitude) {
+            // we are at the south pole
+            rowCount = southwestGrid.row + northeastGrid.row;
+            rowDirection = -1;
+        } else if (northeastLat <= position.latitude) {
+            // we are at the north pole
+            rowCount = this.TileManager.grid.length - southwestGrid.row + this.TileManager.grid.length - northeastGrid.row;
+        }
+        rowCount += 1;
+
+        let columnCount = northeastGrid.column - southwestGrid.column;
+        if (northeastLong < southwestLong) {
+            // wrap around at 180°
+            columnCount = this.TileManager.grid[0].length - southwestGrid.column + northeastGrid.column;
+        }
+        columnCount += 1;
+
+        // create the look up table and sort from north->south and west->east
+        const retval = new Array(rowCount);
+        for (let y = 0; y < rowCount; ++y) {
+            let row = southwestGrid.row + rowDirection * y;
+            // ensure that the row index is not outside of bounds
+            if (row < 0) row = Math.abs(row);
+            if (row >= this.TileManager.grid.length) row -= this.TileManager.grid.length;
+
+            retval[rowCount - 1 - y] = new Array(columnCount);
+            for (let x = 0; x < columnCount; x++) {
+                const column = (southwestGrid.column + x) % this.TileManager.grid[0].length;
+                retval[rowCount - 1 - y][x] = { row, column };
             }
+        }
+
+        return retval;
+    }
+
+    public updatePosition(relevantTiles: { row: number; column: number }[][]): boolean {
+        let loadedTiles = 0;
+        relevantTiles.forEach((row) => {
+            row.forEach((cell) => {
+                if (this.TileManager.grid[cell.row][cell.column].tileIndex !== -1
+                    && (this.TileManager.grid[cell.row][cell.column].elevationmap === undefined
+                        || this.TileManager.grid[cell.row][cell.column].elevationmap.ElevationMap === undefined)) {
+                    const map = Tile.loadElevationGrid(this.terrainData.Tiles[this.TileManager.grid[cell.row][cell.column].tileIndex]);
+                    if (map !== null) {
+                        this.TileManager.setElevationMap(cell, map);
+                        loadedTiles += 1;
+                    }
+                }
+            });
         });
 
-        return tiles;
+        return loadedTiles !== 0;
     }
 
     public worldMapIndices(latitude: number, longitude: number): { row: number, column: number } | undefined {
