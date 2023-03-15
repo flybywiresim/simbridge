@@ -12,6 +12,7 @@ export interface NavigationDisplay {
     range: number,
     arcMode: boolean,
     active: boolean,
+    efisMode: number;
     mapOffsetX?: number,
     mapWidth?: number,
     mapHeight?: number,

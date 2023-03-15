@@ -371,6 +371,7 @@ class MapHandler {
                 range: 10,
                 arcMode: true,
                 active: true,
+                efisMode: 0,
                 mapOffsetX: 0,
                 mapWidth: RenderingMaxPixelWidth,
                 mapHeight: RenderingArcModePixelHeight,
@@ -566,6 +567,7 @@ class MapHandler {
             const stopRendering = !config.active && lastConfig !== null && lastConfig.active;
             let startRendering = config.active && (lastConfig === null || !lastConfig.active);
             startRendering ||= lastConfig !== null && ((lastConfig.range !== config.range) || (lastConfig.arcMode !== config.arcMode));
+            startRendering ||= lastConfig !== null && (lastConfig.efisMode !== config.efisMode);
 
             this.navigationDisplayRendering[display].config = config;
 

@@ -39,7 +39,7 @@ const enum DataDefinitionId {
     NavigationDisplayFrameAreaRight = 4,
 }
 
-const EnhancedGpwcAircraftStatusByteCount = 44;
+const EnhancedGpwcAircraftStatusByteCount = 46;
 const NavigationDisplayThresholdByteCount = 11;
 
 export class SimConnect {
@@ -212,8 +212,8 @@ export class SimConnect {
 
             if (this.callbacks.positionUpdate !== null) {
                 const positionData: PositionData = {
-                    latitude: buffer.readFloatLE(36),
-                    longitude: buffer.readFloatLE(40),
+                    latitude: buffer.readFloatLE(38),
+                    longitude: buffer.readFloatLE(42),
                 };
 
                 this.callbacks.positionUpdate(positionData);
@@ -235,13 +235,15 @@ export class SimConnect {
                         range: buffer.readUInt16LE(27),
                         arcMode: buffer.readUInt8(29) !== 0,
                         active: buffer.readUInt8(30) !== 0,
+                        efisMode: buffer.readUInt8(31),
                     },
                     navigationDisplayFO: {
-                        range: buffer.readUInt16LE(31),
-                        arcMode: buffer.readUInt8(33) !== 0,
-                        active: buffer.readUInt8(34) !== 0,
+                        range: buffer.readUInt16LE(32),
+                        arcMode: buffer.readUInt8(34) !== 0,
+                        active: buffer.readUInt8(35) !== 0,
+                        efisMode: buffer.readUInt8(36),
                     },
-                    navigationDisplayRenderingMode: buffer.readUInt8(35) as TerrainRenderingMode,
+                    navigationDisplayRenderingMode: buffer.readUInt8(37) as TerrainRenderingMode,
                 };
 
                 this.callbacks.aircraftStatusUpdate(status);
