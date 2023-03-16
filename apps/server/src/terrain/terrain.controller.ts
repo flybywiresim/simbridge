@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { TerrainService } from './terrain.service';
+import { ShutDownService } from '../utilities/shutdown.service';
 
 enum DisplaySide {
     Left = 'L',
@@ -11,7 +12,7 @@ enum DisplaySide {
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
 export class TerrainController {
-    constructor(private terrainService: TerrainService) {}
+    constructor(private terrainService: TerrainService, private shutdownService: ShutDownService) {}
 
     @Get('renderingTimestamp')
     @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
@@ -21,7 +22,10 @@ export class TerrainController {
         type: Number,
     })
     renderingTimestamp(@Query('display') display) {
-        return this.terrainService.frameData(display).then((data) => data.timestamp);
+        return this.terrainService.frameData(display).then((data) => {
+            if (data === undefined) return -1;
+            return data.timestamp;
+        });
     }
 
     @Get('renderingThresholds')
@@ -32,7 +36,10 @@ export class TerrainController {
         type: NavigationDisplayThresholdsDto,
     })
     renderingThresholds(@Query('display') display) {
-        return this.terrainService.frameData(display).then((data) => data.thresholds);
+        return this.terrainService.frameData(display).then((data) => {
+            if (data === undefined) return undefined;
+            return data.thresholds;
+        });
     }
 
     @Get('renderingFrames')
@@ -44,6 +51,8 @@ export class TerrainController {
     })
     renderingFrames(@Query('display') display) {
         return this.terrainService.frameData(display).then((data) => {
+            if (data === undefined) return [];
+
             const retval = [];
             data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
             return retval;

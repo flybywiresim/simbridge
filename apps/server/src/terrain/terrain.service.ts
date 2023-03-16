@@ -35,10 +35,17 @@ export class TerrainService implements OnApplicationShutdown {
     }
 
     onApplicationShutdown(_signal?: string) {
-        this.mapHandler.postMessage({ request: 'REQ_SHUTDOWN', content: undefined });
+        this.logger.log(`Destroying ${TerrainService.name}`);
+        if (this.mapHandler) {
+            this.mapHandler.postMessage({ request: 'REQ_SHUTDOWN', content: undefined });
+            this.mapHandler.terminate();
+            this.mapHandler = null;
+        }
     }
 
     public async frameData(display: string): Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }> {
+        if (!this.mapHandler) return undefined;
+
         return new Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }>((resolve, _reject) => {
             this.frameDataCallbacks.push((side, data) => {
                 if (side === display) resolve(data);

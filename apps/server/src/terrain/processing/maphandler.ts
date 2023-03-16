@@ -1093,6 +1093,5 @@ parentPort.on('message', (data: { request: string, content: string }) => {
         parentPort.postMessage({ request: 'RES_FRAME_DATA', content: maphandler.frameData(data.content) });
     } else if (data.request === 'REQ_SHUTDOWN') {
         maphandler.shutdown();
-        parentPort.postMessage({ request: 'RES_SHUTDOWN', content: undefined });
     }
 });
