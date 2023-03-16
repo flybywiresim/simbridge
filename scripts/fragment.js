@@ -6,6 +6,7 @@ const execute = async () => {
         const result = await fragmenter.pack({
             baseDir: './build',
             outDir: './build-modules',
+            packOptions: { splitFileSize: 102_760_448, keepCompleteModulesAfterSplit: false },
             modules: [
                 {
                     name: 'resources',
