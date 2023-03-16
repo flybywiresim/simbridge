@@ -4,6 +4,11 @@
 	"extends": "@flybywiresim/eslint-config",
 	"plugins": ["@typescript-eslint"],
 	"parser": "@typescript-eslint/parser",
+	"ignorePatterns" : [
+		"dist/**",
+		"node_modules/**",
+		"build/**"
+	],
 	"parserOptions": {
 		"ecmaVersion": 2021,
 		"sourceType": "script",
