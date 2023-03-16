@@ -79,7 +79,7 @@ export class FileService {
             const file = await readFile(path);
             return file;
         } catch (err) {
-            const message = `Error retrieving file: ${fileName} in folder:${directory}`;
+            const message = `Error retrieving file: ${fileName} in folder: ${directory}`;
             this.logger.error(message, err);
             throw new HttpException(message, HttpStatus.NOT_FOUND);
         }
