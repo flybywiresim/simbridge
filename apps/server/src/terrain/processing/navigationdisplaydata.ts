@@ -1,20 +1,10 @@
 export enum TerrainLevelMode {
-    PeaksMode,
-    Warning,
-    Caution,
+    PeaksMode = 0,
+    Warning = 1,
+    Caution = 2,
 }
 
 export class NavigationDisplayData {
-    public Timestamp: number = 0;
-
-    public ImageSequence: string[] = [];
-
-    public Pixeldata: SharedArrayBuffer = null;
-
-    public Rows: number = 0;
-
-    public Columns: number = 0;
-
     public MinimumElevation: number = Infinity;
 
     public MinimumElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
@@ -22,4 +12,12 @@ export class NavigationDisplayData {
     public MaximumElevation: number = Infinity;
 
     public MaximumElevationMode: TerrainLevelMode = TerrainLevelMode.PeaksMode;
+
+    public FirstFrame: boolean = false;
+
+    public DisplayRange: number = 10;
+
+    public DisplayMode: number = 0;
+
+    public FrameByteCount: number = 0;
 }

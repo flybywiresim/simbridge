@@ -1,54 +1,57 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { FileService } from '../utilities/file.service';
-import { TerrainMap } from './mapformat/terrainmap';
-import { Worldmap } from './manager/worldmap';
-import { PositionDto } from './dto/position.dto';
+import { Worker } from 'worker_threads';
+import * as path from 'path';
+import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
-    private terrainDirectory = 'terrain/';
+    private mapHandler: Worker = null;
 
-    public Terrainmap: TerrainMap | undefined = undefined;
+    private frameDataCallbacks: ((side: string, data: { timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }) => boolean)[] = [];
 
-    public MapManager: Worldmap | undefined = undefined;
+    constructor() {
+        this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
+        this.mapHandler.on('message', (data: { request: string, content: any }) => {
+            if (data.request === 'RES_FRAME_DATA') {
+                const response = data.content as { side: string, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] };
 
-    constructor(private fileService: FileService) {
-        this.readTerrainMap().then((map) => {
-            this.Terrainmap = map;
-            if (map !== undefined) {
-                this.MapManager = new Worldmap(this.Terrainmap);
+                this.frameDataCallbacks.every((callback, index) => {
+                    if (callback(response.side, response)) {
+                        this.frameDataCallbacks.splice(index, 1);
+                        return false;
+                    }
+                    return true;
+                });
+            } else if (data.request === 'LOGINFO') {
+                this.logger.log(data.content);
+            } else if (data.request === 'LOGWARN') {
+                this.logger.warn(data.content);
+            } else if (data.request === 'LOGERROR') {
+                this.logger.error(data.content);
             }
         });
     }
 
     onApplicationShutdown(_signal?: string) {
-        if (this.MapManager !== undefined) {
-            this.logger.log(`Destroying ${TerrainService.name}`);
-            this.MapManager.shutdown();
+        this.logger.log(`Destroying ${TerrainService.name}`);
+        if (this.mapHandler) {
+            this.mapHandler.postMessage({ request: 'REQ_SHUTDOWN', content: undefined });
+            this.mapHandler.terminate();
+            this.mapHandler = null;
         }
     }
 
-    private async readTerrainMap(): Promise<TerrainMap | undefined> {
-        try {
-            const buffer = await this.fileService.getFile(
-                this.terrainDirectory,
-                'terrain.map',
-            );
-            this.logger.log(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
+    public async frameData(display: string): Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }> {
+        if (!this.mapHandler) return undefined;
 
-            return new TerrainMap(buffer);
-        } catch (err) {
-            this.logger.warn('Did not find the terrain.map-file');
-            this.logger.warn(err);
-            return undefined;
-        }
-    }
-
-    public updatePosition(position: PositionDto): void {
-        if (this.MapManager !== undefined) {
-            this.MapManager.updatePosition(position);
-        }
+        return new Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }>((resolve, _reject) => {
+            this.frameDataCallbacks.push((side, data) => {
+                if (side === display) resolve(data);
+                return side === display;
+            });
+            this.mapHandler.postMessage({ request: 'REQ_FRAME_DATA', content: display });
+        });
     }
 }
