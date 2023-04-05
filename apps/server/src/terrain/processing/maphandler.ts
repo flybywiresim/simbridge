@@ -523,12 +523,12 @@ class MapHandler {
         }
 
         // calculate the correct pixel coordinate in every step
-        const currentTile = this.worldmap.getTile(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
-        if (currentTile !== undefined) {
+        const southwest = this.worldmap.getSouthwestCoordinateOfTile(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
+        if (southwest !== undefined) {
             const latStep = this.worldmap.GridData.latitudeStep / this.worldMapMetadata.minHeightPerTile;
             const longStep = this.worldmap.GridData.longitudeStep / this.worldMapMetadata.minWidthPerTile;
-            const latDelta = this.currentGroundTruthPosition.latitude - currentTile.Southwest.latitude;
-            const longDelta = this.currentGroundTruthPosition.longitude - currentTile.Southwest.longitude;
+            const latDelta = this.currentGroundTruthPosition.latitude - southwest.latitude;
+            const longDelta = this.currentGroundTruthPosition.longitude - southwest.longitude;
 
             let yOffset = 0;
             let xOffset = 0;

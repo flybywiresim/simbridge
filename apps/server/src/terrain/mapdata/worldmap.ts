@@ -137,16 +137,12 @@ export class Worldmap {
         return grid[index.row][index.column].tileIndex >= 0 && grid[index.row][index.column].tileIndex < terrainData.Tiles.length;
     }
 
-    public getTile(latitude: number, longitude: number): Tile | undefined {
+    public getSouthwestCoordinateOfTile(latitude: number, longitude: number): { latitude: number, longitude: number } {
         const index = this.worldMapIndices(latitude, longitude);
         if (index === undefined) {
             return undefined;
         }
 
-        if (this.TileManager.grid[index.row][index.column].tileIndex < 0 || this.TileManager.grid[index.row][index.column].tileIndex >= this.terrainData.Tiles.length) {
-            return undefined;
-        }
-
-        return this.terrainData.Tiles[this.TileManager.grid[index.row][index.column].tileIndex];
+        return { latitude: index.row * this.GridData.latitudeStep - 90.0, longitude: index.column * this.GridData.longitudeStep - 180.0 };
     }
 }
