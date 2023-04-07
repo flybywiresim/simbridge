@@ -445,11 +445,20 @@ class MapHandler {
                 latitude: 47.26081085205078,
                 longitude: 11.349658966064453,
             };
+            const startupProfile: ElevationProfile = {
+                pathWidth: 4.0,
+                waypointsLatitudes: [45.030668, 46.978744],
+                waypointsLongitudes: [12.815273, 8.975899],
+                range: 20.0,
+            };
 
             // run all process steps to precompile the kernels
             this.onAircraftStatusUpdate(startupStatus, true);
             this.updateGroundTruthPositionAndCachedTiles(startupPosition, true);
             this.renderNavigationDisplay('L', true);
+            const profile = this.createElevationProfile(startupProfile);
+            this.createVerticalDisplayMap('L', profile);
+            this.createVerticalDisplayMap('R', profile);
 
             // reset all initialization data
             this.worldMapMetadata = {
