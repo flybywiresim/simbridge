@@ -9,6 +9,15 @@ export type LocalElevationMapParameters = {
     constants: LocalElevationMapConstants,
 } & IKernelFunctionThis;
 
+export interface ElevationProfileConstants {
+    unknownElevation: number,
+    invalidElevation: number,
+}
+
+export type ElevationProfileParameters = {
+    constants: ElevationProfileConstants,
+} & IKernelFunctionThis;
+
 export interface HistogramConstants {
     minimumElevation: number,
     invalidElevation: number,

@@ -18,6 +18,13 @@ export interface NavigationDisplay {
     mapHeight?: number,
 }
 
+export interface ElevationProfile {
+    pathWidth: number,
+    waypointsLatitudes: number[],
+    waypointsLongitudes: number[],
+    range: number,
+}
+
 export interface AircraftStatus {
     adiruDataValid: boolean,
     latitude: number,

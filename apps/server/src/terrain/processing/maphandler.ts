@@ -2,11 +2,12 @@ import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import * as sharp from 'sharp';
 import { readFile } from 'fs/promises';
 import { parentPort } from 'worker_threads';
-import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
+import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
 import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
+import { createElevationProfile } from './gpu/elevationprofile';
 import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } from './gpu/helper';
 import {
     calculateNormalModeGreenThresholds,
@@ -18,6 +19,7 @@ import {
     drawDensityPixel,
 } from './gpu/rendering/navigationdisplay';
 import {
+    ElevationProfileConstants,
     HistogramConstants,
     LocalElevationMapConstants,
     NavigationDisplayConstants,
@@ -53,6 +55,7 @@ const HistogramBinCount = Math.ceil((HistogramMaximumElevation - HistogramMinimu
 const HistogramPatchSize = 128;
 
 // rendering parameters
+const ElevationProfileWidth = 600;
 const RenderingMaxPixelWidth = 768;
 const RenderingScreenPixelHeight = 768;
 const RenderingMapStartOffsetY = 128;
@@ -125,6 +128,8 @@ class MapHandler {
         width: 0,
         height: 0,
     };
+
+    private extractElevationProfile: IKernelRunShortcut = null;
 
     private extractLocalElevationMap: IKernelRunShortcut = null;
 
@@ -250,6 +255,28 @@ class MapHandler {
                 wgs84toPixelCoordinate,
             ])
             .setOutput([RenderingMaxPixelWidth, RenderingMaxPixelHeight]);
+
+        this.extractElevationProfile = this.gpu
+            .createKernel(createElevationProfile, {
+                dynamicArguments: true,
+                dynamicOutput: false,
+                pipeline: true,
+                immutable: false,
+                tactic: 'speed',
+            })
+            .setConstants<ElevationProfileConstants>({
+                unknownElevation: UnknownElevation,
+                invalidElevation: InvalidElevation,
+            })
+            .setFunctions([
+                deg2rad,
+                rad2deg,
+                bearingWgs84,
+                distanceWgs84,
+                projectWgs84,
+                wgs84toPixelCoordinate,
+            ])
+            .setOutput([ElevationProfileWidth]);
 
         this.localElevationHistogram = this.gpu
             .createKernel(createLocalElevationHistogram, {
@@ -438,6 +465,7 @@ class MapHandler {
         if (this.patternMap !== null) this.patternMap.delete();
         if (this.cachedElevationData.gpuData !== null) this.cachedElevationData.gpuData.delete();
         if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
+        if (this.extractElevationProfile !== null) this.extractElevationProfile.destroy();
         if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
         if (this.localElevationHistogram !== null) this.localElevationHistogram.destroy();
         if (this.elevationHistogram !== null) this.elevationHistogram.destroy();
@@ -652,6 +680,37 @@ class MapHandler {
         if (GpuProcessingActive) this.extractLocalElevationMap.context.flush();
 
         return localElevationMap;
+    }
+
+    private createElevationProfile(config: ElevationProfile): Texture {
+        if (this.cachedElevationData.gpuData === null) return null;
+
+        // create the local elevation map
+        const profile = this.extractElevationProfile(
+            this.aircraftStatus.latitude,
+            this.aircraftStatus.longitude,
+            this.currentGroundTruthPosition.latitude,
+            this.currentGroundTruthPosition.longitude,
+            this.worldMapMetadata.currentGridPosition.x,
+            this.worldMapMetadata.currentGridPosition.y,
+            this.cachedElevationData.gpuData,
+            this.worldMapMetadata.width,
+            this.worldMapMetadata.height,
+            this.worldMapMetadata.southwest.latitude,
+            this.worldMapMetadata.southwest.longitude,
+            this.worldMapMetadata.northeast.latitude,
+            this.worldMapMetadata.northeast.longitude,
+            config.pathWidth,
+            config.waypointsLatitudes,
+            config.waypointsLongitudes,
+            config.waypointsLatitudes.length,
+            config.range / ElevationProfileWidth,
+        ) as Texture;
+
+        // some GPU drivers require the flush call to release internal memory
+        if (GpuProcessingActive) this.extractElevationProfile.context.flush();
+
+        return profile;
     }
 
     private createElevationHistogram(localElevationMap: Texture, config: NavigationDisplay): Texture {
