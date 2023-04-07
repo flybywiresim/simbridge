@@ -56,3 +56,15 @@ export interface NavigationDisplayConstants {
 export type NavigationDisplayParameters = {
     constants: NavigationDisplayConstants,
 } & IKernelFunctionThis;
+
+export interface VerticalDisplayConstants {
+    elevationProfileEntryCount: number,
+    invalidElevation: number,
+    unknownElevation: number,
+    waterElevation: number,
+    maxImageHeight: number,
+}
+
+export type VerticalDisplayParameters = {
+    constants: VerticalDisplayConstants,
+} & IKernelFunctionThis;
