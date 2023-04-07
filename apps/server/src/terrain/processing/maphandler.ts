@@ -146,7 +146,7 @@ class MapHandler {
             durationInterval: NodeJS.Timer,
             resetRenderingData: boolean,
             startupTimestamp: number,
-            finalMap: IKernelRunShortcut,
+            navigationDisplay: IKernelRunShortcut,
             lastFrame: Uint8ClampedArray,
             lastTransitionData: {
                 timestamp: number,
@@ -312,7 +312,7 @@ class MapHandler {
             resetRenderingData: true,
             durationInterval: null,
             startupTimestamp: new Date().getTime(),
-            finalMap: null,
+            navigationDisplay: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
         };
@@ -323,14 +323,14 @@ class MapHandler {
             durationInterval: null,
             // offset the rendering to have a more realistic bahaviour
             startupTimestamp: new Date().getTime() - 1500,
-            finalMap: null,
+            navigationDisplay: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
         };
 
         for (const side in this.navigationDisplayRendering) {
             if (side in this.navigationDisplayRendering) {
-                this.navigationDisplayRendering[side].finalMap = this.gpu
+                this.navigationDisplayRendering[side].navigationDisplay = this.gpu
                     .createKernel(renderNavigationDisplay, {
                         dynamicArguments: true,
                         dynamicOutput: false,
@@ -457,7 +457,7 @@ class MapHandler {
         for (const side in this.navigationDisplayRendering) {
             if (side in this.navigationDisplayRendering) {
                 if (this.navigationDisplayRendering[side].timeout !== null) clearTimeout(this.navigationDisplayRendering[side].timeout);
-                this.navigationDisplayRendering[side].finalMap.destroy();
+                this.navigationDisplayRendering[side].navigationDisplay.destroy();
             }
         }
 
@@ -869,7 +869,7 @@ class MapHandler {
     ): KernelOutput {
         if (elevationMap === null || histogram === null) return null;
 
-        const terrainmap = this.navigationDisplayRendering[side].finalMap(
+        const terrainmap = this.navigationDisplayRendering[side].navigationDisplay(
             elevationMap,
             histogram,
             this.patternMap,
@@ -883,7 +883,7 @@ class MapHandler {
         ) as KernelOutput;
 
         // some GPU drivers require the flush call to release internal memory
-        if (GpuProcessingActive) this.navigationDisplayRendering[side].finalMap.context.flush();
+        if (GpuProcessingActive) this.navigationDisplayRendering[side].navigationDisplay.context.flush();
 
         return terrainmap;
     }
