@@ -1,4 +1,4 @@
-import { NavigationDisplayParameters } from './interfaces';
+import { NavigationDisplayParameters } from '../interfaces';
 
 export function calculateNormalModeGreenThresholds(
     referenceAltitude: number,

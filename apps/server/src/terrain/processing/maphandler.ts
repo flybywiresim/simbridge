@@ -16,7 +16,7 @@ import {
     renderNormalMode,
     renderPeaksMode,
     drawDensityPixel,
-} from './gpu/rendering';
+} from './gpu/rendering/navigationdisplay';
 import {
     HistogramConstants,
     LocalElevationMapConstants,
