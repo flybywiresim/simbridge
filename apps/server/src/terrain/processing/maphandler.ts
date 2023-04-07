@@ -7,7 +7,7 @@ import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
 import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
-import { normalizeHeading, projectWgs84 } from './gpu/helper';
+import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } from './gpu/helper';
 import {
     calculateNormalModeGreenThresholds,
     calculateNormalModeWarningThresholds,
@@ -247,6 +247,7 @@ class MapHandler {
                 normalizeHeading,
                 rad2deg,
                 projectWgs84,
+                wgs84toPixelCoordinate,
             ])
             .setOutput([RenderingMaxPixelWidth, RenderingMaxPixelHeight]);
 
