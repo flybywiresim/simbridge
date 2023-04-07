@@ -27,6 +27,7 @@ import { uploadTextureData } from './gpu/upload';
 import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
+import { createVerticalModePatternMap } from './gpu/patterns/verticalmode';
 import { ThreadLogger } from './logging/threadlogger';
 import { Logger } from './logging/logger';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
@@ -183,8 +184,8 @@ class MapHandler {
         if (this.aircraftStatus === null || data.navigationDisplayRenderingMode !== this.aircraftStatus.navigationDisplayRenderingMode || this.patternMap === null) {
             switch (data.navigationDisplayRenderingMode) {
             case TerrainRenderingMode.ArcMode:
-                const patternData = createArcModePatternMap();
-                this.patternMap = this.uploadPatternMapToGPU(patternData, RenderingMaxPixelWidth) as Texture;
+                const arcPattern = createArcModePatternMap();
+                this.patternMap = this.uploadPatternMapToGPU(arcPattern, RenderingMaxPixelWidth) as Texture;
                 // some GPU drivers require the flush call to release internal memory
                 if (GpuProcessingActive) this.uploadPatternMapToGPU.context.flush();
                 if (startup) {
@@ -192,6 +193,10 @@ class MapHandler {
                 }
                 break;
             default:
+                const verticalPattern = createVerticalModePatternMap();
+                this.patternMap = this.uploadPatternMapToGPU(verticalPattern, RenderingMaxPixelWidth) as Texture;
+                // some GPU drivers require the flush call to release internal memory
+                if (GpuProcessingActive) this.uploadPatternMapToGPU.context.flush();
                 if (startup) {
                     this.logging.error('No known rendering mode selected');
                 }
