@@ -18,11 +18,13 @@ import {
     renderPeaksMode,
     drawDensityPixel,
 } from './gpu/rendering/navigationdisplay';
+import { renderVerticalDisplay } from './gpu/rendering/verticaldisplay';
 import {
     ElevationProfileConstants,
     HistogramConstants,
     LocalElevationMapConstants,
     NavigationDisplayConstants,
+    VerticalDisplayConstants,
 } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadTextureData } from './gpu/upload';
@@ -55,7 +57,8 @@ const HistogramBinCount = Math.ceil((HistogramMaximumElevation - HistogramMinimu
 const HistogramPatchSize = 128;
 
 // rendering parameters
-const ElevationProfileWidth = 600;
+const RenderingElevationProfileWidth = 600;
+const RenderingElevationProfileHeight = 250;
 const RenderingMaxPixelWidth = 768;
 const RenderingScreenPixelHeight = 768;
 const RenderingMapStartOffsetY = 128;
@@ -147,6 +150,7 @@ class MapHandler {
             resetRenderingData: boolean,
             startupTimestamp: number,
             navigationDisplay: IKernelRunShortcut,
+            verticalDisplay: IKernelRunShortcut,
             lastFrame: Uint8ClampedArray,
             lastTransitionData: {
                 timestamp: number,
@@ -276,7 +280,7 @@ class MapHandler {
                 projectWgs84,
                 wgs84toPixelCoordinate,
             ])
-            .setOutput([ElevationProfileWidth]);
+            .setOutput([RenderingElevationProfileWidth]);
 
         this.localElevationHistogram = this.gpu
             .createKernel(createLocalElevationHistogram, {
@@ -313,6 +317,7 @@ class MapHandler {
             durationInterval: null,
             startupTimestamp: new Date().getTime(),
             navigationDisplay: null,
+            verticalDisplay: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
         };
@@ -324,6 +329,7 @@ class MapHandler {
             // offset the rendering to have a more realistic bahaviour
             startupTimestamp: new Date().getTime() - 1500,
             navigationDisplay: null,
+            verticalDisplay: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
         };
@@ -366,6 +372,22 @@ class MapHandler {
                         drawDensityPixel,
                     ])
                     .setOutput([RenderingMaxPixelWidth * RenderingColorChannelCount, RenderingMaxPixelHeight + 1]);
+
+                this.navigationDisplayRendering[side].verticalDisplay = this.gpu
+                    .createKernel(renderVerticalDisplay, {
+                        dynamicArguments: true,
+                        dynamicOutput: false,
+                        pipeline: false,
+                        immutable: false,
+                    })
+                    .setConstants<VerticalDisplayConstants>({
+                        elevationProfileEntryCount: RenderingElevationProfileWidth,
+                        invalidElevation: InvalidElevation,
+                        unknownElevation: UnknownElevation,
+                        waterElevation: WaterElevation,
+                        maxImageHeight: RenderingElevationProfileHeight,
+                    })
+                    .setOutput([RenderingElevationProfileWidth * RenderingColorChannelCount, RenderingElevationProfileHeight]);
             }
         }
     }
@@ -458,6 +480,7 @@ class MapHandler {
             if (side in this.navigationDisplayRendering) {
                 if (this.navigationDisplayRendering[side].timeout !== null) clearTimeout(this.navigationDisplayRendering[side].timeout);
                 this.navigationDisplayRendering[side].navigationDisplay.destroy();
+                this.navigationDisplayRendering[side].verticalDisplay.destroy();
             }
         }
 
@@ -704,7 +727,7 @@ class MapHandler {
             config.waypointsLatitudes,
             config.waypointsLongitudes,
             config.waypointsLatitudes.length,
-            config.range / ElevationProfileWidth,
+            config.range / RenderingElevationProfileWidth,
         ) as Texture;
 
         // some GPU drivers require the flush call to release internal memory
@@ -886,6 +909,17 @@ class MapHandler {
         if (GpuProcessingActive) this.navigationDisplayRendering[side].navigationDisplay.context.flush();
 
         return terrainmap;
+    }
+
+    private createVerticalDisplayMap(side: string, profile: Texture): KernelOutput {
+        if (profile === null) return null;
+
+        const verticaldisplay = this.navigationDisplayRendering[side].verticalDisplay(profile, -1000, 33000);
+
+        // some GPU drivers require the flush call to release internal memory
+        if (GpuProcessingActive) this.navigationDisplayRendering[side].verticalDisplay.context.flush();
+
+        return verticaldisplay;
     }
 
     private arcModeTransitionFrame(
