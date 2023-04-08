@@ -192,7 +192,7 @@ class MapHandler {
                     this.logging.info('ARC-mode rendering activated');
                 }
                 break;
-            default:
+            case TerrainRenderingMode.VerticalMode:
                 const verticalPattern = createVerticalModePatternMap();
                 this.patternMap = this.uploadPatternMapToGPU(verticalPattern, RenderingMaxPixelWidth) as Texture;
                 // some GPU drivers require the flush call to release internal memory
@@ -200,6 +200,9 @@ class MapHandler {
                 if (startup) {
                     this.logging.error('No known rendering mode selected');
                 }
+                break;
+            default:
+                this.logging.error(`Unknown rendering mode defined: ${data.navigationDisplayRenderingMode}`);
                 break;
             }
         }
