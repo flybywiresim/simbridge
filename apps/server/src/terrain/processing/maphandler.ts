@@ -149,6 +149,8 @@ class MapHandler {
                 thresholds: NavigationDisplayThresholdsDto,
                 frames: Uint8ClampedArray[],
             },
+            startTransitionBorder: number,
+            currentTransitionBorder: number,
         }
     } = {}
 
@@ -295,6 +297,8 @@ class MapHandler {
             finalMap: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
+            startTransitionBorder: 0,
+            currentTransitionBorder: 0,
         };
         this.navigationDisplayRendering.R = {
             config: null,
@@ -306,6 +310,8 @@ class MapHandler {
             finalMap: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
+            startTransitionBorder: 0,
+            currentTransitionBorder: 0,
         };
 
         for (const side in this.navigationDisplayRendering) {
@@ -837,10 +843,10 @@ class MapHandler {
     }
 
     private arcModeTransitionFrame(
+        side: string,
         config: NavigationDisplay,
         oldFrame: Uint8ClampedArray,
         newFrame: Uint8ClampedArray,
-        startAngle: number,
         endAngle: number,
     ): Uint8ClampedArray {
         const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingScreenPixelHeight);
@@ -859,7 +865,7 @@ class MapHandler {
                     const distance = Math.sqrt((x - RenderingMaxPixelWidth / 2) ** 2 + (config.mapHeight - y) ** 2);
                     const angle = Math.acos((config.mapHeight - y) / distance) * (180.0 / Math.PI);
 
-                    if (startAngle <= angle && angle <= endAngle) {
+                    if (this.navigationDisplayRendering[side].startTransitionBorder <= angle && angle <= endAngle) {
                         destination[arrayIndex] = newSource[arrayIndex];
                     } else if (oldSource !== null) {
                         destination[arrayIndex] = oldSource[arrayIndex];
@@ -873,7 +879,54 @@ class MapHandler {
         return result;
     }
 
-    private arcModeTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
+    private arcModeTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray): { frame: Uint8ClampedArray, finishedTransition: boolean } {
+        this.navigationDisplayRendering[side].currentTransitionBorder += RenderingMapTransitionAngularStep;
+        let stopInterval = false;
+        let lastFrame = null;
+        let frame = null;
+
+        if (this.navigationDisplayRendering[side].currentTransitionBorder < 90) {
+            frame = this.arcModeTransitionFrame(
+                side,
+                config,
+                this.navigationDisplayRendering[side].lastFrame,
+                frameData,
+                this.navigationDisplayRendering[side].currentTransitionBorder,
+            );
+        } else {
+            stopInterval = true;
+            if (this.navigationDisplayRendering[side].currentTransitionBorder - RenderingMapTransitionAngularStep < 90) {
+                frame = this.arcModeTransitionFrame(side, config, this.navigationDisplayRendering[side].lastFrame, frameData, 90);
+                lastFrame = frame;
+            }
+
+            // do not overwrite the last frame of the initialization
+            if (this.navigationDisplayRendering[side].startTransitionBorder === 0) {
+                this.navigationDisplayRendering[side].lastFrame = frameData;
+                frame = frameData;
+            } else {
+                this.navigationDisplayRendering[side].lastFrame = lastFrame;
+            }
+        }
+
+        return { frame, finishedTransition: stopInterval };
+    }
+
+                        destination[arrayIndex] = newSource[arrayIndex];
+                    } else if (oldSource !== null) {
+                        destination[arrayIndex] = oldSource[arrayIndex];
+                    }
+                }
+
+                arrayIndex++;
+            }
+        }
+
+        return result;
+    }
+
+
+    private frameDataTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
         const transitionFrames: Uint8ClampedArray[] = [];
 
         if (this.navigationDisplayRendering[side].resetRenderingData) {
@@ -888,24 +941,34 @@ class MapHandler {
         thresholdData.DisplayRange = config.range;
         thresholdData.DisplayMode = config.efisMode;
 
-        let startAngle = 0;
+        this.navigationDisplayRendering[side].startTransitionBorder = 0;
         if (this.navigationDisplayRendering[side].lastFrame === null) {
             const timeSinceStart = new Date().getTime() - this.navigationDisplayRendering[side].startupTimestamp;
             const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
-            startAngle = Math.floor(90 * ratioSinceLastFrame);
+
+            if (this.aircraftStatus.navigationDisplayRenderingMode === TerrainRenderingMode.ArcMode) {
+                this.navigationDisplayRendering[side].startTransitionBorder = Math.floor(90 * ratioSinceLastFrame);
+            } else if (this.aircraftStatus.navigationDisplayRenderingMode === TerrainRenderingMode.VerticalMode) {
+                this.navigationDisplayRendering[side].startTransitionBorder = config.mapHeight - Math.floor(config.mapHeight * ratioSinceLastFrame);
+            }
+        } else if (this.aircraftStatus.navigationDisplayRenderingMode === TerrainRenderingMode.VerticalMode) {
+            this.navigationDisplayRendering[side].startTransitionBorder = config.mapHeight;
         }
 
-        let angle = 0;
         let firstFrame = true;
-        let lastFrame = null;
+        this.navigationDisplayRendering[side].currentTransitionBorder = 0;
+        if (this.aircraftStatus.navigationDisplayRenderingMode === TerrainRenderingMode.VerticalMode) {
+            this.navigationDisplayRendering[side].currentTransitionBorder = config.mapHeight;
+        }
         this.navigationDisplayRendering[side].durationInterval = setInterval(() => {
-            angle += RenderingMapTransitionAngularStep;
-            let stopInterval = false;
-            let frame = null;
+            let transitionData: { frame: Uint8ClampedArray, finishedTransition: boolean } = {
+                frame: null,
+                finishedTransition: true,
+            };
 
-            if (angle < 90) {
-                frame = this.arcModeTransitionFrame(config, this.navigationDisplayRendering[side].lastFrame, frameData, startAngle, angle);
+            if (this.aircraftStatus.navigationDisplayRenderingMode === TerrainRenderingMode.ArcMode) {
+                transitionData = this.arcModeTransition(side, config, frameData);
             } else {
                 stopInterval = true;
                 if (angle - RenderingMapTransitionAngularStep < 90) {
@@ -923,8 +986,8 @@ class MapHandler {
             }
 
             // transfer the transition frame
-            if (frame !== null) {
-                sharp(frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingScreenPixelHeight, channels: RenderingColorChannelCount } })
+            if (transitionData.frame !== null) {
+                sharp(transitionData.frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingScreenPixelHeight, channels: RenderingColorChannelCount } })
                     .png()
                     .toBuffer()
                     .then((buffer) => {
@@ -940,7 +1003,7 @@ class MapHandler {
                     });
             }
 
-            if (stopInterval && !this.navigationDisplayRendering[side].resetRenderingData) {
+            if (transitionData.finishedTransition && !this.navigationDisplayRendering[side].resetRenderingData) {
                 clearInterval(this.navigationDisplayRendering[side].durationInterval);
                 this.navigationDisplayRendering[side].durationInterval = null;
 
@@ -963,8 +1026,6 @@ class MapHandler {
                     this.navigationDisplayRendering[side].timeout = setTimeout(() => this.renderNavigationDisplay(side), RenderingMapUpdateTimeout);
                 }
             }
-
-            lastFrame = frame;
         }, RenderingMapTransitionDeltaTime);
     }
 
@@ -1029,14 +1090,7 @@ class MapHandler {
             const thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
 
             if (!startup) {
-                switch (this.aircraftStatus.navigationDisplayRenderingMode) {
-                case TerrainRenderingMode.ArcMode:
-                    this.arcModeTransition(side, config, this.createScreenResolutionFrame(config, imageData), thresholdData);
-                    break;
-                default:
-                    this.logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
-                    break;
-                }
+                this.frameDataTransition(side, config, this.createScreenResolutionFrame(config, imageData), thresholdData);
             }
         }
     }
