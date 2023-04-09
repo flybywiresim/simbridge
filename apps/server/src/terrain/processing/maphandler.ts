@@ -912,6 +912,26 @@ class MapHandler {
         return { frame, finishedTransition: stopInterval };
     }
 
+    private verticalModeTransitionFrame(
+        side: string,
+        config: NavigationDisplay,
+        oldFrame: Uint8ClampedArray,
+        newFrame: Uint8ClampedArray,
+    ): Uint8ClampedArray {
+        const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingScreenPixelHeight);
+
+        // access data as uint32-array for performance reasons
+        const destination = new Uint32Array(result.buffer);
+        // UInt32-version of RGBA (4, 4, 5, 255)
+        destination.fill(4278518788);
+        const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
+        const newSource = new Uint32Array(newFrame.buffer);
+
+        let arrayIndex = RenderingMapStartOffsetY * RenderingMaxPixelWidth;
+        for (let y = 0; y < config.mapHeight; ++y) {
+            for (let x = 0; x < RenderingMaxPixelWidth; ++x) {
+                if (x >= config.mapOffsetX && x < (config.mapOffsetX + config.mapWidth)) {
+                    if (y <= this.navigationDisplayRendering[side].startTransitionBorder && y >= this.navigationDisplayRendering[side].currentTransitionBorder) {
                         destination[arrayIndex] = newSource[arrayIndex];
                     } else if (oldSource !== null) {
                         destination[arrayIndex] = oldSource[arrayIndex];
@@ -925,6 +945,33 @@ class MapHandler {
         return result;
     }
 
+    private verticalModeTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray): { frame: Uint8ClampedArray, finishedTransition: boolean } {
+        const verticalStep = Math.round((config.mapHeight / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
+        this.navigationDisplayRendering[side].currentTransitionBorder -= verticalStep;
+        let stopInterval = false;
+        let lastFrame = null;
+        let frame = null;
+
+        if (this.navigationDisplayRendering[side].currentTransitionBorder > 0) {
+            frame = this.verticalModeTransitionFrame(side, config, this.navigationDisplayRendering[side].lastFrame, frameData);
+        } else {
+            stopInterval = true;
+            if (this.navigationDisplayRendering[side].currentTransitionBorder + verticalStep > 0) {
+                frame = this.verticalModeTransitionFrame(side, config, this.navigationDisplayRendering[side].lastFrame, frameData);
+                lastFrame = frame;
+            }
+
+            // do not overwrite the last frame of the initialization
+            if (this.navigationDisplayRendering[side].startTransitionBorder === config.mapHeight) {
+                this.navigationDisplayRendering[side].lastFrame = frameData;
+                frame = frameData;
+            } else {
+                this.navigationDisplayRendering[side].lastFrame = lastFrame;
+            }
+        }
+
+        return { frame, finishedTransition: stopInterval };
+    }
 
     private frameDataTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
         const transitionFrames: Uint8ClampedArray[] = [];
@@ -970,19 +1017,7 @@ class MapHandler {
             if (this.aircraftStatus.navigationDisplayRenderingMode === TerrainRenderingMode.ArcMode) {
                 transitionData = this.arcModeTransition(side, config, frameData);
             } else {
-                stopInterval = true;
-                if (angle - RenderingMapTransitionAngularStep < 90) {
-                    frame = this.arcModeTransitionFrame(config, this.navigationDisplayRendering[side].lastFrame, frameData, startAngle, 90);
-                    lastFrame = frame;
-                }
-
-                // do not overwrite the last frame of the initialization
-                if (startAngle === 0) {
-                    this.navigationDisplayRendering[side].lastFrame = frameData;
-                    frame = frameData;
-                } else {
-                    this.navigationDisplayRendering[side].lastFrame = lastFrame;
-                }
+                transitionData = this.verticalModeTransition(side, config, frameData);
             }
 
             // transfer the transition frame
