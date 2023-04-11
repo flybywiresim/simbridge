@@ -27,6 +27,7 @@ module.exports = {
             'node_modules/bit-twiddle/**/*.*',
             'node_modules/bit-twiddle/**/*.*',
             'node_modules/@flybywiresim/msfs-nodejs/**/*.*',
+            'node_modules/axios/dist/**/*.*',
             'dist/mcdu/**/*',
             'dist/assets/**/*',
             'dist/terrain/mapdata/**/*.*',
