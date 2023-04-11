@@ -12,7 +12,7 @@ export class ThreadLogger implements ProcessingLogger {
         parentPort.postMessage({ request: 'LOGWARN', content: message });
     }
 
-    public error(message: string, stack?: string): void {
-        parentPort.postMessage({ request: 'LOGERROR', content: message, error: stack });
+    public error(message: string): void {
+        parentPort.postMessage({ request: 'LOGERROR', content: message });
     }
 }

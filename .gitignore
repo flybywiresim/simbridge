@@ -62,9 +62,6 @@ typings/
 # Optional npm cache directory
 .npm
 
-# For Dev work
-SimConnect.dll
-
 # Optional eslint cache
 .eslintcache
 

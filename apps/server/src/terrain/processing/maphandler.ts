@@ -1026,7 +1026,7 @@ class MapHandler {
                     this.arcModeTransition(side, config, this.createScreenResolutionFrame(config, imageData), thresholdData);
                     break;
                 default:
-                    this.logging.error('Failed to determine a terrain rendering mode', `Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
+                    this.logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
                     break;
                 }
             }

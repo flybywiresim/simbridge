@@ -12,7 +12,7 @@ export class NestLogger implements ProcessingLogger {
         this.logger.warn(message);
     }
 
-    public error(message: string, stack?: string): void {
-        this.logger.error(message, stack);
+    public error(message: string): void {
+        this.logger.error(message);
     }
 }

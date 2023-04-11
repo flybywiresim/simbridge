@@ -13,7 +13,7 @@ export class TerrainService implements OnApplicationShutdown {
 
     constructor() {
         this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
-        this.mapHandler.on('message', (data: { request: string, content: any, error: any }) => {
+        this.mapHandler.on('message', (data: { request: string, content: any }) => {
             if (data.request === 'RES_FRAME_DATA') {
                 const response = data.content as { side: string, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] };
 
@@ -29,7 +29,7 @@ export class TerrainService implements OnApplicationShutdown {
             } else if (data.request === 'LOGWARN') {
                 this.logger.warn(data.content);
             } else if (data.request === 'LOGERROR') {
-                this.logger.error(data.content, data.error);
+                this.logger.error(data.content);
             }
         });
     }

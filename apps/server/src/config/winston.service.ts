@@ -8,7 +8,7 @@ const consoleTransport = new winston.transports.Console({
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.ms(),
-        nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true, colors: true }),
+        nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true }),
         winston.format.errors({ stack: true }),
     ),
 });
@@ -27,7 +27,7 @@ const fileTransport = new winston.transports.DailyRotateFile({
 const defaultFormat = winston.format.combine(
     winston.format.timestamp(),
     winston.format.ms(),
-    nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true, colors: true }),
+    nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true }),
     winston.format.errors({ stack: true }),
     winston.format.uncolorize(),
 );
