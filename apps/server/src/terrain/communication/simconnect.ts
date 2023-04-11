@@ -68,7 +68,7 @@ export class SimConnect {
     private registerEgpwcAircraftStatus(): boolean {
         this.egpwcAircraftStatus = new ClientDataArea(this.connection, ClientDataId.EnhancedGpwcAircraftStatus);
         if (!this.egpwcAircraftStatus.mapNameToId('FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS')) {
-            this.logging.error(`Unable to map aircraft status: ${this.egpwcAircraftStatus.lastError()}`);
+            this.logging.error('Unable to map aircraft status', this.egpwcAircraftStatus.lastError());
             return false;
         }
 
@@ -80,7 +80,7 @@ export class SimConnect {
             memberName: 'AircraftStatus',
         });
         if (!addedDefinition) {
-            this.logging.error(`Unable to define aircraft status data: ${this.egpwcAircraftStatus.lastError()}`);
+            this.logging.error('Unable to define aircraft status data', this.egpwcAircraftStatus.lastError());
         }
 
         return addedDefinition;
@@ -89,7 +89,7 @@ export class SimConnect {
     private registerNavigationDisplayMetadata(clientId: ClientDataId, mapName: string, dataDefinitionId: DataDefinitionId): ClientDataArea {
         const metadata = new ClientDataArea(this.connection, clientId);
         if (!metadata.mapNameToId(mapName)) {
-            this.logging.error(`Unable to map data for ${mapName}: ${metadata.lastError()}`);
+            this.logging.error(`Unable to map data for ${mapName}`, metadata.lastError());
         }
 
         const addedDefinition = metadata.addDataDefinition({
@@ -100,12 +100,12 @@ export class SimConnect {
             memberName: 'ThresholdData',
         });
         if (addedDefinition === false) {
-            this.logging.error(`Unable to create the data definitions for ${mapName}: ${this.connection.lastError()}`);
+            this.logging.error(`Unable to create the data definitions for ${mapName}`, this.connection.lastError());
             return null;
         }
 
         if (!metadata.allocateArea(NavigationDisplayThresholdByteCount, true)) {
-            this.logging.error(`Unable to create the threshold client data area for ${mapName}: ${this.connection.lastError()}`);
+            this.logging.error(`Unable to create the threshold client data area for ${mapName}`, this.connection.lastError());
             return null;
         }
 
@@ -115,7 +115,7 @@ export class SimConnect {
     private registerNavigationDisplayData(): boolean {
         this.frameDataLeft = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameLeft);
         if (!this.frameDataLeft.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT')) {
-            this.logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
+            this.logging.error('Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT', this.frameDataLeft.lastError());
             return false;
         }
 
@@ -127,18 +127,18 @@ export class SimConnect {
             memberName: 'FrameData',
         });
         if (!addedDefinition) {
-            this.logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
+            this.logging.error('Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT', this.frameDataLeft.lastError());
             return false;
         }
 
         if (!this.frameDataLeft.allocateArea(ClientDataMaxSize, true)) {
-            this.logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT: ${this.frameDataLeft.lastError()}`);
+            this.logging.error('Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT', this.frameDataLeft.lastError());
             return false;
         }
 
         this.frameDataRight = new ClientDataArea(this.connection, ClientDataId.NavigationDisplayFrameRight);
         if (!this.frameDataRight.mapNameToId('FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT')) {
-            this.logging.error(`Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
+            this.logging.error('Unable to map data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT', this.frameDataRight.lastError());
             return false;
         }
 
@@ -150,12 +150,12 @@ export class SimConnect {
             memberName: 'FrameData',
         });
         if (!addedDefinition) {
-            this.logging.error(`Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
+            this.logging.error('Unable to add data definition for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT', this.frameDataRight.lastError());
             return false;
         }
 
         if (!this.frameDataRight.allocateArea(ClientDataMaxSize, true)) {
-            this.logging.error(`Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT: ${this.frameDataRight.lastError()}`);
+            this.logging.error('Unable to allocate data for FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT', this.frameDataRight.lastError());
             return false;
         }
 
@@ -256,7 +256,7 @@ export class SimConnect {
 
         this.connection = new Connection();
         if (this.connection.open(SimConnectClientName) === false) {
-            this.logging.error(`Connection failed: ${this.connection.lastError()} - Retry in 10 seconds`);
+            this.logging.error('Failed to connect to sim, retrying in 10 seconds', this.connection.lastError());
             setTimeout(() => this.connectToSim(), 10000);
             return;
         }
@@ -349,10 +349,10 @@ export class SimConnect {
             // send the data
             if (side === 'L') {
                 if (this.frameDataLeft.setData({ FrameData: stream.buffer }) === false) {
-                    this.logging.error(`Could not send frame data: ${this.frameDataLeft.lastError()}`);
+                    this.logging.error('Could not send frame data', this.frameDataLeft.lastError());
                 }
             } else if (this.frameDataRight.setData({ FrameData: stream.buffer }) === false) {
-                this.logging.error(`Could not send frame data: ${this.frameDataRight.lastError()}`);
+                this.logging.error('Could not send frame data', this.frameDataRight.lastError());
             }
         }
     }
