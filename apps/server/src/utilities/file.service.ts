@@ -66,6 +66,19 @@ export class FileService {
         }
     }
 
+    async getFoldernames(directory: string): Promise<string[]> {
+        try {
+            this.logger.debug(`Reading all Dirs in directory: ${directory}`);
+            const dir = join(process.cwd(), directory);
+            this.checkFilePathSafety(dir);
+            return (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isDirectory()).map((dir) => dir.name);
+        } catch (err) {
+            const message = `Error reading directory: ${directory}`;
+            this.logger.error(message, err);
+            throw new HttpException(message, HttpStatus.NOT_FOUND);
+        }
+    }
+
     async getFile(directory: string, fileName: string): Promise<Buffer> {
         try {
             this.logger.debug(`Retrieving file: ${fileName} in folder: ${directory}`);

@@ -13,7 +13,7 @@ export class UtilityController {
         status: 200,
         description: 'A streamed converted png image',
         type: StreamableFile,
-    })
+        })
     async getPdf(
         @Query('filename') filename: string,
         @Query('pagenumber', ParseIntPipe) pagenumber: number,
@@ -29,14 +29,36 @@ export class UtilityController {
         return convertedPdfFile;
     }
 
+    // @Get('pdf/list')
+    // @ApiResponse({
+    //     status: 200,
+    //     description: 'An array of all the filenames within the pdfs folder',
+    //     type: [String],
+    //     })
+    // async getPdfFileList() {
+    //     return this.fileService.getFolderFilenames('resources/pdfs/');
+    // }
+
     @Get('pdf/list')
     @ApiResponse({
         status: 200,
         description: 'An array of all the filenames within the pdfs folder',
         type: [String],
-    })
-    async getPdfFileList() {
-        return this.fileService.getFolderFilenames('resources/pdfs/');
+        })
+    async getPdfFileList(@Query('dirname') dirname: string) {
+        dirname = `resources/pdfs/${dirname}`;
+        return this.fileService.getFolderFilenames(`${dirname}`);
+    }
+
+    @Get('pdf/listDir')
+    @ApiResponse({
+        status: 200,
+        description: 'An array of all the filenames within the pdfs folder',
+        type: [String],
+        })
+    async getPdfDirList(@Query('dirname') dirname: string) {
+        dirname = `resources/pdfs/${dirname}`;
+        return this.fileService.getFoldernames(`${dirname}`);
     }
 
     @Get('pdf/numpages')
@@ -44,7 +66,7 @@ export class UtilityController {
         status: 200,
         description: 'Returns the number of pages in the pdf',
         type: Number,
-    })
+        })
     async getNumberOfPages(@Query('filename') filename: string): Promise<number> {
         return this.fileService.getNumberOfPdfPages(`${filename}`);
     }
@@ -54,7 +76,7 @@ export class UtilityController {
         status: 200,
         description: 'A Streamed Image',
         type: StreamableFile,
-    })
+        })
     async getImage(@Query('filename') filename: string, @Response({ passthrough: true }) res): Promise<StreamableFile> {
         return this.fileService.getFileStream('resources/images/', `${filename}`).then((file) => {
             res.set({
@@ -70,7 +92,7 @@ export class UtilityController {
         status: 200,
         description: 'An array of all the filenames within the images folder',
         type: [String],
-    })
+        })
     async getImageFileList() {
         return this.fileService.getFolderFilenames('resources/images/');
     }
