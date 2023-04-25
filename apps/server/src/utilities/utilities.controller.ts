@@ -94,6 +94,6 @@ export class UtilityController {
         type: [String],
         })
     async getImageFileList() {
-        return this.fileService.getFolderFilenames('resources/images/');
+        return this.fileService.getFilenames('resources/images/');
     }
 }
