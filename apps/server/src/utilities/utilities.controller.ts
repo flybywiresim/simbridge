@@ -47,7 +47,7 @@ export class UtilityController {
         })
     async getPdfFileList(@Query('dirname') dirname: string) {
         dirname = `resources/pdfs/${dirname}`;
-        return this.fileService.getFolderFilenames(`${dirname}`);
+        return this.fileService.getFilenames(`${dirname}`);
     }
 
     @Get('pdf/listDir')

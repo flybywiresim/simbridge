@@ -53,7 +53,7 @@ export class FileService {
         }
     }
 
-    async getFolderFilenames(directory: string): Promise<string[]> {
+    async getFilenames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
             const dir = join(process.cwd(), directory);
