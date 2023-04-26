@@ -8,6 +8,8 @@ import { FileService } from './file.service';
 export class UtilityController {
     constructor(private fileService: FileService) {}
 
+    private readonly RES_PDF = 'resources/pdfs/';
+
     @Get('pdf')
     @ApiResponse({
         status: 200,
@@ -21,9 +23,9 @@ export class UtilityController {
         @Query('dirname') dirname?: string,
     ): Promise<StreamableFile> {
         if (undefined === dirname) {
-            dirname = 'resources/pdfs/';
+            dirname = this.RES_PDF;
         } else {
-            dirname = `resources/pdfs/${dirname}`;
+            dirname = this.RES_PDF + dirname;
         }
         const convertedPdfFile = await this.fileService.getConvertedPdfFile(`${dirname}`, `${filename}`, pagenumber);
 
@@ -43,9 +45,9 @@ export class UtilityController {
     })
     async getPdfFileList(@Query('dirname') dirname?: string) {
         if (undefined === dirname) {
-            dirname = 'resources/pdfs/';
+            dirname = this.RES_PDF;
         } else {
-            dirname = `resources/pdfs/${dirname}`;
+            dirname = this.RES_PDF + dirname;
         }
         return this.fileService.getFilenames(`${dirname}`);
     }
@@ -58,9 +60,9 @@ export class UtilityController {
     })
     async getPdfDirList(@Query('dirname') dirname?: string) {
         if (undefined === dirname) {
-            dirname = 'resources/pdfs/';
+            dirname = this.RES_PDF;
         } else {
-            dirname = `resources/pdfs/${dirname}`;
+            dirname = this.RES_PDF + dirname;
         }
         return this.fileService.getFoldernames(`${dirname}`);
     }
@@ -73,9 +75,9 @@ export class UtilityController {
     })
     async getNumberOfPages(@Query('filename') filename: string, @Query('dirname') dirname?: string): Promise<number> {
         if (undefined === dirname) {
-            dirname = 'resources/pdfs/';
+            dirname = this.RES_PDF;
         } else {
-            dirname = `resources/pdfs/${dirname}`;
+            dirname = this.RES_PDF + dirname;
         }
         return this.fileService.getNumberOfPdfPages(`${dirname}`, `${filename}`);
     }
