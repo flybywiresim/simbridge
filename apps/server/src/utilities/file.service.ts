@@ -98,8 +98,8 @@ export class FileService {
         }
     }
 
-    async getNumberOfPdfPages(fileName: string): Promise<number> {
-        const retrievedFile = await this.getFile('resources\\pdfs\\', fileName);
+    async getNumberOfPdfPages(Directory: string, fileName: string): Promise<number> {
+        const retrievedFile = await this.getFile(Directory, fileName);
         return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
     }
 
@@ -117,7 +117,7 @@ export class FileService {
         }
     }
 
-    async getConvertedPdfFile(fileName: string, pageNumber: number, scale: number = 4): Promise<StreamableFile> {
+    async getConvertedPdfFile(directory:string, fileName: string, pageNumber: number, scale: number = 4): Promise<StreamableFile> {
         // Some PDFs need external cmaps.
         const CMAP_URL = `${join(process.cwd(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
         const CMAP_PACKED = true;
@@ -126,7 +126,7 @@ export class FileService {
         const STANDARD_FONT_DATA_URL = `${join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
 
         try {
-            const conversionFilePath = join(process.cwd(), 'resources', 'pdfs', fileName);
+            const conversionFilePath = join(process.cwd(), directory, fileName);
 
             this.checkFilePathSafety(conversionFilePath);
 
