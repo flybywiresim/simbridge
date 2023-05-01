@@ -33,6 +33,7 @@ import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythreshol
 
 // execution parameters
 const GpuProcessingActive = true;
+const GpuMaxPixelSize = 16384;
 
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
@@ -393,8 +394,8 @@ class MapHandler {
             };
             const startupStatus: AircraftStatus = {
                 adiruDataValid: true,
-                latitude: 47.26081085205078,
-                longitude: 11.349658966064453,
+                latitude: 76.840366,
+                longitude: 21.019548,
                 altitude: 1904,
                 heading: 260,
                 verticalSpeed: 0,
@@ -407,8 +408,8 @@ class MapHandler {
                 navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
             };
             const startupPosition: PositionData = {
-                latitude: 47.26081085205078,
-                longitude: 11.349658966064453,
+                latitude: 76.840366,
+                longitude: 21.019548,
             };
 
             // run all process steps to precompile the kernels
@@ -464,37 +465,23 @@ class MapHandler {
     private updateGroundTruthPositionAndCachedTiles(position: PositionData, startup: boolean): void {
         if (!this.initialized && !startup) return;
         this.currentGroundTruthPosition = position;
-        const grid = this.worldmap.createGridLookupTable(position);
-        const loadedTiles = this.worldmap.updatePosition(grid);
-        const relevantTileCount = grid.length * grid[0].length;
+        const lookup = this.worldmap.createGridLookupTable(position, GpuMaxPixelSize, GpuMaxPixelSize, DefaultTileSize);
+        const loadedTiles = this.worldmap.updatePosition(lookup.grid);
+        const relevantTileCount = lookup.grid.length * lookup.grid[0].length;
 
         if (loadedTiles || this.cachedElevationData.cachedTiles !== relevantTileCount) {
-            const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.worldmap.VisibilityRange * 1852);
-            const southwestGrid = this.worldmap.worldMapIndices(southwestLat, southwestLong);
-            const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.worldmap.VisibilityRange * 1852);
-            const northeastGrid = this.worldmap.worldMapIndices(northeastLat, northeastLong);
+            const southwestGrid = this.worldmap.worldMapIndices(lookup.southwest.latitude, lookup.southwest.longitude);
+            const northeastGrid = this.worldmap.worldMapIndices(lookup.northeast.latitude, lookup.northeast.longitude);
 
-            this.worldMapMetadata.minWidthPerTile = 5000;
-            this.worldMapMetadata.minHeightPerTile = 5000;
-            grid.forEach((row) => {
-                row.forEach((cellIdx) => {
-                    const cell = this.worldmap.TileManager.grid[cellIdx.row][cellIdx.column];
-                    if (cell.tileIndex !== -1 && cell.elevationmap && cell.elevationmap.Rows !== 0 && cell.elevationmap.Columns !== 0) {
-                        this.worldMapMetadata.minWidthPerTile = Math.min(cell.elevationmap.Columns, this.worldMapMetadata.minWidthPerTile);
-                        this.worldMapMetadata.minHeightPerTile = Math.min(cell.elevationmap.Rows, this.worldMapMetadata.minHeightPerTile);
-                    }
-                });
-            });
+            this.worldMapMetadata.minWidthPerTile = lookup.minWidthPerTile;
+            this.worldMapMetadata.minHeightPerTile = lookup.minHeightPerTile;
 
-            if (this.worldMapMetadata.minWidthPerTile === 5000) this.worldMapMetadata.minWidthPerTile = DefaultTileSize;
-            if (this.worldMapMetadata.minHeightPerTile === 5000) this.worldMapMetadata.minHeightPerTile = DefaultTileSize;
-
-            const worldWidth = this.worldMapMetadata.minWidthPerTile * grid[0].length;
-            const worldHeight = this.worldMapMetadata.minHeightPerTile * grid.length;
+            const worldWidth = this.worldMapMetadata.minWidthPerTile * lookup.grid[0].length;
+            const worldHeight = this.worldMapMetadata.minHeightPerTile * lookup.grid.length;
             this.cachedElevationData.cpuData = new Float32Array(worldWidth * worldHeight);
             let yOffset = 0;
 
-            grid.forEach((row) => {
+            lookup.grid.forEach((row) => {
                 for (let y = 0; y < this.worldMapMetadata.minHeightPerTile; y++) {
                     let xOffset = 0;
 
@@ -527,13 +514,16 @@ class MapHandler {
             this.worldMapMetadata.northeast.longitude = this.worldmap.TileManager.grid[northeastGrid.row][northeastGrid.column].southwest.longitude + this.worldmap.GridData.longitudeStep;
             this.worldMapMetadata.width = worldWidth;
             this.worldMapMetadata.height = worldHeight;
+            console.log(this.worldMapMetadata.southwest.latitude, this.worldMapMetadata.southwest.longitude,
+                this.worldMapMetadata.northeast.latitude, this.worldMapMetadata.northeast.longitude,
+                worldWidth, worldHeight);
 
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
             this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(this.cachedElevationData.cpuData, worldWidth) as Texture;
             // some GPU drivers require the flush call to release internal memory
             if (GpuProcessingActive) this.uploadWorldMapToGPU.context.flush();
 
-            this.worldmap.TileManager.cleanupElevationCache(grid);
+            this.worldmap.TileManager.cleanupElevationCache(lookup.grid);
             this.cachedElevationData.cachedTiles = relevantTileCount;
         }
 
@@ -551,7 +541,7 @@ class MapHandler {
                 this.currentGroundTruthPosition.latitude,
                 this.currentGroundTruthPosition.longitude,
             );
-            grid.forEach((row, rowIdx) => {
+            lookup.grid.forEach((row, rowIdx) => {
                 if (row[0].row === egoIndex.row) {
                     row.forEach((cell, columnIdx) => {
                         if (cell.column === egoIndex.column) {
