@@ -241,9 +241,9 @@ export class SimConnect {
 
     private simConnectError(message: ErrorMessage): void {
         if (message !== null) {
-            console.log(`Error: ${message.id}`);
+            this.logging.error(`Error: ${message.id}`);
         } else {
-            console.log('Invalid error');
+            this.logging.error('Invalid error');
         }
     }
 
