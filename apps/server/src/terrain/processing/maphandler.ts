@@ -400,9 +400,9 @@ class MapHandler {
                 heading: 260,
                 verticalSpeed: 0,
                 gearIsDown: true,
-                destinationDataValid: false,
-                destinationLatitude: 0.0,
-                destinationLongitude: 0.0,
+                runwayDataValid: true,
+                runwayLatitude: 47.26081085205078,
+                runwayLongitude: 11.349658966064453,
                 navigationDisplayCapt: startupConfig,
                 navigationDisplayFO: startupConfig,
                 navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
@@ -693,26 +693,26 @@ class MapHandler {
     }
 
     private calculateAbsoluteCutOffAltitude(): number {
-        if (this.aircraftStatus === null || this.aircraftStatus.destinationDataValid === false) {
+        if (this.aircraftStatus === null || this.aircraftStatus.runwayDataValid === false) {
             return HistogramMinimumElevation;
         }
 
-        const destinationElevation = this.extractElevation(this.aircraftStatus.destinationLatitude, this.aircraftStatus.destinationLongitude);
+        const runwayElevation = this.extractElevation(this.aircraftStatus.runwayLatitude, this.aircraftStatus.runwayLongitude);
 
-        if (destinationElevation !== InvalidElevation) {
+        if (runwayElevation !== InvalidElevation) {
             let cutOffAltitude = RenderingCutOffAltitudeMaximum;
 
             const distance = distanceWgs84(
                 this.aircraftStatus.latitude,
                 this.aircraftStatus.longitude,
-                this.aircraftStatus.destinationLatitude,
-                this.aircraftStatus.destinationLongitude,
+                this.aircraftStatus.runwayLatitude,
+                this.aircraftStatus.runwayLongitude,
             );
             if (distance <= RenderingMaxAirportDistance) {
                 const distanceFeet = distance * FeetPerNauticalMile;
 
                 // calculate the glide until touchdown
-                const opposite = this.aircraftStatus.altitude - destinationElevation;
+                const opposite = this.aircraftStatus.altitude - runwayElevation;
                 let glideRadian = 0.0;
                 if (opposite > 0 && distance > 0) {
                     // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
@@ -736,7 +736,7 @@ class MapHandler {
                 }
             }
 
-            return cutOffAltitude;
+            return runwayElevation + cutOffAltitude;
         }
 
         return HistogramMinimumElevation;
