@@ -10,7 +10,7 @@ import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
 import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
-import { IpService } from './utilities/ip.service';
+import { NetworkService } from './utilities/network.service';
 
 declare const module: any;
 
@@ -58,7 +58,7 @@ async function bootstrap() {
     await app.listen(port);
 
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    logger.log(`FlyByWire SimBridge started on: http://${await app.get(IpService).getLocalIp()}:${port}`, 'NestApplication');
+    logger.log(`FlyByWire SimBridge started on: http://${await app.get(NetworkService).getLocalIp(true)}:${port}`, 'NestApplication');
 
     if (platform() === 'win32' && isConsoleHidden) {
         hideConsole();

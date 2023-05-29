@@ -4,7 +4,7 @@ import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
 import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
-import { IpService } from './ip.service';
+import { NetworkService } from './network.service';
 import serverConfig from '../config/server.config';
 import { ShutDownService } from './shutdown.service';
 
@@ -18,7 +18,7 @@ export class SysTrayService implements OnApplicationShutdown {
     constructor(
         @Inject(serverConfig.KEY)
         private serverConf: ConfigType<typeof serverConfig>,
-        private ipService: IpService,
+        private networkService: NetworkService,
         private shutdownService: ShutDownService,
     ) {
         this.sysTray = new SysTray({
@@ -59,7 +59,7 @@ export class SysTrayService implements OnApplicationShutdown {
             tooltip: 'Open the MCDU remote display with your default browser, using your local IP',
             enabled: true,
             click: async () => {
-                open(`http://${await this.ipService.getLocalIp()}:${this.serverConf.port}/interfaces/mcdu`);
+                open(`http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}/interfaces/mcdu`);
             },
         }],
     };

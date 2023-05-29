@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber } from 'class-validator';
 
-export class NavigationDisplayTerrainDataDto {
+export class NavigationDisplayThresholdsDto {
     @ApiProperty({ description: 'The minimum visualized elevation', example: '3000' })
     @IsNumber()
     minElevation: number

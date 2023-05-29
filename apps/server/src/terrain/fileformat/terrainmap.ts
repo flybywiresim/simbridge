@@ -12,10 +12,6 @@ export class TerrainMap {
     public Tiles: Tile[] = []
 
     constructor(buffer: Buffer) {
-        const sharedMemory = new SharedArrayBuffer(buffer.length);
-        const tmp = new Uint8Array(sharedMemory);
-        tmp.set(buffer, 0);
-
         // extract the file header
         this.LatitudeRange.min = buffer.readInt16LE(0);
         this.LatitudeRange.max = buffer.readInt16LE(2);
@@ -28,7 +24,7 @@ export class TerrainMap {
         const bytes = Buffer.byteLength(buffer);
         let offset = 14;
         while (offset < bytes) {
-            const tile = new Tile(this, sharedMemory, offset);
+            const tile = new Tile(this, buffer, offset);
             this.Tiles.push(tile);
             offset = tile.BufferOffset + tile.BufferSize;
         }
