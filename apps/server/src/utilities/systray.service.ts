@@ -61,6 +61,14 @@ export class SysTrayService implements OnApplicationShutdown {
             click: async () => {
                 open(`http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}/interfaces/mcdu`);
             },
+        },
+        {
+            title: 'Open MCDU (4:3)',
+            tooltip: 'Open the MCDU remote display with your default browser (in 4:3 mode), using your local IP',
+            enabled: true,
+            click: async () => {
+                open(`http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}/interfaces/mcdu/?43`);
+            },
         }],
     };
 
