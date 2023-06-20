@@ -54,7 +54,7 @@ export class McduKeyboardEvents {
     }
 
     onKeyboardInput = (keyEvent) => {
-        console.log('event', { key: keyEvent.key, code: keyEvent.code });
+        //console.log('event', { key: keyEvent.key, code: keyEvent.code });
         const key = this.getMcduKey(keyEvent);
 
         if (key) {
@@ -64,7 +64,7 @@ export class McduKeyboardEvents {
             return;
         }
 
-        console.log(`mcdu key: ${key}`);
+        //console.log(`mcdu key: ${key}`);
 
         this.socketSender(`event:left:${key}`);
     }
