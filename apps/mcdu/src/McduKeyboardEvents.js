@@ -46,7 +46,7 @@ export class McduKeyboardEvents {
 
         // match 0-9
         if (keyEvent.code.match(/(Digit|Numpad)\d/i)) {
-            return keyEvent.code.replace(/Digit|Numpad/i, '').toLocaleUpperCase();
+            return keyEvent.code.replace(/Digit|Numpad/i, '');
         }
 
         // match mcdu function keys
