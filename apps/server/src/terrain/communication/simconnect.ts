@@ -376,12 +376,20 @@ export class SimConnect {
         packed.writeUInt8(metadata.DisplayMode, 9);
         packed.writeUInt32LE(metadata.FrameByteCount, 10);
 
+        let resetConnection = false;
         if (side === 'L') {
             if (this.frameMetadataLeft.setData({ ThresholdData: packed.buffer }) === false) {
                 this.logging.error(`Could not send metadata: ${this.frameMetadataLeft.lastError()}`);
+                resetConnection = true;
             }
         } else if (this.frameMetadataRight.setData({ ThresholdData: packed.buffer }) === false) {
             this.logging.error(`Could not send metadata: ${this.frameMetadataRight.lastError()}`);
+            resetConnection = true;
+        }
+
+        if (resetConnection === true) {
+            this.logging.error('Resetting connection to MSFS due to transmission error');
+            this.simConnectQuit();
         }
     }
 
@@ -399,12 +407,21 @@ export class SimConnect {
             frame.copy(stream, 0, i * ClientDataMaxSize, i * ClientDataMaxSize + byteCount);
 
             // send the data
+            let resetConnection = false;
             if (side === 'L') {
                 if (this.frameDataLeft.setData({ FrameData: stream.buffer }) === false) {
                     this.logging.error(`Could not send frame data: ${this.frameDataLeft.lastError()}`);
+                    resetConnection = true;
                 }
             } else if (this.frameDataRight.setData({ FrameData: stream.buffer }) === false) {
                 this.logging.error(`Could not send frame data: ${this.frameDataRight.lastError()}`);
+                resetConnection = true;
+            }
+
+            if (resetConnection === true) {
+                this.logging.error('Resetting connection to MSFS due to transmission error');
+                this.simConnectQuit();
+                break;
             }
         }
     }
