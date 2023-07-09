@@ -189,18 +189,31 @@ export class SimConnect {
         return true;
     }
 
-    private simConnectOpen(_message: OpenMessage): void {
+    private simConnectOpen(logon: OpenMessage): void {
         if (this.receiver !== null) {
+            let resetConnection = false;
+
             if (!this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.OnSet, ClientDataRequest.Default)) {
                 this.logging.error('Unable to request aircraft status data');
+                resetConnection = true;
             }
             if (!this.receiver.subscribeSystemEvent(this.simulatorStateEvent)) {
                 this.logging.error('Unable to subscribe to the simulator states');
+                resetConnection = true;
             }
             if (!this.receiver.subscribeSystemEvent(this.pauseStateEvent)) {
                 this.logging.error('Unable to subscribe to the pause states');
+                resetConnection = true;
+            }
+
+            if (resetConnection === true) {
+                this.simConnectQuit();
+                return;
             }
         }
+
+        this.logging.info(`Connected to MSFS - ${logon.application.name} - v${logon.application.version.major}.${logon.application.version.minor}`);
+        this.showConnectionError = true;
     }
 
     private resetConnection(): void {
@@ -354,11 +367,7 @@ export class SimConnect {
             this.receiver.stop();
             this.connection.close();
             setTimeout(() => this.connectToSim(), 10000);
-            return;
         }
-
-        this.logging.info('Connected to MSFS and established all communication channels');
-        this.showConnectionError = true;
     }
 
     constructor(private logging: Logger) {
