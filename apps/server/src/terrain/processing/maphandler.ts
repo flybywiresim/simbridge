@@ -5,7 +5,7 @@ import { parentPort } from 'worker_threads';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
-import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
+import { deg2rad, degreesPerPixel, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
 import { normalizeHeading, projectWgs84 } from './gpu/helper';
 import {
@@ -258,6 +258,7 @@ class MapHandler {
             })
             .setFunctions([
                 deg2rad,
+                degreesPerPixel,
                 normalizeHeading,
                 rad2deg,
                 projectWgs84,
@@ -394,8 +395,8 @@ class MapHandler {
             };
             const startupStatus: AircraftStatus = {
                 adiruDataValid: true,
-                latitude: 76.840366,
-                longitude: 21.019548,
+                latitude: 47.26081085205078,
+                longitude: 11.349658966064453,
                 altitude: 1904,
                 heading: 260,
                 verticalSpeed: 0,
@@ -408,8 +409,8 @@ class MapHandler {
                 navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
             };
             const startupPosition: PositionData = {
-                latitude: 76.840366,
-                longitude: 21.019548,
+                latitude: 47.26081085205078,
+                longitude: 11.349658966064453,
             };
 
             // run all process steps to precompile the kernels
@@ -466,10 +467,10 @@ class MapHandler {
         if (!this.initialized && !startup) return;
         this.currentGroundTruthPosition = position;
         const lookup = this.worldmap.createGridLookupTable(position, GpuMaxPixelSize, GpuMaxPixelSize, DefaultTileSize);
-        const loadedTiles = this.worldmap.updatePosition(lookup.grid);
+        const tilesLoaded = this.worldmap.updatePosition(lookup.grid);
         const relevantTileCount = lookup.grid.length * lookup.grid[0].length;
 
-        if (loadedTiles || this.cachedElevationData.cachedTiles !== relevantTileCount) {
+        if (tilesLoaded || this.cachedElevationData.cachedTiles !== relevantTileCount) {
             const southwestGrid = this.worldmap.worldMapIndices(lookup.southwest.latitude, lookup.southwest.longitude);
             const northeastGrid = this.worldmap.worldMapIndices(lookup.northeast.latitude, lookup.northeast.longitude);
 
@@ -479,32 +480,41 @@ class MapHandler {
             const worldWidth = this.worldMapMetadata.minWidthPerTile * lookup.grid[0].length;
             const worldHeight = this.worldMapMetadata.minHeightPerTile * lookup.grid.length;
             this.cachedElevationData.cpuData = new Float32Array(worldWidth * worldHeight);
-            let yOffset = 0;
+            let targetIndex = 0;
 
             lookup.grid.forEach((row) => {
                 for (let y = 0; y < this.worldMapMetadata.minHeightPerTile; y++) {
-                    let xOffset = 0;
-
-                    for (let x = 0; x < row.length; ++x) {
-                        const cellIdx = row[x];
+                    for (let gridX = 0; gridX < row.length; ++gridX) {
+                        const cellIdx = row[gridX];
                         const cell = this.worldmap.TileManager.grid[cellIdx.row][cellIdx.column];
-                        for (let x = 0; x < this.worldMapMetadata.minWidthPerTile; x++) {
-                            const index = (y + yOffset) * worldWidth + xOffset + x;
 
-                            if (cell.tileIndex === -1) {
-                                this.cachedElevationData.cpuData[index] = WaterElevation;
-                            } else if (cell.elevationmap.ElevationMap === undefined) {
-                                this.cachedElevationData.cpuData[index] = UnknownElevation;
-                            } else {
-                                this.cachedElevationData.cpuData[index] = cell.elevationmap.ElevationMap[y * cell.elevationmap.Columns + x];
+                        // share subsampling error between all sides of the tile
+                        const tileOffset = [0, 0];
+                        if (cell.tileIndex !== -1 && cell.elevationmap.ElevationMap !== undefined) {
+                            if (cell.elevationmap.Rows > this.worldMapMetadata.minHeightPerTile) {
+                                const rowDelta = cell.elevationmap.Rows - this.worldMapMetadata.minHeightPerTile;
+                                tileOffset[1] = Math.ceil(rowDelta / 2);
+                            }
+
+                            if (cell.elevationmap.Columns > this.worldMapMetadata.minWidthPerTile) {
+                                const columnDelta = cell.elevationmap.Columns - this.worldMapMetadata.minWidthPerTile;
+                                tileOffset[0] = Math.ceil(columnDelta / 2);
                             }
                         }
 
-                        xOffset += this.worldMapMetadata.minWidthPerTile;
+                        for (let x = 0; x < this.worldMapMetadata.minWidthPerTile; x++) {
+                            if (cell.tileIndex === -1) {
+                                this.cachedElevationData.cpuData[targetIndex] = WaterElevation;
+                            } else if (cell.elevationmap.ElevationMap === undefined) {
+                                this.cachedElevationData.cpuData[targetIndex] = UnknownElevation;
+                            } else {
+                                this.cachedElevationData.cpuData[targetIndex] = cell.elevationmap.ElevationMap[(y + tileOffset[1]) * cell.elevationmap.Columns + x + tileOffset[0]];
+                            }
+
+                            targetIndex += 1;
+                        }
                     }
                 }
-
-                yOffset += this.worldMapMetadata.minHeightPerTile;
             });
 
             // update the world map metadata for the rendering
@@ -514,9 +524,6 @@ class MapHandler {
             this.worldMapMetadata.northeast.longitude = this.worldmap.TileManager.grid[northeastGrid.row][northeastGrid.column].southwest.longitude + this.worldmap.GridData.longitudeStep;
             this.worldMapMetadata.width = worldWidth;
             this.worldMapMetadata.height = worldHeight;
-            console.log(this.worldMapMetadata.southwest.latitude, this.worldMapMetadata.southwest.longitude,
-                this.worldMapMetadata.northeast.latitude, this.worldMapMetadata.northeast.longitude,
-                worldWidth, worldHeight);
 
             this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
             this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(this.cachedElevationData.cpuData, worldWidth) as Texture;
@@ -565,10 +572,17 @@ class MapHandler {
         }
 
         // calculate the pixel movement out of the current position
-        const latStep = this.worldmap.GridData.latitudeStep / this.worldMapMetadata.minHeightPerTile;
-        const longStep = this.worldmap.GridData.longitudeStep / this.worldMapMetadata.minWidthPerTile;
-        const latPixelDelta = (this.aircraftStatus.latitude - latitude) / latStep;
-        const longPixelDelta = (longitude - this.aircraftStatus.longitude) / longStep;
+        const step = degreesPerPixel(
+            this.worldMapMetadata.southwest.latitude,
+            this.worldMapMetadata.southwest.longitude,
+            this.worldMapMetadata.northeast.latitude,
+            this.worldMapMetadata.northeast.longitude,
+            this.aircraftStatus.latitude,
+            this.worldMapMetadata.width,
+            this.worldMapMetadata.height,
+        );
+        const latPixelDelta = (this.currentGroundTruthPosition.latitude - latitude) / step[0];
+        const longPixelDelta = (longitude - this.currentGroundTruthPosition.longitude) / step[1];
 
         // calculate the map index
         let index = (this.worldMapMetadata.currentGridPosition.y + latPixelDelta) * this.worldMapMetadata.width;

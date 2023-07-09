@@ -61,10 +61,26 @@ export class Worldmap {
     }
 
     public createGridLookupTable(position: PositionData, maxWidth: number, maxHeight: number, defaultTileSize: number): GridLookupData {
-        let southwestLat = projectWgs84(position.latitude, position.longitude, 180, this.VisibilityRange * 1852)[0];
-        let southwestLong = projectWgs84(position.latitude, position.longitude, 270, this.VisibilityRange * 1852)[1];
-        let northeastLat = projectWgs84(position.latitude, position.longitude, 0, this.VisibilityRange * 1852)[0];
-        let northeastLong = projectWgs84(position.latitude, position.longitude, 90, this.VisibilityRange * 1852)[1];
+        const south = projectWgs84(position.latitude, position.longitude, 180, this.VisibilityRange * 1852)[0];
+        const southwest = projectWgs84(position.latitude, position.longitude, 225, this.VisibilityRange * 1852);
+        const west = projectWgs84(position.latitude, position.longitude, 270, this.VisibilityRange * 1852)[1];
+        const north = projectWgs84(position.latitude, position.longitude, 0, this.VisibilityRange * 1852)[0];
+        const east = projectWgs84(position.latitude, position.longitude, 90, this.VisibilityRange * 1852)[1];
+        const northeast = projectWgs84(position.latitude, position.longitude, 45, this.VisibilityRange * 1852);
+
+        let southwestLat = Math.min(south, southwest[0]);
+        let northeastLat = Math.max(north, northeast[0]);
+        let southwestLong = Math.min(west, southwest[1]);
+        let northeastLong = Math.min(east, northeast[1]);
+
+        // handle the 180 degree wrap around for the western coordinate
+        if (west * southwest[1] < 0) {
+            southwestLong = Math.max(west, southwest[1]);
+        }
+        // handle the 180 degree wrap around for the eastern coordinate
+        if (east * northeast[1] < 0) {
+            northeastLong = Math.max(east, northeast[1]);
+        }
 
         const southwestGrid = this.worldMapIndices(southwestLat, southwestLong);
         const northeastGrid = this.worldMapIndices(northeastLat, northeastLong);
@@ -109,17 +125,20 @@ export class Worldmap {
         grid.forEach((row) => {
             row.forEach((cellIdx) => {
                 const cell = this.TileManager.grid[cellIdx.row][cellIdx.column];
-                if (cell.tileIndex !== -1 && cell.elevationmap && cell.elevationmap.Rows !== 0 && cell.elevationmap.Columns !== 0) {
-                    minWidthPerTile = Math.min(cell.elevationmap.Columns, minWidthPerTile);
-                    minHeightPerTile = Math.min(cell.elevationmap.Rows, minHeightPerTile);
+                if (cell.tileIndex !== -1) {
+                    const tile = this.terrainData.Tiles[cell.tileIndex];
+                    minWidthPerTile = Math.min(tile.GridDimension.columns, minWidthPerTile);
+                    minHeightPerTile = Math.min(tile.GridDimension.rows, minHeightPerTile);
                 }
             });
         });
         if (minWidthPerTile === 5000) minWidthPerTile = defaultTileSize;
         if (minHeightPerTile === 5000) minHeightPerTile = defaultTileSize;
 
-        // delete rows if necessary (shared clipping between top and bottom)
         const mapHeight = minHeightPerTile * grid.length;
+        const mapWidth = minWidthPerTile * grid[0].length;
+
+        // delete rows if necessary (shared clipping between top and bottom)
         if (mapHeight > maxHeight) {
             const clippingTileCount = Math.ceil((mapHeight - maxHeight) / minHeightPerTile);
             const topClippingCount = Math.ceil(clippingTileCount / 2);
@@ -133,7 +152,6 @@ export class Worldmap {
         }
 
         // delete columns as necessary (shared clipping between left and right)
-        const mapWidth = minWidthPerTile * grid[0].length;
         if (mapWidth > maxWidth) {
             const clippingTileCount = Math.ceil((mapWidth - maxWidth) / minWidthPerTile);
             const startTileClipping = Math.ceil(clippingTileCount / 2);

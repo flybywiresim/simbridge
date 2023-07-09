@@ -1,5 +1,5 @@
 import { normalizeHeading, projectWgs84 } from './helper';
-import { rad2deg } from '../generic/helper';
+import { degreesPerPixel, rad2deg } from '../generic/helper';
 import { LocalElevationMapParameters } from './interfaces';
 
 export function createLocalElevationMap(
@@ -42,29 +42,18 @@ export function createLocalElevationMap(
     bearing = normalizeHeading(bearing + heading);
 
     const projected = projectWgs84(latitude, longitude, bearing, distance);
-    let latStep = 0.0;
-    if (worldMapSouthwestLat >= latitude) {
-        // we are at the south pole
-        latStep = worldMapSouthwestLat + worldMapNortheastLat + 180.0;
-    } else if (worldMapNortheastLat <= latitude) {
-        // we are at the north pole
-        latStep = 180.0 - worldMapSouthwestLat - worldMapNortheastLat;
-    } else {
-        latStep = worldMapNortheastLat - worldMapSouthwestLat;
-    }
-    latStep /= worldMapHeight;
-
-    // get the longitudinal step and check for 180 deg wrap arounds
-    let longStep = 0.0;
-    if (worldMapNortheastLong < worldMapSouthwestLong) {
-        longStep = 180.0 - worldMapSouthwestLong + Math.abs(worldMapNortheastLong + 180.0);
-    } else {
-        longStep = worldMapNortheastLong - worldMapSouthwestLong;
-    }
-    longStep /= worldMapWidth;
+    const step = degreesPerPixel(
+        worldMapSouthwestLat,
+        worldMapSouthwestLong,
+        worldMapNortheastLat,
+        worldMapNortheastLong,
+        latitude,
+        worldMapWidth,
+        worldMapHeight,
+    );
 
     // calculate the pixel movement out of the current position
-    const latPixelDelta = (groundTruthLatitude - projected[0]) / latStep;
+    const latPixelDelta = (groundTruthLatitude - projected[0]) / step[0];
 
     // calculate the pixel delta and check for wrap around situation at 180 deg
     let longPixelDelta = 0.0;
@@ -77,7 +66,7 @@ export function createLocalElevationMap(
     } else {
         longPixelDelta = projected[1] - groundTruthLongitude;
     }
-    longPixelDelta /= longStep;
+    longPixelDelta /= step[1];
 
     const y = currentWorldGridY + latPixelDelta;
     const x = currentWorldGridX + longPixelDelta;
