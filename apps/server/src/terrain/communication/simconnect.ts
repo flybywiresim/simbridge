@@ -66,7 +66,7 @@ export class SimConnect {
 
     private shutdown: boolean = false;
 
-    private simulatorPaused: boolean = false;
+    private showConnectionError: boolean = true;
 
     private connection: Connection = null;
 
@@ -307,8 +307,11 @@ export class SimConnect {
 
         this.connection = new Connection();
         if (this.connection.open(SimConnectClientName) === false) {
-            this.logging.error(`Connection to MSFS failed: ${this.connection.lastError()} - Retry in 10 seconds`);
+            if (this.showConnectionError === true) {
+                this.logging.error(`Connection to MSFS failed: ${this.connection.lastError()} - Retry every 10 seconds`);
+            }
             setTimeout(() => this.connectToSim(), 10000);
+            this.showConnectionError = false;
             return;
         }
 
@@ -351,7 +354,11 @@ export class SimConnect {
             this.receiver.stop();
             this.connection.close();
             setTimeout(() => this.connectToSim(), 10000);
+            return;
         }
+
+        this.logging.info('Connected to MSFS and established all communication channels');
+        this.showConnectionError = true;
     }
 
     constructor(private logging: Logger) {
