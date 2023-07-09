@@ -84,6 +84,10 @@ const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitio
 class MapHandler {
     private simconnect: SimConnect = null;
 
+    private simulatorStatus: {
+        paused: boolean,
+    } = { paused: false }
+
     private worldmap: Worldmap = null;
 
     private gpu: GPU = null;
@@ -171,8 +175,17 @@ class MapHandler {
         this.resetFrameData('R');
     }
 
-    private onConnectionLost(): void {
+    private onReset(): void {
         this.cleanupMemory();
+        this.simulatorStatus.paused = false;
+    }
+
+    private onPaused(): void {
+        this.simulatorStatus.paused = true;
+    }
+
+    private onUnpaused(): void {
+        this.simulatorStatus.paused = false;
     }
 
     private onPositionUpdate(data: PositionData): void {
@@ -358,7 +371,9 @@ class MapHandler {
     constructor(private logging: Logger) {
         this.readTerrainMap().then((terrainmap) => {
             this.simconnect = new SimConnect(logging);
-            this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());
+            this.simconnect.addUpdateCallback('reset', () => this.onReset());
+            this.simconnect.addUpdateCallback('paused', () => this.onPaused());
+            this.simconnect.addUpdateCallback('unpaused', () => this.onUnpaused());
             this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
             this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
 
@@ -915,7 +930,7 @@ class MapHandler {
             }
 
             // transfer the transition frame
-            if (frame !== null) {
+            if (frame !== null && this.simulatorStatus.paused === false) {
                 sharp(frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingScreenPixelHeight, channels: RenderingColorChannelCount } })
                     .png()
                     .toBuffer()

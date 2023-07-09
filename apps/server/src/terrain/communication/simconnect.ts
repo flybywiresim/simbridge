@@ -10,13 +10,21 @@ import {
     ClientDataRequestMessage,
     ClientDataPeriod,
     ClientDataRequest,
+    SystemEvent,
+    SystemEventType,
+    SystemEventMessage,
+    SystemEventSim,
+    SystemEventPause,
+    SystemEventPauseType,
 } from '@flybywiresim/msfs-nodejs';
 import { Logger } from '../processing/logging/logger';
 import { NavigationDisplayData } from '../processing/navigationdisplaydata';
 import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
 
 export type UpdateCallbacks = {
-    connectionLost: () => void;
+    reset: () => void;
+    paused: () => void;
+    unpaused: () => void;
     positionUpdate: (data: PositionData) => void;
     aircraftStatusUpdate: (data: AircraftStatus) => void;
 }
@@ -39,17 +47,26 @@ const enum DataDefinitionId {
     NavigationDisplayFrameAreaRight = 4,
 }
 
+const enum SystemEventId {
+    SimulatorState = 0,
+    PauseState = 1,
+}
+
 const EnhancedGpwcAircraftStatusByteCount = 46;
 const NavigationDisplayThresholdByteCount = 14;
 
 export class SimConnect {
     private callbacks: UpdateCallbacks = {
-        connectionLost: null,
+        reset: null,
+        paused: null,
+        unpaused: null,
         positionUpdate: null,
         aircraftStatusUpdate: null,
     };
 
     private shutdown: boolean = false;
+
+    private showConnectionError: boolean = true;
 
     private connection: Connection = null;
 
@@ -64,6 +81,16 @@ export class SimConnect {
     private frameDataLeft: ClientDataArea = null;
 
     private frameDataRight: ClientDataArea = null;
+
+    private simulatorStateEvent: SystemEvent = null;
+
+    private pauseStateEvent: SystemEvent = null;
+
+    private registerSystemEvents(): boolean {
+        this.simulatorStateEvent = new SystemEvent(this.connection, SystemEventId.SimulatorState, SystemEventType.Sim);
+        this.pauseStateEvent = new SystemEvent(this.connection, SystemEventId.PauseState, SystemEventType.PauseEX1);
+        return true;
+    }
 
     private registerEgpwcAircraftStatus(): boolean {
         this.egpwcAircraftStatus = new ClientDataArea(this.connection, ClientDataId.EnhancedGpwcAircraftStatus);
@@ -162,12 +189,31 @@ export class SimConnect {
         return true;
     }
 
-    private simConnectOpen(_message: OpenMessage): void {
+    private simConnectOpen(logon: OpenMessage): void {
         if (this.receiver !== null) {
+            let resetConnection = false;
+
             if (!this.receiver.requestClientData(this.egpwcAircraftStatus, ClientDataPeriod.OnSet, ClientDataRequest.Default)) {
                 this.logging.error('Unable to request aircraft status data');
+                resetConnection = true;
+            }
+            if (!this.receiver.subscribeSystemEvent(this.simulatorStateEvent)) {
+                this.logging.error('Unable to subscribe to the simulator states');
+                resetConnection = true;
+            }
+            if (!this.receiver.subscribeSystemEvent(this.pauseStateEvent)) {
+                this.logging.error('Unable to subscribe to the pause states');
+                resetConnection = true;
+            }
+
+            if (resetConnection === true) {
+                this.simConnectQuit();
+                return;
             }
         }
+
+        this.logging.info(`Connected to MSFS - ${logon.application.name} - v${logon.application.version.major}.${logon.application.version.minor}`);
+        this.showConnectionError = true;
     }
 
     private resetConnection(): void {
@@ -177,12 +223,14 @@ export class SimConnect {
         this.frameMetadataRight = null;
         this.frameDataLeft = null;
         this.frameDataRight = null;
+        this.simulatorStateEvent = null;
+        this.pauseStateEvent = null;
         this.connection.close();
     }
 
     private simConnectQuit(): void {
-        if (this.callbacks.connectionLost !== null) {
-            this.callbacks.connectionLost();
+        if (this.callbacks.reset !== null) {
+            this.callbacks.reset();
         }
 
         this.resetConnection();
@@ -251,13 +299,32 @@ export class SimConnect {
         }
     }
 
+    private simConnectSystemEvent(message: SystemEventMessage): void {
+        if (message.eventId === SystemEventId.SimulatorState) {
+            const sim = message.content as SystemEventSim;
+            if (sim.running === false && this.callbacks.reset !== null) {
+                this.callbacks.reset();
+            }
+        } else if (message.eventId === SystemEventId.PauseState) {
+            const pause = message.content as SystemEventPause;
+            if (pause.type !== SystemEventPauseType.Unpaused) {
+                if (this.callbacks.paused !== null) this.callbacks.paused();
+            } else if (this.callbacks.unpaused !== null) this.callbacks.unpaused();
+        } else {
+            this.logging.error(`Unknown system event ID: ${message.eventId}`);
+        }
+    }
+
     private connectToSim() {
         if (this.shutdown) return;
 
         this.connection = new Connection();
         if (this.connection.open(SimConnectClientName) === false) {
-            this.logging.error(`Connection failed: ${this.connection.lastError()} - Retry in 10 seconds`);
+            if (this.showConnectionError === true) {
+                this.logging.error(`Connection to MSFS failed: ${this.connection.lastError()} - Retry every 10 seconds`);
+            }
             setTimeout(() => this.connectToSim(), 10000);
+            this.showConnectionError = false;
             return;
         }
 
@@ -266,6 +333,7 @@ export class SimConnect {
         this.receiver.addCallback('open', (message: OpenMessage) => this.simConnectOpen(message));
         this.receiver.addCallback('quit', () => this.simConnectQuit());
         this.receiver.addCallback('clientData', (message: ClientDataRequestMessage) => this.simConnectReceivedClientData(message));
+        this.receiver.addCallback('systemEvent', (message: SystemEventMessage) => this.simConnectSystemEvent(message));
         this.receiver.addCallback('exception', (message: ExceptionMessage) => this.simConnectException(message));
         this.receiver.addCallback('error', (message: ErrorMessage) => this.simConnectError(message));
         this.receiver.start();
@@ -295,7 +363,7 @@ export class SimConnect {
             return;
         }
 
-        if (!this.registerNavigationDisplayData()) {
+        if (!this.registerNavigationDisplayData() || !this.registerSystemEvents()) {
             this.receiver.stop();
             this.connection.close();
             setTimeout(() => this.connectToSim(), 10000);
@@ -324,12 +392,20 @@ export class SimConnect {
         packed.writeUInt8(metadata.DisplayMode, 9);
         packed.writeUInt32LE(metadata.FrameByteCount, 10);
 
+        let resetConnection = false;
         if (side === 'L') {
             if (this.frameMetadataLeft.setData({ ThresholdData: packed.buffer }) === false) {
                 this.logging.error(`Could not send metadata: ${this.frameMetadataLeft.lastError()}`);
+                resetConnection = true;
             }
         } else if (this.frameMetadataRight.setData({ ThresholdData: packed.buffer }) === false) {
             this.logging.error(`Could not send metadata: ${this.frameMetadataRight.lastError()}`);
+            resetConnection = true;
+        }
+
+        if (resetConnection === true) {
+            this.logging.error('Resetting connection to MSFS due to transmission error');
+            this.simConnectQuit();
         }
     }
 
@@ -347,12 +423,21 @@ export class SimConnect {
             frame.copy(stream, 0, i * ClientDataMaxSize, i * ClientDataMaxSize + byteCount);
 
             // send the data
+            let resetConnection = false;
             if (side === 'L') {
                 if (this.frameDataLeft.setData({ FrameData: stream.buffer }) === false) {
                     this.logging.error(`Could not send frame data: ${this.frameDataLeft.lastError()}`);
+                    resetConnection = true;
                 }
             } else if (this.frameDataRight.setData({ FrameData: stream.buffer }) === false) {
                 this.logging.error(`Could not send frame data: ${this.frameDataRight.lastError()}`);
+                resetConnection = true;
+            }
+
+            if (resetConnection === true) {
+                this.logging.error('Resetting connection to MSFS due to transmission error');
+                this.simConnectQuit();
+                break;
             }
         }
     }
