@@ -62,7 +62,7 @@ export class TerrainService implements OnApplicationShutdown {
     public updateFlightPath(display: DisplaySide, path: ElevationSamplePathDto): void {
         if (this.mapHandler) {
             this.mapHandler.postMessage({
-                type: MainToWorkerThreadMessageTypes.FlightPath,
+                type: MainToWorkerThreadMessageTypes.VerticalDisplayPath,
                 content: path,
             });
         }
