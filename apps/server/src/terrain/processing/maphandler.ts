@@ -90,6 +90,10 @@ const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitio
 class MapHandler {
     private simconnect: SimConnect = null;
 
+    private simulatorStatus: {
+        paused: boolean,
+    } = { paused: false }
+
     private worldmap: Worldmap = null;
 
     private gpu: GPU = null;
@@ -180,8 +184,17 @@ class MapHandler {
         this.resetFrameData('R');
     }
 
-    private onConnectionLost(): void {
+    private onReset(): void {
         this.cleanupMemory();
+        this.simulatorStatus.paused = false;
+    }
+
+    private onPaused(): void {
+        this.simulatorStatus.paused = true;
+    }
+
+    private onUnpaused(): void {
+        this.simulatorStatus.paused = false;
     }
 
     private onPositionUpdate(data: PositionData): void {
@@ -408,7 +421,9 @@ class MapHandler {
     constructor(private logging: Logger) {
         this.readTerrainMap().then((terrainmap) => {
             this.simconnect = new SimConnect(logging);
-            this.simconnect.addUpdateCallback('connectionLost', () => this.onConnectionLost());
+            this.simconnect.addUpdateCallback('reset', () => this.onReset());
+            this.simconnect.addUpdateCallback('paused', () => this.onPaused());
+            this.simconnect.addUpdateCallback('unpaused', () => this.onUnpaused());
             this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
             this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => this.onAircraftStatusUpdate(data));
 
@@ -584,12 +599,12 @@ class MapHandler {
         }
 
         // calculate the correct pixel coordinate in every step
-        const currentTile = this.worldmap.getTile(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
-        if (currentTile !== undefined) {
+        const southwest = this.worldmap.getSouthwestCoordinateOfTile(this.currentGroundTruthPosition.latitude, this.currentGroundTruthPosition.longitude);
+        if (southwest !== undefined) {
             const latStep = this.worldmap.GridData.latitudeStep / this.worldMapMetadata.minHeightPerTile;
             const longStep = this.worldmap.GridData.longitudeStep / this.worldMapMetadata.minWidthPerTile;
-            const latDelta = this.currentGroundTruthPosition.latitude - currentTile.Southwest.latitude;
-            const longDelta = this.currentGroundTruthPosition.longitude - currentTile.Southwest.longitude;
+            const latDelta = this.currentGroundTruthPosition.latitude - southwest.latitude;
+            const longDelta = this.currentGroundTruthPosition.longitude - southwest.longitude;
 
             let yOffset = 0;
             let xOffset = 0;
@@ -1018,7 +1033,7 @@ class MapHandler {
             }
 
             // transfer the transition frame
-            if (frame !== null) {
+            if (frame !== null && this.simulatorStatus.paused === false) {
                 sharp(frame, { raw: { width: RenderingMaxPixelWidth, height: RenderingScreenPixelHeight, channels: RenderingColorChannelCount } })
                     .png()
                     .toBuffer()

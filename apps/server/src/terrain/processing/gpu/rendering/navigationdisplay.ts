@@ -295,13 +295,24 @@ export function renderNavigationDisplay(
 
     const pixelX = Math.floor(this.thread.x / 4);
     const colorChannel = this.thread.x % 4;
-    let pixelElevation = 0;
+    let pixelElevation = -1000;
     let patternValue = 0;
 
     // check the corner cases only for pixels inside the real rendering area
     if (this.thread.y < this.constants.maxImageHeight) {
         if (this.thread.y < height && pixelX >= mapOffsetX) {
-            pixelElevation = elevationGrid[this.thread.y][pixelX - mapOffsetX];
+            // find highest elevation in 8x8 patch to simulate the lower resolution of the real system
+            const patchXStart = pixelX - (pixelX % 8);
+            const patchYStart = this.thread.y - (this.thread.y % 8);
+            for (let y = 0; y < 8; ++y) {
+                for (let x = 0; x < 8; ++x) {
+                    const currentElevation = elevationGrid[y + patchYStart][x + patchXStart - mapOffsetX];
+                    if (currentElevation > pixelElevation && currentElevation !== this.constants.invalidElevation) {
+                        pixelElevation = currentElevation;
+                    }
+                }
+            }
+
             patternValue = patternMap[this.thread.y][pixelX - mapOffsetX];
         }
 
