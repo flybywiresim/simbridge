@@ -822,7 +822,7 @@ class MapHandler {
 
     /*
      * Concept for the metadata row:
-     * - The idea comes initialy from image capturing systems and image decoding information, etc are stored in dedicated rows of one image
+     * - The idea comes initially from image capturing systems and image decoding information, etc are stored in dedicated rows of one image
      * - The ND rendering reuses this idea to store the relevant information in two pixels
      *   Take a deeper look in the GPU code to get the channel and pixel encoding
      * - The statistics calculation is done on the GPU to reduce the number of transmitted data from the GPU to the CPU
@@ -935,7 +935,7 @@ class MapHandler {
     ): Uint8ClampedArray {
         const result = new Uint8ClampedArray(RenderingMaxPixelWidth * RenderingColorChannelCount * RenderingScreenPixelHeight);
 
-        // access data as uint32-array for performance reasons
+        // access data as uint32-array due to performance reasons
         const destination = new Uint32Array(result.buffer);
         // UInt32-version of RGBA (4, 4, 5, 255)
         destination.fill(4278518788);
