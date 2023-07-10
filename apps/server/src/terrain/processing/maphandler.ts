@@ -4,6 +4,7 @@ import { readFile } from 'fs/promises';
 import { parentPort } from 'worker_threads';
 import {
     AircraftStatus,
+    DisplaySide,
     ElevationProfile,
     MainToWorkerThreadMessage,
     MainToWorkerThreadMessageTypes,
@@ -173,7 +174,7 @@ class MapHandler {
         }
     } = {}
 
-    private resetFrameData(side: string): void {
+    private resetFrameData(side: DisplaySide): void {
         this.navigationDisplayRendering[side].lastTransitionData.thresholds = null;
         this.navigationDisplayRendering[side].lastTransitionData.timestamp = 0;
         this.navigationDisplayRendering[side].lastTransitionData.frames = [];
@@ -189,8 +190,8 @@ class MapHandler {
         }
         this.cachedElevationData.cachedTiles = 0;
         this.cachedElevationData.cpuData = null;
-        this.resetFrameData('L');
-        this.resetFrameData('R');
+        this.resetFrameData(DisplaySide.Left);
+        this.resetFrameData(DisplaySide.Right);
     }
 
     private onReset(): void {
@@ -231,8 +232,8 @@ class MapHandler {
         }
 
         this.aircraftStatus = data;
-        this.configureNavigationDisplay('L', this.aircraftStatus.navigationDisplayCapt, startup);
-        this.configureNavigationDisplay('R', this.aircraftStatus.navigationDisplayFO, startup);
+        this.configureNavigationDisplay(DisplaySide.Left, this.aircraftStatus.navigationDisplayCapt, startup);
+        this.configureNavigationDisplay(DisplaySide.Right, this.aircraftStatus.navigationDisplayFO, startup);
     }
 
     private createKernels(): void {
@@ -479,10 +480,11 @@ class MapHandler {
             // run all process steps to precompile the kernels
             this.onAircraftStatusUpdate(startupStatus, true);
             this.updateGroundTruthPositionAndCachedTiles(startupPosition, true);
-            this.renderNavigationDisplay('L', true);
+            this.renderNavigationDisplay(DisplaySide.Left, true);
+            this.renderNavigationDisplay(DisplaySide.Right, true);
             const profile = this.createElevationProfile(startupProfile);
-            this.createVerticalDisplayMap('L', profile);
-            this.createVerticalDisplayMap('R', profile);
+            this.createVerticalDisplayMap(DisplaySide.Left, profile);
+            this.createVerticalDisplayMap(DisplaySide.Right, profile);
 
             // reset all initialization data
             this.worldMapMetadata = {
@@ -660,7 +662,7 @@ class MapHandler {
         return this.cachedElevationData.cpuData[index];
     }
 
-    private configureNavigationDisplay(display: string, config: NavigationDisplay, startup: boolean): void {
+    private configureNavigationDisplay(display: DisplaySide, config: NavigationDisplay, startup: boolean): void {
         if (display in this.navigationDisplayRendering) {
             const lastConfig = this.navigationDisplayRendering[display].config;
             const stopRendering = !config.active && lastConfig !== null && lastConfig.active;
@@ -992,7 +994,7 @@ class MapHandler {
         return result;
     }
 
-    private arcModeTransition(side: string, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
+    private arcModeTransition(side: DisplaySide, config: NavigationDisplay, frameData: Uint8ClampedArray, thresholdData: NavigationDisplayData): void {
         const transitionFrames: Uint8ClampedArray[] = [];
 
         if (this.navigationDisplayRendering[side].resetRenderingData) {
@@ -1110,7 +1112,7 @@ class MapHandler {
         return result;
     }
 
-    private renderNavigationDisplay(side: string, startup: boolean = false): void {
+    private renderNavigationDisplay(side: DisplaySide, startup: boolean = false): void {
         if (this.navigationDisplayRendering[side].timeout !== null) {
             clearTimeout(this.navigationDisplayRendering[side].timeout);
             this.navigationDisplayRendering[side].timeout = null;
@@ -1160,7 +1162,7 @@ class MapHandler {
         }
     }
 
-    public startNavigationDisplayRenderingCycle(side: string): void {
+    public startNavigationDisplayRenderingCycle(side: DisplaySide): void {
         if (this.navigationDisplayRendering[side].timeout !== null) {
             clearTimeout(this.navigationDisplayRendering[side].timeout);
             this.navigationDisplayRendering[side].timeout = null;

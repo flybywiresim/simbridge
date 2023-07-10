@@ -1,13 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { DisplaySide } from './types';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { TerrainService } from './terrain.service';
 import { ShutDownService } from '../utilities/shutdown.service';
-
-enum DisplaySide {
-    Left = 'L',
-    Right = 'R',
-}
 
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')

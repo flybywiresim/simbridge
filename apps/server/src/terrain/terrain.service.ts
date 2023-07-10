@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Worker } from 'worker_threads';
 import * as path from 'path';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
-import { MainToWorkerThreadMessageTypes, WorkerToMainThreadMessage, WorkerToMainThreadMessageTypes } from './types';
+import { DisplaySide, MainToWorkerThreadMessageTypes, WorkerToMainThreadMessage, WorkerToMainThreadMessageTypes } from './types';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {
@@ -10,13 +10,13 @@ export class TerrainService implements OnApplicationShutdown {
 
     private mapHandler: Worker = null;
 
-    private frameDataCallbacks: ((side: string, data: { timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }) => boolean)[] = [];
+    private frameDataCallbacks: ((side: DisplaySide, data: { timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }) => boolean)[] = [];
 
     constructor() {
         this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
         this.mapHandler.on('message', (data: WorkerToMainThreadMessage) => {
             if (data.type === WorkerToMainThreadMessageTypes.FrameData) {
-                const response = data.content as { side: string, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] };
+                const response = data.content as { side: DisplaySide, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] };
 
                 this.frameDataCallbacks.every((callback, index) => {
                     if (callback(response.side, response)) {
@@ -46,7 +46,7 @@ export class TerrainService implements OnApplicationShutdown {
         }
     }
 
-    public async frameData(display: string): Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }> {
+    public async frameData(display: DisplaySide): Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }> {
         if (!this.mapHandler) return undefined;
 
         return new Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }>((resolve, _reject) => {
