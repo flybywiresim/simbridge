@@ -2,7 +2,7 @@ import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import * as sharp from 'sharp';
 import { readFile } from 'fs/promises';
 import { parentPort } from 'worker_threads';
-import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
+import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
 import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';

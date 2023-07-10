@@ -19,7 +19,7 @@ import {
 } from '@flybywiresim/msfs-nodejs';
 import { Logger } from '../processing/logging/logger';
 import { NavigationDisplayData } from '../processing/navigationdisplaydata';
-import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
+import { AircraftStatus, PositionData, TerrainRenderingMode } from '../types';
 
 export type UpdateCallbacks = {
     reset: () => void;

@@ -1,8 +1,3 @@
-export interface PositionData {
-    latitude: number;
-    longitude: number;
-}
-
 export enum TerrainRenderingMode {
     ArcMode = 0,
     VerticalMode = 1,
@@ -16,13 +11,6 @@ export interface NavigationDisplay {
     mapOffsetX?: number,
     mapWidth?: number,
     mapHeight?: number,
-}
-
-export interface ElevationProfile {
-    pathWidth: number,
-    waypointsLatitudes: number[],
-    waypointsLongitudes: number[],
-    range: number,
 }
 
 export interface AircraftStatus {
