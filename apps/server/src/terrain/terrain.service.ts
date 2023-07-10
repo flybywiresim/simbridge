@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Worker } from 'worker_threads';
 import * as path from 'path';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
+import { MainToWorkerThreadMessageTypes, WorkerToMainThreadMessage, WorkerToMainThreadMessageTypes } from './types';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {
@@ -13,8 +14,8 @@ export class TerrainService implements OnApplicationShutdown {
 
     constructor() {
         this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
-        this.mapHandler.on('message', (data: { request: string, content: any }) => {
-            if (data.request === 'RES_FRAME_DATA') {
+        this.mapHandler.on('message', (data: WorkerToMainThreadMessage) => {
+            if (data.type === WorkerToMainThreadMessageTypes.FrameData) {
                 const response = data.content as { side: string, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] };
 
                 this.frameDataCallbacks.every((callback, index) => {
@@ -24,12 +25,14 @@ export class TerrainService implements OnApplicationShutdown {
                     }
                     return true;
                 });
-            } else if (data.request === 'LOGINFO') {
+            } else if (data.type === WorkerToMainThreadMessageTypes.LogInfo) {
                 this.logger.log(data.content);
-            } else if (data.request === 'LOGWARN') {
+            } else if (data.type === WorkerToMainThreadMessageTypes.LogWarn) {
                 this.logger.warn(data.content);
-            } else if (data.request === 'LOGERROR') {
+            } else if (data.type === WorkerToMainThreadMessageTypes.LogError) {
                 this.logger.error(data.content);
+            } else {
+                this.logger.error(`Unknown type: ${data.type} - ${data.content}`);
             }
         });
     }
@@ -37,7 +40,7 @@ export class TerrainService implements OnApplicationShutdown {
     onApplicationShutdown(_signal?: string) {
         this.logger.log(`Destroying ${TerrainService.name}`);
         if (this.mapHandler) {
-            this.mapHandler.postMessage({ request: 'REQ_SHUTDOWN', content: undefined });
+            this.mapHandler.postMessage({ type: MainToWorkerThreadMessageTypes.Shutdown });
             this.mapHandler.terminate();
             this.mapHandler = null;
         }
@@ -51,7 +54,7 @@ export class TerrainService implements OnApplicationShutdown {
                 if (side === display) resolve(data);
                 return side === display;
             });
-            this.mapHandler.postMessage({ request: 'REQ_FRAME_DATA', content: display });
+            this.mapHandler.postMessage({ type: MainToWorkerThreadMessageTypes.FrameData, content: display });
         });
     }
 }

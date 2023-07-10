@@ -2,7 +2,16 @@ import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import * as sharp from 'sharp';
 import { readFile } from 'fs/promises';
 import { parentPort } from 'worker_threads';
-import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../types';
+import {
+    AircraftStatus,
+    ElevationProfile,
+    MainToWorkerThreadMessage,
+    MainToWorkerThreadMessageTypes,
+    NavigationDisplay,
+    PositionData,
+    TerrainRenderingMode,
+    WorkerToMainThreadMessageTypes,
+} from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
 import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
@@ -1206,10 +1215,10 @@ class MapHandler {
 
 const maphandler = new MapHandler(new ThreadLogger());
 
-parentPort.on('message', (data: { request: string, content: string }) => {
-    if (data.request === 'REQ_FRAME_DATA') {
-        parentPort.postMessage({ request: 'RES_FRAME_DATA', content: maphandler.frameData(data.content) });
-    } else if (data.request === 'REQ_SHUTDOWN') {
+parentPort.on('message', (data: MainToWorkerThreadMessage) => {
+    if (data.type === MainToWorkerThreadMessageTypes.FrameData) {
+        parentPort.postMessage({ request: WorkerToMainThreadMessageTypes.FrameData, content: maphandler.frameData(data.content) });
+    } else if (data.type === MainToWorkerThreadMessageTypes.Shutdown) {
         maphandler.shutdown();
     }
 });
