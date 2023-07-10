@@ -1,4 +1,7 @@
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiBody, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DisplaySide } from './types';
+import { ElevationSamplePathDto } from './dto/elevationsamplepath.dto';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { TerrainService } from './terrain.service';
 import { ShutDownService } from '../utilities/shutdown.service';
@@ -51,5 +54,16 @@ export class TerrainController {
             data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
             return retval;
         });
+    }
+
+    @Post('verticalDisplayPath')
+    @ApiQuery({ name: 'side', required: true, enum: DisplaySide })
+    @ApiBody({ required: true, type: ElevationSamplePathDto })
+    @ApiResponse({
+        status: 200,
+        description: 'Update of the path was successful',
+    })
+    verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
+        this.terrainService.updateFlightPath(side, path);
     }
 }

@@ -3,6 +3,7 @@ import { Worker } from 'worker_threads';
 import * as path from 'path';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { DisplaySide, MainToWorkerThreadMessageTypes, WorkerToMainThreadMessage, WorkerToMainThreadMessageTypes } from './types';
+import { ElevationSamplePathDto } from './dto/elevationsamplepath.dto';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {
@@ -56,5 +57,14 @@ export class TerrainService implements OnApplicationShutdown {
             });
             this.mapHandler.postMessage({ type: MainToWorkerThreadMessageTypes.FrameData, content: display });
         });
+    }
+
+    public updateFlightPath(display: DisplaySide, path: ElevationSamplePathDto): void {
+        if (this.mapHandler) {
+            this.mapHandler.postMessage({
+                type: MainToWorkerThreadMessageTypes.FlightPath,
+                content: path,
+            });
+        }
     }
 }

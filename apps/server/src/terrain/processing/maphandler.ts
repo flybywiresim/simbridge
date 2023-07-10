@@ -165,6 +165,7 @@ class MapHandler {
             startupTimestamp: number,
             navigationDisplay: IKernelRunShortcut,
             verticalDisplay: IKernelRunShortcut,
+            profile: ElevationProfile,
             lastFrame: Uint8ClampedArray,
             lastTransitionData: {
                 timestamp: number,
@@ -341,6 +342,7 @@ class MapHandler {
             startupTimestamp: new Date().getTime(),
             navigationDisplay: null,
             verticalDisplay: null,
+            profile: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
         };
@@ -353,6 +355,7 @@ class MapHandler {
             startupTimestamp: new Date().getTime() - 1500,
             navigationDisplay: null,
             verticalDisplay: null,
+            profile: null,
             lastFrame: null,
             lastTransitionData: { timestamp: 0, thresholds: null, frames: [] },
         };
@@ -476,14 +479,17 @@ class MapHandler {
                 waypointsLongitudes: [12.815273, 8.975899],
                 range: 20.0,
             };
+            this.navigationDisplayRendering.L.profile = startupProfile;
+            this.navigationDisplayRendering.R.profile = startupProfile;
 
             // run all process steps to precompile the kernels
             this.onAircraftStatusUpdate(startupStatus, true);
             this.updateGroundTruthPositionAndCachedTiles(startupPosition, true);
             this.renderNavigationDisplay(DisplaySide.Left, true);
             this.renderNavigationDisplay(DisplaySide.Right, true);
-            const profile = this.createElevationProfile(startupProfile);
+            let profile = this.createElevationProfile(DisplaySide.Left);
             this.createVerticalDisplayMap(DisplaySide.Left, profile);
+            profile = this.createElevationProfile(DisplaySide.Right);
             this.createVerticalDisplayMap(DisplaySide.Right, profile);
 
             // reset all initialization data
@@ -496,6 +502,8 @@ class MapHandler {
                 width: 0,
                 height: 0,
             };
+            this.navigationDisplayRendering.L.profile = null;
+            this.navigationDisplayRendering.R.profile = null;
             this.currentGroundTruthPosition = null;
             this.aircraftStatus = null;
             this.cleanupMemory();
@@ -740,7 +748,7 @@ class MapHandler {
         return localElevationMap;
     }
 
-    private createElevationProfile(config: ElevationProfile): Texture {
+    private createElevationProfile(display: DisplaySide): Texture {
         if (this.cachedElevationData.gpuData === null) return null;
 
         // create the local elevation map
@@ -758,11 +766,11 @@ class MapHandler {
             this.worldMapMetadata.southwest.longitude,
             this.worldMapMetadata.northeast.latitude,
             this.worldMapMetadata.northeast.longitude,
-            config.pathWidth,
-            config.waypointsLatitudes,
-            config.waypointsLongitudes,
-            config.waypointsLatitudes.length,
-            config.range / RenderingElevationProfileWidth,
+            this.navigationDisplayRendering[display].profile.pathWidth,
+            this.navigationDisplayRendering[display].profile.waypointsLatitudes,
+            this.navigationDisplayRendering[display].profile.waypointsLongitudes,
+            this.navigationDisplayRendering[display].profile.waypointsLatitudes.length,
+            this.navigationDisplayRendering[display].profile.range / RenderingElevationProfileWidth,
         ) as Texture;
 
         // some GPU drivers require the flush call to release internal memory
