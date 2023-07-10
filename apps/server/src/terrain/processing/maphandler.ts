@@ -1217,7 +1217,7 @@ const maphandler = new MapHandler(new ThreadLogger());
 
 parentPort.on('message', (data: MainToWorkerThreadMessage) => {
     if (data.type === MainToWorkerThreadMessageTypes.FrameData) {
-        parentPort.postMessage({ request: WorkerToMainThreadMessageTypes.FrameData, content: maphandler.frameData(data.content) });
+        parentPort.postMessage({ type: WorkerToMainThreadMessageTypes.FrameData, content: maphandler.frameData(data.content) });
     } else if (data.type === MainToWorkerThreadMessageTypes.Shutdown) {
         maphandler.shutdown();
     }
