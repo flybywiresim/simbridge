@@ -21,7 +21,7 @@ export class TerrainController {
         description: 'The timestamp of the current rendering data',
         type: Number,
     })
-    renderingTimestamp(@Query('display') display) {
+    renderingTimestamp(@Query('display') display: DisplaySide) {
         return this.terrainService.frameData(display).then((data) => {
             if (data === undefined) return -1;
             return data.timestamp;
@@ -35,7 +35,7 @@ export class TerrainController {
         description: 'The thresholds for the current rendering data',
         type: NavigationDisplayThresholdsDto,
     })
-    renderingThresholds(@Query('display') display) {
+    renderingThresholds(@Query('display') display: DisplaySide) {
         return this.terrainService.frameData(display).then((data) => {
             if (data === undefined) return undefined;
             return data.thresholds;
@@ -49,7 +49,7 @@ export class TerrainController {
         description: 'The base64 strings for the current frames',
         type: [String],
     })
-    renderingFrames(@Query('display') display) {
+    renderingFrames(@Query('display') display: DisplaySide) {
         return this.terrainService.frameData(display).then((data) => {
             if (data === undefined) return [];
 
