@@ -12,6 +12,8 @@ import {
     PositionData,
     TerrainRenderingMode,
     WorkerToMainThreadMessageTypes,
+    NavigationDisplayData,
+    TerrainLevelMode,
 } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -38,7 +40,6 @@ import {
 } from './gpu/interfaces';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadTextureData } from './gpu/upload';
-import { NavigationDisplayData, TerrainLevelMode } from './navigationdisplaydata';
 import { SimConnect } from '../communication/simconnect';
 import { createArcModePatternMap } from './gpu/patterns/arcmode';
 import { ThreadLogger } from './logging/threadlogger';
