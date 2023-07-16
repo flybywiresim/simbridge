@@ -5,7 +5,7 @@ import { parentPort } from 'worker_threads';
 import { AircraftStatus, NavigationDisplay, PositionData, TerrainRenderingMode } from '../communication/types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
-import { deg2rad, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
+import { deg2rad, degreesPerPixel, distanceWgs84, fastFlatten, rad2deg } from './generic/helper';
 import { createLocalElevationMap } from './gpu/elevationmap';
 import { normalizeHeading, projectWgs84 } from './gpu/helper';
 import {
@@ -33,6 +33,7 @@ import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythreshol
 
 // execution parameters
 const GpuProcessingActive = true;
+const GpuMaxPixelSize = 16384;
 
 // mathematical conversion constants
 const FeetPerNauticalMile = 6076.12;
@@ -257,6 +258,7 @@ class MapHandler {
             })
             .setFunctions([
                 deg2rad,
+                degreesPerPixel,
                 normalizeHeading,
                 rad2deg,
                 projectWgs84,
@@ -399,9 +401,9 @@ class MapHandler {
                 heading: 260,
                 verticalSpeed: 0,
                 gearIsDown: true,
-                destinationDataValid: false,
-                destinationLatitude: 0.0,
-                destinationLongitude: 0.0,
+                runwayDataValid: true,
+                runwayLatitude: 47.26081085205078,
+                runwayLongitude: 11.349658966064453,
                 navigationDisplayCapt: startupConfig,
                 navigationDisplayFO: startupConfig,
                 navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
@@ -464,60 +466,55 @@ class MapHandler {
     private updateGroundTruthPositionAndCachedTiles(position: PositionData, startup: boolean): void {
         if (!this.initialized && !startup) return;
         this.currentGroundTruthPosition = position;
-        const grid = this.worldmap.createGridLookupTable(position);
-        const loadedTiles = this.worldmap.updatePosition(grid);
-        const relevantTileCount = grid.length * grid[0].length;
+        const lookup = this.worldmap.createGridLookupTable(position, GpuMaxPixelSize, GpuMaxPixelSize, DefaultTileSize);
+        const tilesLoaded = this.worldmap.updatePosition(lookup.grid);
+        const relevantTileCount = lookup.grid.length * lookup.grid[0].length;
 
-        if (loadedTiles || this.cachedElevationData.cachedTiles !== relevantTileCount) {
-            const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.worldmap.VisibilityRange * 1852);
-            const southwestGrid = this.worldmap.worldMapIndices(southwestLat, southwestLong);
-            const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.worldmap.VisibilityRange * 1852);
-            const northeastGrid = this.worldmap.worldMapIndices(northeastLat, northeastLong);
+        if (tilesLoaded || this.cachedElevationData.cachedTiles !== relevantTileCount) {
+            const southwestGrid = this.worldmap.worldMapIndices(lookup.southwest.latitude, lookup.southwest.longitude);
+            const northeastGrid = this.worldmap.worldMapIndices(lookup.northeast.latitude, lookup.northeast.longitude);
 
-            this.worldMapMetadata.minWidthPerTile = 5000;
-            this.worldMapMetadata.minHeightPerTile = 5000;
-            grid.forEach((row) => {
-                row.forEach((cellIdx) => {
-                    const cell = this.worldmap.TileManager.grid[cellIdx.row][cellIdx.column];
-                    if (cell.tileIndex !== -1 && cell.elevationmap && cell.elevationmap.Rows !== 0 && cell.elevationmap.Columns !== 0) {
-                        this.worldMapMetadata.minWidthPerTile = Math.min(cell.elevationmap.Columns, this.worldMapMetadata.minWidthPerTile);
-                        this.worldMapMetadata.minHeightPerTile = Math.min(cell.elevationmap.Rows, this.worldMapMetadata.minHeightPerTile);
-                    }
-                });
-            });
+            this.worldMapMetadata.minWidthPerTile = lookup.minWidthPerTile;
+            this.worldMapMetadata.minHeightPerTile = lookup.minHeightPerTile;
 
-            if (this.worldMapMetadata.minWidthPerTile === 5000) this.worldMapMetadata.minWidthPerTile = DefaultTileSize;
-            if (this.worldMapMetadata.minHeightPerTile === 5000) this.worldMapMetadata.minHeightPerTile = DefaultTileSize;
-
-            const worldWidth = this.worldMapMetadata.minWidthPerTile * grid[0].length;
-            const worldHeight = this.worldMapMetadata.minHeightPerTile * grid.length;
+            const worldWidth = this.worldMapMetadata.minWidthPerTile * lookup.grid[0].length;
+            const worldHeight = this.worldMapMetadata.minHeightPerTile * lookup.grid.length;
             this.cachedElevationData.cpuData = new Float32Array(worldWidth * worldHeight);
-            let yOffset = 0;
+            let targetIndex = 0;
 
-            grid.forEach((row) => {
+            lookup.grid.forEach((row) => {
                 for (let y = 0; y < this.worldMapMetadata.minHeightPerTile; y++) {
-                    let xOffset = 0;
-
-                    for (let x = 0; x < row.length; ++x) {
-                        const cellIdx = row[x];
+                    for (let gridX = 0; gridX < row.length; ++gridX) {
+                        const cellIdx = row[gridX];
                         const cell = this.worldmap.TileManager.grid[cellIdx.row][cellIdx.column];
-                        for (let x = 0; x < this.worldMapMetadata.minWidthPerTile; x++) {
-                            const index = (y + yOffset) * worldWidth + xOffset + x;
 
-                            if (cell.tileIndex === -1) {
-                                this.cachedElevationData.cpuData[index] = WaterElevation;
-                            } else if (cell.elevationmap.ElevationMap === undefined) {
-                                this.cachedElevationData.cpuData[index] = UnknownElevation;
-                            } else {
-                                this.cachedElevationData.cpuData[index] = cell.elevationmap.ElevationMap[y * cell.elevationmap.Columns + x];
+                        // share subsampling error between all sides of the tile
+                        const tileOffset = [0, 0];
+                        if (cell.tileIndex !== -1 && cell.elevationmap.ElevationMap !== undefined) {
+                            if (cell.elevationmap.Rows > this.worldMapMetadata.minHeightPerTile) {
+                                const rowDelta = cell.elevationmap.Rows - this.worldMapMetadata.minHeightPerTile;
+                                tileOffset[1] = Math.ceil(rowDelta / 2);
+                            }
+
+                            if (cell.elevationmap.Columns > this.worldMapMetadata.minWidthPerTile) {
+                                const columnDelta = cell.elevationmap.Columns - this.worldMapMetadata.minWidthPerTile;
+                                tileOffset[0] = Math.ceil(columnDelta / 2);
                             }
                         }
 
-                        xOffset += this.worldMapMetadata.minWidthPerTile;
+                        for (let x = 0; x < this.worldMapMetadata.minWidthPerTile; x++) {
+                            if (cell.tileIndex === -1) {
+                                this.cachedElevationData.cpuData[targetIndex] = WaterElevation;
+                            } else if (cell.elevationmap.ElevationMap === undefined) {
+                                this.cachedElevationData.cpuData[targetIndex] = UnknownElevation;
+                            } else {
+                                this.cachedElevationData.cpuData[targetIndex] = cell.elevationmap.ElevationMap[(y + tileOffset[1]) * cell.elevationmap.Columns + x + tileOffset[0]];
+                            }
+
+                            targetIndex += 1;
+                        }
                     }
                 }
-
-                yOffset += this.worldMapMetadata.minHeightPerTile;
             });
 
             // update the world map metadata for the rendering
@@ -533,7 +530,7 @@ class MapHandler {
             // some GPU drivers require the flush call to release internal memory
             if (GpuProcessingActive) this.uploadWorldMapToGPU.context.flush();
 
-            this.worldmap.TileManager.cleanupElevationCache(grid);
+            this.worldmap.TileManager.cleanupElevationCache(lookup.grid);
             this.cachedElevationData.cachedTiles = relevantTileCount;
         }
 
@@ -551,7 +548,7 @@ class MapHandler {
                 this.currentGroundTruthPosition.latitude,
                 this.currentGroundTruthPosition.longitude,
             );
-            grid.forEach((row, rowIdx) => {
+            lookup.grid.forEach((row, rowIdx) => {
                 if (row[0].row === egoIndex.row) {
                     row.forEach((cell, columnIdx) => {
                         if (cell.column === egoIndex.column) {
@@ -575,10 +572,17 @@ class MapHandler {
         }
 
         // calculate the pixel movement out of the current position
-        const latStep = this.worldmap.GridData.latitudeStep / this.worldMapMetadata.minHeightPerTile;
-        const longStep = this.worldmap.GridData.longitudeStep / this.worldMapMetadata.minWidthPerTile;
-        const latPixelDelta = (this.aircraftStatus.latitude - latitude) / latStep;
-        const longPixelDelta = (longitude - this.aircraftStatus.longitude) / longStep;
+        const step = degreesPerPixel(
+            this.worldMapMetadata.southwest.latitude,
+            this.worldMapMetadata.southwest.longitude,
+            this.worldMapMetadata.northeast.latitude,
+            this.worldMapMetadata.northeast.longitude,
+            this.aircraftStatus.latitude,
+            this.worldMapMetadata.width,
+            this.worldMapMetadata.height,
+        );
+        const latPixelDelta = (this.currentGroundTruthPosition.latitude - latitude) / step[0];
+        const longPixelDelta = (longitude - this.currentGroundTruthPosition.longitude) / step[1];
 
         // calculate the map index
         let index = (this.worldMapMetadata.currentGridPosition.y + latPixelDelta) * this.worldMapMetadata.width;
@@ -703,26 +707,26 @@ class MapHandler {
     }
 
     private calculateAbsoluteCutOffAltitude(): number {
-        if (this.aircraftStatus === null || this.aircraftStatus.destinationDataValid === false) {
+        if (this.aircraftStatus === null || this.aircraftStatus.runwayDataValid === false) {
             return HistogramMinimumElevation;
         }
 
-        const destinationElevation = this.extractElevation(this.aircraftStatus.destinationLatitude, this.aircraftStatus.destinationLongitude);
+        const runwayElevation = this.extractElevation(this.aircraftStatus.runwayLatitude, this.aircraftStatus.runwayLongitude);
 
-        if (destinationElevation !== InvalidElevation) {
+        if (runwayElevation !== InvalidElevation) {
             let cutOffAltitude = RenderingCutOffAltitudeMaximum;
 
             const distance = distanceWgs84(
                 this.aircraftStatus.latitude,
                 this.aircraftStatus.longitude,
-                this.aircraftStatus.destinationLatitude,
-                this.aircraftStatus.destinationLongitude,
+                this.aircraftStatus.runwayLatitude,
+                this.aircraftStatus.runwayLongitude,
             );
             if (distance <= RenderingMaxAirportDistance) {
                 const distanceFeet = distance * FeetPerNauticalMile;
 
                 // calculate the glide until touchdown
-                const opposite = this.aircraftStatus.altitude - destinationElevation;
+                const opposite = this.aircraftStatus.altitude - runwayElevation;
                 let glideRadian = 0.0;
                 if (opposite > 0 && distance > 0) {
                     // calculate the glide slope, opposite [ft] -> distance needs to be converted to feet
@@ -746,7 +750,7 @@ class MapHandler {
                 }
             }
 
-            return cutOffAltitude;
+            return runwayElevation + cutOffAltitude;
         }
 
         return HistogramMinimumElevation;

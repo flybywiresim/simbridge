@@ -18,6 +18,14 @@ export interface TileData {
     grid: ElevationGrid,
 }
 
+export interface GridLookupData {
+    southwest: { latitude: number; longitude: number },
+    northeast: { latitude: number; longitude: number },
+    grid: { row: number; column: number }[][],
+    minWidthPerTile: number,
+    minHeightPerTile: number,
+}
+
 export class Worldmap {
     public GridData: GridDefinition = {
         rows: 0,
@@ -52,10 +60,29 @@ export class Worldmap {
         });
     }
 
-    public createGridLookupTable(position: PositionData): { row: number; column: number }[][] {
-        const [southwestLat, southwestLong] = projectWgs84(position.latitude, position.longitude, 225, this.VisibilityRange * 1852);
+    public createGridLookupTable(position: PositionData, maxWidth: number, maxHeight: number, defaultTileSize: number): GridLookupData {
+        const south = projectWgs84(position.latitude, position.longitude, 180, this.VisibilityRange * 1852)[0];
+        const southwest = projectWgs84(position.latitude, position.longitude, 225, this.VisibilityRange * 1852);
+        const west = projectWgs84(position.latitude, position.longitude, 270, this.VisibilityRange * 1852)[1];
+        const north = projectWgs84(position.latitude, position.longitude, 0, this.VisibilityRange * 1852)[0];
+        const east = projectWgs84(position.latitude, position.longitude, 90, this.VisibilityRange * 1852)[1];
+        const northeast = projectWgs84(position.latitude, position.longitude, 45, this.VisibilityRange * 1852);
+
+        let southwestLat = Math.min(south, southwest[0]);
+        let northeastLat = Math.max(north, northeast[0]);
+        let southwestLong = Math.min(west, southwest[1]);
+        let northeastLong = Math.min(east, northeast[1]);
+
+        // handle the 180 degree wrap around for the western coordinate
+        if (west * southwest[1] < 0) {
+            southwestLong = Math.max(west, southwest[1]);
+        }
+        // handle the 180 degree wrap around for the eastern coordinate
+        if (east * northeast[1] < 0) {
+            northeastLong = Math.max(east, northeast[1]);
+        }
+
         const southwestGrid = this.worldMapIndices(southwestLat, southwestLong);
-        const [northeastLat, northeastLong] = projectWgs84(position.latitude, position.longitude, 45, this.VisibilityRange * 1852);
         const northeastGrid = this.worldMapIndices(northeastLat, northeastLong);
 
         let rowCount = northeastGrid.row - southwestGrid.row;
@@ -78,21 +105,78 @@ export class Worldmap {
         columnCount += 1;
 
         // create the look up table and sort from north->south and west->east
-        const retval = new Array(rowCount);
+        const grid = new Array(rowCount);
         for (let y = 0; y < rowCount; ++y) {
             let row = southwestGrid.row + rowDirection * y;
             // ensure that the row index is not outside of bounds
             if (row < 0) row = Math.abs(row);
             if (row >= this.TileManager.grid.length) row -= this.TileManager.grid.length;
 
-            retval[rowCount - 1 - y] = new Array(columnCount);
+            grid[rowCount - 1 - y] = new Array(columnCount);
             for (let x = 0; x < columnCount; x++) {
                 const column = (southwestGrid.column + x) % this.TileManager.grid[0].length;
-                retval[rowCount - 1 - y][x] = { row, column };
+                grid[rowCount - 1 - y][x] = { row, column };
             }
         }
 
-        return retval;
+        // find the minimum dimensions per tile
+        let minWidthPerTile = 5000;
+        let minHeightPerTile = 5000;
+        grid.forEach((row) => {
+            row.forEach((cellIdx) => {
+                const cell = this.TileManager.grid[cellIdx.row][cellIdx.column];
+                if (cell.tileIndex !== -1) {
+                    const tile = this.terrainData.Tiles[cell.tileIndex];
+                    minWidthPerTile = Math.min(tile.GridDimension.columns, minWidthPerTile);
+                    minHeightPerTile = Math.min(tile.GridDimension.rows, minHeightPerTile);
+                }
+            });
+        });
+        if (minWidthPerTile === 5000) minWidthPerTile = defaultTileSize;
+        if (minHeightPerTile === 5000) minHeightPerTile = defaultTileSize;
+
+        const mapHeight = minHeightPerTile * grid.length;
+        const mapWidth = minWidthPerTile * grid[0].length;
+
+        // delete rows if necessary (shared clipping between top and bottom)
+        if (mapHeight > maxHeight) {
+            const clippingTileCount = Math.ceil((mapHeight - maxHeight) / minHeightPerTile);
+            const topClippingCount = Math.ceil(clippingTileCount / 2);
+            const bottomClippingCount = Math.floor(clippingTileCount / 2);
+
+            for (let i = 0; i < topClippingCount; ++i) grid.shift();
+            for (let i = 0; i < bottomClippingCount; ++i) grid.pop();
+
+            northeastLat -= this.terrainData.AngularSteps.latitude * topClippingCount;
+            southwestLat += this.terrainData.AngularSteps.latitude * bottomClippingCount;
+        }
+
+        // delete columns as necessary (shared clipping between left and right)
+        if (mapWidth > maxWidth) {
+            const clippingTileCount = Math.ceil((mapWidth - maxWidth) / minWidthPerTile);
+            const startTileClipping = Math.ceil(clippingTileCount / 2);
+            const endTileClipping = Math.floor(clippingTileCount / 2);
+
+            grid.forEach((row) => {
+                for (let i = 0; i < startTileClipping; ++i) row.shift();
+                for (let i = 0; i < endTileClipping; ++i) row.pop();
+            });
+
+            southwestLong += this.terrainData.AngularSteps.longitude * startTileClipping;
+            northeastLong -= this.terrainData.AngularSteps.longitude * endTileClipping;
+
+            // ensure correct updates at -180.0, 180.0 degree wrap around
+            if (southwestLong >= 180.0) southwestLong -= 360.0;
+            if (northeastLong < -180.0) northeastLong += 360.0;
+        }
+
+        return {
+            southwest: { latitude: southwestLat, longitude: southwestLong },
+            northeast: { latitude: northeastLat, longitude: northeastLong },
+            grid,
+            minWidthPerTile,
+            minHeightPerTile,
+        };
     }
 
     public updatePosition(relevantTiles: { row: number; column: number }[][]): boolean {

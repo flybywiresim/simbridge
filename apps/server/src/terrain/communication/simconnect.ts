@@ -241,9 +241,9 @@ export class SimConnect {
 
     private simConnectError(message: ErrorMessage): void {
         if (message !== null) {
-            console.log(`Error: ${message.id}`);
+            this.logging.error(`Error: ${message.id}`);
         } else {
-            console.log('Invalid error');
+            this.logging.error('Invalid error');
         }
     }
 
@@ -276,9 +276,9 @@ export class SimConnect {
                     heading: buffer.readInt16LE(13),
                     verticalSpeed: buffer.readInt16LE(15),
                     gearIsDown: buffer.readUInt8(17) !== 0,
-                    destinationDataValid: buffer.readUInt8(18) !== 0,
-                    destinationLatitude: buffer.readFloatLE(19),
-                    destinationLongitude: buffer.readFloatLE(23),
+                    runwayDataValid: buffer.readUInt8(18) !== 0,
+                    runwayLatitude: buffer.readFloatLE(19),
+                    runwayLongitude: buffer.readFloatLE(23),
                     navigationDisplayCapt: {
                         range: buffer.readUInt16LE(27),
                         arcMode: buffer.readUInt8(29) !== 0,
