@@ -424,6 +424,8 @@ export class NavigationDisplayRenderer {
         startAngle: number,
         endAngle: number,
     ): Uint8ClampedArray {
+        if (newFrame === null) return null;
+
         const result = new Uint8ClampedArray(this.configuration.mapWidth * RenderingColorChannelCount * this.configuration.mapHeight);
 
         // access data as uint32-array for performance reasons
