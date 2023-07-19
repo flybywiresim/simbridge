@@ -9,13 +9,13 @@ import { ElevationSamplePathDto } from './dto/elevationsamplepath.dto';
 export class TerrainService implements OnApplicationShutdown {
     private readonly logger = new Logger(TerrainService.name);
 
-    private mapHandler: Worker = null;
+    private terrainWorker: Worker = null;
 
     private frameDataCallbacks: ((side: DisplaySide, data: { timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }) => boolean)[] = [];
 
     constructor() {
-        this.mapHandler = new Worker(path.resolve(__dirname, './processing/maphandler.js'));
-        this.mapHandler.on('message', (data: WorkerToMainThreadMessage) => {
+        this.terrainWorker = new Worker(path.resolve(__dirname, './processing/terrainworker.js'));
+        this.terrainWorker.on('message', (data: WorkerToMainThreadMessage) => {
             if (data.type === WorkerToMainThreadMessageTypes.FrameData) {
                 const response = data.content as { side: DisplaySide, timestamp: number, thresholds: NavigationDisplayThresholdsDto, frames: Uint8ClampedArray[] };
 
@@ -40,28 +40,28 @@ export class TerrainService implements OnApplicationShutdown {
 
     onApplicationShutdown(_signal?: string) {
         this.logger.log(`Destroying ${TerrainService.name}`);
-        if (this.mapHandler) {
-            this.mapHandler.postMessage({ type: MainToWorkerThreadMessageTypes.Shutdown });
-            this.mapHandler.terminate();
-            this.mapHandler = null;
+        if (this.terrainWorker) {
+            this.terrainWorker.postMessage({ type: MainToWorkerThreadMessageTypes.Shutdown });
+            this.terrainWorker.terminate();
+            this.terrainWorker = null;
         }
     }
 
     public async frameData(display: DisplaySide): Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }> {
-        if (!this.mapHandler) return undefined;
+        if (!this.terrainWorker) return undefined;
 
         return new Promise<{ timestamp: number, frames: Uint8ClampedArray[], thresholds: NavigationDisplayThresholdsDto }>((resolve, _reject) => {
             this.frameDataCallbacks.push((side, data) => {
                 if (side === display) resolve(data);
                 return side === display;
             });
-            this.mapHandler.postMessage({ type: MainToWorkerThreadMessageTypes.FrameData, content: display });
+            this.terrainWorker.postMessage({ type: MainToWorkerThreadMessageTypes.FrameData, content: display });
         });
     }
 
     public updateFlightPath(display: DisplaySide, path: ElevationSamplePathDto): void {
-        if (this.mapHandler) {
-            this.mapHandler.postMessage({
+        if (this.terrainWorker) {
+            this.terrainWorker.postMessage({
                 type: MainToWorkerThreadMessageTypes.VerticalDisplayPath,
                 content: path,
             });
