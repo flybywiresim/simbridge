@@ -193,6 +193,11 @@ export class NavigationDisplayRenderer {
         startRendering ||= lastConfig !== null && (lastConfig.efisMode !== config.efisMode);
 
         this.configuration = config;
+        if (lastConfig !== null) {
+            this.configuration.mapWidth = lastConfig.mapWidth;
+            this.configuration.mapHeight = lastConfig.mapHeight;
+            this.configuration.mapOffsetX = lastConfig.mapOffsetX;
+        }
 
         if (stopRendering || startRendering) {
             this.resetData = true;
