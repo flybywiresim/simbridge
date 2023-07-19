@@ -78,7 +78,7 @@ class TerrainWorker {
     }
 
     private updateRendering(side: DisplaySide, status: AircraftStatus) {
-        if (this.displayRendering.L.navigationDisplay === null) return;
+        if (this.displayRendering[side].navigationDisplay === null) return;
 
         const configuration = side === DisplaySide.Left ? status.navigationDisplayCapt : status.navigationDisplayFO;
         const lastConfig = this.displayRendering[side].navigationDisplay.displayConfiguration();
