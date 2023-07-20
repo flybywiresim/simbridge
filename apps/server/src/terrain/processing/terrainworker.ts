@@ -101,16 +101,7 @@ class TerrainWorker {
             this.displayRendering[side].navigationDisplay.reset();
 
             // reset also the aircraft data
-            this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, {
-                MinimumElevation: -1,
-                MinimumElevationMode: TerrainLevelMode.PeaksMode,
-                MaximumElevation: -1,
-                MaximumElevationMode: TerrainLevelMode.PeaksMode,
-                FirstFrame: true,
-                DisplayRange: 0,
-                DisplayMode: 0,
-                FrameByteCount: 0,
-            });
+            this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, this.displayRendering[side].navigationDisplay.displayData());
         }
 
         this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
