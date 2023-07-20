@@ -209,10 +209,9 @@ class TerrainWorker {
                 this.displayRendering.L.navigationDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Left, true);
                 this.displayRendering.R.navigationDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Right, true);
 
-                const elevationMap = this.mapHandler.createLocalElevationMap(startupNdConfigL);
                 Promise.all([
-                    this.displayRendering.L.navigationDisplay.initialize(elevationMap),
-                    this.displayRendering.R.navigationDisplay.initialize(elevationMap),
+                    this.displayRendering.L.navigationDisplay.initialize(),
+                    this.displayRendering.R.navigationDisplay.initialize(),
                 ]).then((ndInitialized) => {
                     if (ndInitialized[0] === true && ndInitialized[1] === true) {
                         this.logging.info('Initialized the ND renderers');
@@ -306,8 +305,7 @@ class TerrainWorker {
             this.displayRendering[side].durationInterval = null;
         }
 
-        const localMap = this.mapHandler.createLocalElevationMap(this.displayRendering[side].navigationDisplay.displayConfiguration());
-        this.displayRendering[side].navigationDisplay.startNewMapCycle(localMap);
+        this.displayRendering[side].navigationDisplay.startNewMapCycle();
         this.displayRendering[side].cycleData.frames = [];
 
         this.displayRendering[side].durationInterval = setInterval(() => {

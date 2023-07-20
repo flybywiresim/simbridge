@@ -74,8 +74,6 @@ export class NavigationDisplayRenderer {
 
     private aircraftStatus: AircraftStatus = null;
 
-    private resetData: boolean = true;
-
     private renderingData: {
         startAngle: number,
         currentAngle: number,
@@ -180,8 +178,8 @@ export class NavigationDisplayRenderer {
         this.renderer.destroy();
     }
 
-    public async initialize(elevationMap: Texture): Promise<boolean> {
-        this.startNewMapCycle(elevationMap);
+    public async initialize(): Promise<boolean> {
+        this.startNewMapCycle();
         return true;
     }
 
@@ -200,8 +198,6 @@ export class NavigationDisplayRenderer {
         }
 
         if (stopRendering || startRendering) {
-            this.resetData = true;
-
             this.renderingData.thresholdData = {
                 MinimumElevation: -1,
                 MinimumElevationMode: TerrainLevelMode.PeaksMode,
@@ -503,16 +499,12 @@ export class NavigationDisplayRenderer {
         };
     }
 
-    public startNewMapCycle(elevationMap: Texture): void {
-        if (this.resetData) {
-            this.reset();
-            this.resetData = false;
-        }
-
+    public startNewMapCycle(): void {
         this.configuration.mapWidth = this.configuration.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
         this.configuration.mapHeight = this.configuration.arcMode ? NavigationDisplayArcModePixelHeight : NavigationDisplayRoseModePixelHeight;
         this.configuration.mapOffsetX = Math.round((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
 
+        const elevationMap = this.maphandler.createLocalElevationMap(this.configuration);
         const histogram = this.createElevationHistogram(elevationMap);
         const cutOffAltitude = this.calculateAbsoluteCutOffAltitude();
 
@@ -543,11 +535,6 @@ export class NavigationDisplayRenderer {
     }
 
     public render(): boolean {
-        if (this.resetData) {
-            this.reset();
-            this.resetData = false;
-        }
-
         switch (this.aircraftStatus.navigationDisplayRenderingMode) {
         case TerrainRenderingMode.ArcMode:
             this.arcModeTransition();
