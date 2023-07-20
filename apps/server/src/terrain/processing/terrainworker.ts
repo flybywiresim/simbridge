@@ -275,19 +275,21 @@ class TerrainWorker {
         const destination = new Uint32Array(result.buffer);
         // UInt32-version of RGBA (4, 4, 5, 255)
         destination.fill(4278518788);
-        const source = new Uint32Array(navigationDisplay.buffer);
 
-        const displayConfiguration = this.displayRendering[side].navigationDisplay.displayConfiguration();
+        if (navigationDisplay !== null) {
+            const source = new Uint32Array(navigationDisplay.buffer);
+            const displayConfiguration = this.displayRendering[side].navigationDisplay.displayConfiguration();
 
-        // manual iteration is 2x faster compared to splice
-        for (let y = 0; y < displayConfiguration.mapHeight; ++y) {
-            let destinationIndex = (NavigationDisplayMapStartOffsetY + y) * NavigationDisplayMaxPixelWidth + displayConfiguration.mapOffsetX;
-            let sourceIndex = y * displayConfiguration.mapWidth;
+            // manual iteration is 2x faster compared to splice
+            for (let y = 0; y < displayConfiguration.mapHeight; ++y) {
+                let destinationIndex = (NavigationDisplayMapStartOffsetY + y) * NavigationDisplayMaxPixelWidth + displayConfiguration.mapOffsetX;
+                let sourceIndex = y * displayConfiguration.mapWidth;
 
-            for (let x = 0; x < displayConfiguration.mapWidth; ++x) {
-                destination[destinationIndex] = source[sourceIndex];
-                destinationIndex++;
-                sourceIndex++;
+                for (let x = 0; x < displayConfiguration.mapWidth; ++x) {
+                    destination[destinationIndex] = source[sourceIndex];
+                    destinationIndex++;
+                    sourceIndex++;
+                }
             }
         }
 
