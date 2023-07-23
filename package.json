@@ -1,6 +1,6 @@
 {
 	"name": "fbw-simbridge",
-	"version": "0.4.2",
+	"version": "0.4.3",
 	"description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
 	"author": "",
 	"private": false,
