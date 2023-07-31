@@ -302,10 +302,13 @@ export function renderNavigationDisplay(
         if (this.thread.y < height) {
             // find highest elevation in 8x8 patch to simulate the lower resolution of the real system
             const patchXStart = pixelX - (pixelX % 8);
+            const patchXEnd = Math.min(width, patchXStart + 8);
             const patchYStart = this.thread.y - (this.thread.y % 8);
-            for (let y = 0; y < 8; ++y) {
-                for (let x = 0; x < 8; ++x) {
-                    const currentElevation = elevationGrid[y + patchYStart][x + patchXStart];
+            const patchYEnd = Math.min(height, patchYStart + 8);
+
+            for (let y = patchYStart; y < patchYEnd; ++y) {
+                for (let x = patchXStart; x < patchXEnd; ++x) {
+                    const currentElevation = elevationGrid[y][x];
                     if (currentElevation > pixelElevation && currentElevation !== this.constants.invalidElevation) {
                         pixelElevation = currentElevation;
                     }
