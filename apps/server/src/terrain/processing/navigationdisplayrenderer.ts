@@ -391,9 +391,9 @@ export class NavigationDisplayRenderer {
         if (elevationMap === null || histogram === null) return null;
 
         if (this.renderer.output === null
-            || this.renderer.output[0] !== this.configuration.mapWidth
-            || this.renderer.output[1] !== this.configuration.mapHeight) {
-            this.renderer = this.renderer.setOutput([this.configuration.mapWidth * RenderingColorChannelCount, this.configuration.mapWidth + 1]);
+            || this.renderer.output[0] !== (this.configuration.mapWidth * RenderingColorChannelCount)
+            || this.renderer.output[1] !== (this.configuration.mapHeight + 1)) {
+            this.renderer = this.renderer.setOutput([this.configuration.mapWidth * RenderingColorChannelCount, this.configuration.mapHeight + 1]);
         }
 
         const terrainmap = this.renderer(
