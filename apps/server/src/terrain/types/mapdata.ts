@@ -12,3 +12,11 @@ export interface TileData {
     column: number,
     grid: ElevationGrid,
 }
+
+export interface GridLookupData {
+    southwest: { latitude: number; longitude: number },
+    northeast: { latitude: number; longitude: number },
+    grid: { row: number; column: number }[][],
+    minWidthPerTile: number,
+    minHeightPerTile: number,
+}

@@ -271,11 +271,11 @@ export class NavigationDisplayRenderer {
     }
 
     private calculateAbsoluteCutOffAltitude(): number {
-        if (this.aircraftStatus === null || this.aircraftStatus.destinationDataValid === false) {
+        if (this.aircraftStatus === null || this.aircraftStatus.runwayDataValid === false) {
             return HistogramMinimumElevation;
         }
 
-        const destinationElevation = this.maphandler.extractElevation(this.aircraftStatus.destinationLatitude, this.aircraftStatus.destinationLongitude);
+        const destinationElevation = this.maphandler.extractElevation(this.aircraftStatus.runwayLatitude, this.aircraftStatus.runwayLongitude);
 
         if (destinationElevation !== InvalidElevation) {
             let cutOffAltitude = RenderingCutOffAltitudeMaximum;
@@ -283,8 +283,8 @@ export class NavigationDisplayRenderer {
             const distance = distanceWgs84(
                 this.aircraftStatus.latitude,
                 this.aircraftStatus.longitude,
-                this.aircraftStatus.destinationLatitude,
-                this.aircraftStatus.destinationLongitude,
+                this.aircraftStatus.runwayLatitude,
+                this.aircraftStatus.runwayLongitude,
             );
             if (distance <= RenderingMaxAirportDistance) {
                 const distanceFeet = distance * FeetPerNauticalMile;
