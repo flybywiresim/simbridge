@@ -502,7 +502,7 @@ export class NavigationDisplayRenderer {
     public startNewMapCycle(): void {
         this.configuration.mapWidth = this.configuration.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
         this.configuration.mapHeight = this.configuration.arcMode ? NavigationDisplayArcModePixelHeight : NavigationDisplayRoseModePixelHeight;
-        this.configuration.mapOffsetX = Math.round((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
+        this.configuration.mapOffsetX = Math.ceil((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
 
         const elevationMap = this.maphandler.createLocalElevationMap(this.configuration);
         const histogram = this.createElevationHistogram(elevationMap);
