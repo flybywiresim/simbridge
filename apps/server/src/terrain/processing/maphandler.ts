@@ -169,7 +169,6 @@ export class MapHandler {
     private async readTerrainMap(): Promise<TerrainMap | undefined> {
         try {
             const buffer = await readFile('./terrain/terrain.map');
-            // const buffer = await fileService.getFile('terrain/', 'terrain.map');
             this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
             return new TerrainMap(buffer);
         } catch (err) {
@@ -226,14 +225,6 @@ export class MapHandler {
                 latitude: 47.26081085205078,
                 longitude: 11.349658966064453,
             };
-            // const startupProfile: ElevationProfile = {
-            //     pathWidth: 4.0,
-            //     waypointsLatitudes: [45.030668, 46.978744],
-            //     waypointsLongitudes: [12.815273, 8.975899],
-            //     range: 20.0,
-            // };
-            // this.navigationDisplayRendering.L.profile = startupProfile;
-            // this.navigationDisplayRendering.R.profile = startupProfile;
 
             // run all process steps to precompile the kernels
             this.aircraftStatusUpdate(startupStatus);
