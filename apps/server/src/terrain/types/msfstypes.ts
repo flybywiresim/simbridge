@@ -1,6 +1,6 @@
 export enum TerrainRenderingMode {
     ArcMode = 0,
-    VerticalMode = 1,
+    ScanlineMode = 1,
 }
 
 export interface NavigationDisplay {
