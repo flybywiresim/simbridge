@@ -225,7 +225,7 @@ export class NavigationDisplayRenderer {
                 if (startup === false) this.logging.info('Scanline-mode rendering activated');
                 break;
             default:
-                if (startup === false) this.logging.error('No known rendering mode selected');
+                if (startup === false) this.logging.error(`No known rendering mode selected: ${status.navigationDisplayRenderingMode}`);
                 break;
             }
 
