@@ -75,16 +75,16 @@ export class NavigationDisplayRenderer {
     private aircraftStatus: AircraftStatus = null;
 
     private renderingData: {
-        startAngle: number,
-        currentAngle: number,
+        startTransitionBorder: number,
+        currentTransitionBorder: number,
         frameCounter: number,
         thresholdData: NavigationDisplayData,
         finalFrame: Uint8ClampedArray,
         lastFrame: Uint8ClampedArray,
         currentFrame: Uint8ClampedArray,
     } = {
-        startAngle: 0,
-        currentAngle: 0,
+        startTransitionBorder: 0,
+        currentTransitionBorder: 0,
         frameCounter: 0,
         thresholdData: null,
         finalFrame: null,
@@ -462,21 +462,21 @@ export class NavigationDisplayRenderer {
         this.renderingData.thresholdData.DisplayRange = this.configuration.range;
         this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
-        this.renderingData.currentAngle += RenderingMapTransitionAngularStep;
+        this.renderingData.currentTransitionBorder += RenderingMapTransitionAngularStep;
 
-        if (this.renderingData.currentAngle < 90) {
+        if (this.renderingData.currentTransitionBorder < 90) {
             this.renderingData.currentFrame = this.arcModeTransitionFrame(
                 this.renderingData.lastFrame,
                 this.renderingData.finalFrame,
-                this.renderingData.startAngle,
-                this.renderingData.currentAngle,
+                this.renderingData.startTransitionBorder,
+                this.renderingData.currentTransitionBorder,
             );
         } else {
-            if (this.renderingData.currentAngle - RenderingMapTransitionAngularStep < 90) {
+            if (this.renderingData.currentTransitionBorder - RenderingMapTransitionAngularStep < 90) {
                 this.renderingData.currentFrame = this.arcModeTransitionFrame(
                     this.renderingData.lastFrame,
                     this.renderingData.finalFrame,
-                    this.renderingData.startAngle,
+                    this.renderingData.startTransitionBorder,
                     90,
                 );
             }
@@ -488,8 +488,8 @@ export class NavigationDisplayRenderer {
 
     public reset(): void {
         this.renderingData = {
-            startAngle: 0,
-            currentAngle: 0,
+            startTransitionBorder: 0,
+            currentTransitionBorder: 0,
             frameCounter: 0,
             thresholdData: {
                 MinimumElevation: -1,
@@ -534,12 +534,12 @@ export class NavigationDisplayRenderer {
             const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 
-            this.renderingData.startAngle = Math.floor(90 * ratioSinceLastFrame);
+            this.renderingData.startTransitionBorder = Math.floor(90 * ratioSinceLastFrame);
         } else {
-            this.renderingData.startAngle = 0;
+            this.renderingData.startTransitionBorder = 0;
         }
 
-        this.renderingData.currentAngle = this.renderingData.startAngle;
+        this.renderingData.currentTransitionBorder = this.renderingData.startTransitionBorder;
     }
 
     public render(): boolean {
@@ -552,7 +552,7 @@ export class NavigationDisplayRenderer {
             break;
         }
 
-        return this.renderingData.currentAngle >= 90;
+        return this.renderingData.currentTransitionBorder >= 90;
     }
 
     public displayConfiguration(): NavigationDisplay {
