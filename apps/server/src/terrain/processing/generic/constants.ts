@@ -24,3 +24,4 @@ export const NavigationDisplayMaxPixelHeight = Math.max(NavigationDisplayArcMode
 export const RenderingMapTransitionDeltaTime = 40;
 export const RenderingMapTransitionDuration = 1000;
 export const RenderingMapUpdateTimeout = 1500;
+export const RenderingMapFrameValidityTime = RenderingMapTransitionDuration + RenderingMapUpdateTimeout;

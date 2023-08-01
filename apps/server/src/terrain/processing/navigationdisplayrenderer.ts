@@ -8,9 +8,9 @@ import {
     NavigationDisplayMaxPixelWidth,
     NavigationDisplayRoseModePixelHeight,
     RenderingColorChannelCount,
+    RenderingMapFrameValidityTime,
     RenderingMapTransitionDeltaTime,
     RenderingMapTransitionDuration,
-    RenderingMapUpdateTimeout,
     ThreeNauticalMilesInFeet,
     UnknownElevation,
     WaterElevation,
@@ -56,7 +56,6 @@ const RenderingNormalModeHighDensityRedOffset = 2000;
 const RenderingGearDownOffset = 250;
 const RenderingNonGearDownOffset = 500;
 const RenderingDensityPatchSize = 13;
-const RenderingMapFrameValidityTime = RenderingMapTransitionDuration + RenderingMapUpdateTimeout;
 const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
 
 export class NavigationDisplayRenderer {
