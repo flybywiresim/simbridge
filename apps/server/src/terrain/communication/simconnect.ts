@@ -18,8 +18,7 @@ import {
     SystemEventPauseType,
 } from '@flybywiresim/msfs-nodejs';
 import { Logger } from '../processing/logging/logger';
-import { NavigationDisplayData } from '../processing/navigationdisplaydata';
-import { AircraftStatus, PositionData, TerrainRenderingMode } from './types';
+import { NavigationDisplayData, AircraftStatus, PositionData, TerrainRenderingMode } from '../types';
 
 export type UpdateCallbacks = {
     reset: () => void;

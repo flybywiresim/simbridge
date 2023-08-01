@@ -1,5 +1,5 @@
-import { normalizeHeading, projectWgs84 } from './helper';
-import { degreesPerPixel, rad2deg } from '../generic/helper';
+import { normalizeHeading, projectWgs84, wgs84toPixelCoordinate } from './helper';
+import { rad2deg } from '../generic/helper';
 import { LocalElevationMapParameters } from './interfaces';
 
 export function createLocalElevationMap(
@@ -42,35 +42,23 @@ export function createLocalElevationMap(
     bearing = normalizeHeading(bearing + heading);
 
     const projected = projectWgs84(latitude, longitude, bearing, distance);
-    const step = degreesPerPixel(
+    const pixel = wgs84toPixelCoordinate(
+        latitude,
+        projected[0],
+        projected[1],
+        groundTruthLatitude,
+        groundTruthLongitude,
         worldMapSouthwestLat,
         worldMapSouthwestLong,
         worldMapNortheastLat,
         worldMapNortheastLong,
-        latitude,
         worldMapWidth,
         worldMapHeight,
+        currentWorldGridX,
+        currentWorldGridY,
     );
 
-    // calculate the pixel movement out of the current position
-    const latPixelDelta = (groundTruthLatitude - projected[0]) / step[0];
+    if (pixel[1] < 0 || pixel[1] >= worldMapHeight || pixel[0] < 0 || pixel[0] >= worldMapWidth) return this.constants.unknownElevation;
 
-    // calculate the pixel delta and check for wrap around situation at 180 deg
-    let longPixelDelta = 0.0;
-    if (Math.abs(projected[1] - groundTruthLongitude) >= 180.0) {
-        if (projected[1] > groundTruthLatitude) {
-            longPixelDelta = 180.0 - projected[1] + Math.abs(groundTruthLongitude) - 180.0;
-        } else {
-            longPixelDelta = 180.0 - groundTruthLongitude + Math.abs(projected[1]) - 180.0;
-        }
-    } else {
-        longPixelDelta = projected[1] - groundTruthLongitude;
-    }
-    longPixelDelta /= step[1];
-
-    const y = currentWorldGridY + latPixelDelta;
-    const x = currentWorldGridX + longPixelDelta;
-    if (y < 0 || y > worldMapHeight || x < 0 || x > worldMapWidth) return this.constants.unknownElevation;
-
-    return worldMap[y][x];
+    return worldMap[pixel[1]][pixel[0]];
 }

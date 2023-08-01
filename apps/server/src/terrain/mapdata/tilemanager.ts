@@ -1,5 +1,5 @@
 import { fastFlatten } from '../processing/generic/helper';
-import { ElevationGrid } from '../fileformat/elevationgrid';
+import { ElevationGrid } from '../types';
 import { Worldmap } from './worldmap';
 import { TerrainMap } from '../fileformat/terrainmap';
 
