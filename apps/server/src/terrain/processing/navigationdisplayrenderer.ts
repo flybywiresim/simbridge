@@ -458,7 +458,7 @@ export class NavigationDisplayRenderer {
         return result;
     }
 
-    private arcModeTransition(): void {
+    private arcModeTransition(): boolean {
         this.renderingData.thresholdData.DisplayRange = this.configuration.range;
         this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
@@ -471,18 +471,25 @@ export class NavigationDisplayRenderer {
                 this.renderingData.startTransitionBorder,
                 this.renderingData.currentTransitionBorder,
             );
-        } else {
-            if (this.renderingData.currentTransitionBorder - RenderingMapTransitionAngularStep < 90) {
-                this.renderingData.currentFrame = this.arcModeTransitionFrame(
-                    this.renderingData.lastFrame,
-                    this.renderingData.finalFrame,
-                    this.renderingData.startTransitionBorder,
-                    90,
-                );
-            }
 
-            // do not overwrite the last frame of the initialization
-            this.renderingData.lastFrame = this.renderingData.currentFrame;
+            return false;
+        }
+
+        // perform the last frame
+        if (this.renderingData.currentTransitionBorder - RenderingMapTransitionAngularStep < 90) {
+            this.renderingData.currentFrame = this.arcModeTransitionFrame(
+                this.renderingData.lastFrame,
+                this.renderingData.finalFrame,
+                this.renderingData.startTransitionBorder,
+                90,
+            );
+        }
+
+        // do not overwrite the last frame of the initialization
+        this.renderingData.lastFrame = this.renderingData.currentFrame;
+
+        return true;
+    }
         }
     }
 
@@ -561,16 +568,18 @@ export class NavigationDisplayRenderer {
     }
 
     public render(): boolean {
+        let renderingDone = false;
+
         switch (this.aircraftStatus.navigationDisplayRenderingMode) {
         case TerrainRenderingMode.ArcMode:
-            this.arcModeTransition();
+            renderingDone = this.arcModeTransition();
             break;
         default:
             this.logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
             break;
         }
 
-        return this.renderingData.currentTransitionBorder >= 90;
+        return renderingDone;
     }
 
     public displayConfiguration(): NavigationDisplay {
