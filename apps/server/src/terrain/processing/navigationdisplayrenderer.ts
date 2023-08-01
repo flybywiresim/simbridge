@@ -490,7 +490,66 @@ export class NavigationDisplayRenderer {
 
         return true;
     }
+
+    private scanlineModeTransitionFrame(
+        oldFrame: Uint8ClampedArray,
+        newFrame: Uint8ClampedArray,
+    ): Uint8ClampedArray {
+        if (newFrame === null) return null;
+
+        const result = new Uint8ClampedArray(this.configuration.mapWidth * RenderingColorChannelCount * this.configuration.mapHeight);
+
+        // access data as uint32-array due to performance reasons
+        const destination = new Uint32Array(result.buffer);
+        // UInt32-version of RGBA (4, 4, 5, 255)
+        destination.fill(4278518788);
+        const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
+        const newSource = new Uint32Array(newFrame.buffer);
+
+        let arrayIndex = 0;
+        for (let y = 0; y < this.configuration.mapHeight; ++y) {
+            for (let x = 0; x < this.configuration.mapWidth; ++x) {
+                if (y <= this.renderingData.startTransitionBorder && y >= this.renderingData.currentTransitionBorder) {
+                    destination[arrayIndex] = newSource[arrayIndex];
+                } else if (oldSource !== null) {
+                    destination[arrayIndex] = oldSource[arrayIndex];
+                }
+
+                arrayIndex++;
+            }
         }
+
+        return result;
+    }
+
+    private scanlineModeTransition(): boolean {
+        const verticalStep = Math.round((this.configuration.mapHeight / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
+
+        this.renderingData.thresholdData.DisplayRange = this.configuration.range;
+        this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
+        this.renderingData.currentTransitionBorder -= verticalStep;
+
+        if (this.renderingData.currentTransitionBorder > 0) {
+            this.renderingData.currentFrame = this.scanlineModeTransitionFrame(
+                this.renderingData.lastFrame,
+                this.renderingData.finalFrame,
+            );
+
+            return false;
+        }
+
+        // perform the last frame
+        if (this.renderingData.currentTransitionBorder + verticalStep > 0) {
+            this.renderingData.currentFrame = this.scanlineModeTransitionFrame(
+                this.renderingData.lastFrame,
+                this.renderingData.finalFrame,
+            );
+        }
+
+        // do not overwrite the last frame of the initialization
+        this.renderingData.lastFrame = this.renderingData.currentFrame;
+
+        return true;
     }
 
     public reset(): void {
@@ -573,6 +632,9 @@ export class NavigationDisplayRenderer {
         switch (this.aircraftStatus.navigationDisplayRenderingMode) {
         case TerrainRenderingMode.ArcMode:
             renderingDone = this.arcModeTransition();
+            break;
+        case TerrainRenderingMode.ScanlineMode:
+            renderingDone = this.scanlineModeTransition();
             break;
         default:
             this.logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
