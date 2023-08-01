@@ -534,9 +534,27 @@ export class NavigationDisplayRenderer {
             const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 
-            this.renderingData.startTransitionBorder = Math.floor(90 * ratioSinceLastFrame);
+            switch (this.aircraftStatus.navigationDisplayRenderingMode) {
+            case TerrainRenderingMode.ArcMode:
+                this.renderingData.startTransitionBorder = Math.floor(90 * ratioSinceLastFrame);
+                break;
+            case TerrainRenderingMode.ScanlineMode:
+                this.renderingData.startTransitionBorder = this.configuration.mapHeight - Math.floor(this.configuration.mapHeight * ratioSinceLastFrame);
+                break;
+            default:
+                break;
+            }
         } else {
-            this.renderingData.startTransitionBorder = 0;
+            switch (this.aircraftStatus.navigationDisplayRenderingMode) {
+            case TerrainRenderingMode.ArcMode:
+                this.renderingData.startTransitionBorder = 0;
+                break;
+            case TerrainRenderingMode.ScanlineMode:
+                this.renderingData.startTransitionBorder = this.configuration.mapHeight;
+                break;
+            default:
+                break;
+            }
         }
 
         this.renderingData.currentTransitionBorder = this.renderingData.startTransitionBorder;
