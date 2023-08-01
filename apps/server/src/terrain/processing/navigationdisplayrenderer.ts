@@ -26,7 +26,7 @@ import {
     renderNormalMode,
     renderPeaksMode,
 } from './gpu/rendering/navigationdisplay';
-import { createArcModePatternMap } from './gpu/patterns/arcmode';
+import { createArcModePatternMap, createScanlineModePatternMap } from './gpu/patterns';
 import { createElevationHistogram, createLocalElevationHistogram } from './gpu/statistics';
 import { uploadTextureData } from './gpu/upload';
 import { Logger } from './logging/logger';
@@ -213,18 +213,26 @@ export class NavigationDisplayRenderer {
 
     public aircraftStatusUpdate(status: AircraftStatus, side: DisplaySide, startup: boolean): void {
         if (this.aircraftStatus === null || status.navigationDisplayRenderingMode !== this.aircraftStatus.navigationDisplayRenderingMode || this.pixelPattern === null) {
+            let patternData: Uint8ClampedArray = null;
+
             switch (status.navigationDisplayRenderingMode) {
             case TerrainRenderingMode.ArcMode:
-                const patternData = createArcModePatternMap();
-                this.pixelPattern = this.patternUpload(patternData, NavigationDisplayMaxPixelWidth) as Texture;
-                // some GPU drivers require the flush call to release internal memory
-                if (GpuProcessingActive) this.patternUpload.context.flush();
-
+                patternData = createArcModePatternMap();
                 if (startup === false) this.logging.info('ARC-mode rendering activated');
+                break;
+            case TerrainRenderingMode.ScanlineMode:
+                patternData = createScanlineModePatternMap();
+                if (startup === false) this.logging.info('Scanline-mode rendering activated');
                 break;
             default:
                 if (startup === false) this.logging.error('No known rendering mode selected');
                 break;
+            }
+
+            if (patternData !== null) {
+                this.pixelPattern = this.patternUpload(patternData, NavigationDisplayMaxPixelWidth) as Texture;
+                // some GPU drivers require the flush call to release internal memory
+                if (GpuProcessingActive) this.patternUpload.context.flush();
             }
         }
 
