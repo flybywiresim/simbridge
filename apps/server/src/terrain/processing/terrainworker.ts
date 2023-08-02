@@ -27,6 +27,7 @@ import { Logger } from './logging/logger';
 import { ThreadLogger } from './logging/threadlogger';
 import { MapHandler } from './maphandler';
 import { NavigationDisplayRenderer } from './navigationdisplayrenderer';
+import { VerticalDisplayRenderer } from './verticaldisplayrenderer';
 
 const DisplayScreenPixelHeight = 768;
 
@@ -47,6 +48,7 @@ class TerrainWorker {
             durationInterval: NodeJS.Timer,
             startupTimestamp: number,
             navigationDisplay: NavigationDisplayRenderer,
+            verticalDisplay: VerticalDisplayRenderer,
             cycleData: {
                 timestamp: number,
                 thresholds: NavigationDisplayThresholdsDto,
@@ -105,6 +107,7 @@ class TerrainWorker {
         }
 
         this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
+        this.displayRendering[side].verticalDisplay.aircraftStatusUpdate(status, side);
 
         if (startRendering) {
             this.startNavigationDisplayRenderingCycle(side);
@@ -140,6 +143,7 @@ class TerrainWorker {
             durationInterval: null,
             startupTimestamp: startupTime,
             navigationDisplay: new NavigationDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime),
+            verticalDisplay: new VerticalDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime),
             cycleData: {
                 timestamp: 0,
                 thresholds: null,
@@ -152,6 +156,7 @@ class TerrainWorker {
             // offset the rendering to have a more realistic bahaviour
             startupTimestamp: startupTime - 1500,
             navigationDisplay: new NavigationDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime - 1500),
+            verticalDisplay: new VerticalDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime - 1500),
             cycleData: {
                 timestamp: 0,
                 thresholds: null,
@@ -203,8 +208,10 @@ class TerrainWorker {
                 Promise.all([
                     this.displayRendering.L.navigationDisplay.initialize(),
                     this.displayRendering.R.navigationDisplay.initialize(),
+                    this.displayRendering.L.verticalDisplay.initialize(),
+                    this.displayRendering.R.verticalDisplay.initialize(),
                 ]).then((ndInitialized) => {
-                    if (ndInitialized[0] === true && ndInitialized[1] === true) {
+                    if (ndInitialized.every((v) => v === true) === true) {
                         this.logging.info('Initialized the ND renderers');
                     } else {
                         this.logging.error('Unable to initialize the ND renderers');
@@ -213,6 +220,8 @@ class TerrainWorker {
                     this.mapHandler.reset();
                     this.displayRendering.L.navigationDisplay.reset();
                     this.displayRendering.R.navigationDisplay.reset();
+                    this.displayRendering.L.verticalDisplay.reset();
+                    this.displayRendering.R.verticalDisplay.reset();
 
                     this.initialized = true;
                     this.logging.info('Terrainmap worker initialized');
