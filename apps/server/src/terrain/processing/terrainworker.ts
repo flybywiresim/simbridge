@@ -233,6 +233,8 @@ class TerrainWorker {
 
                 this.displayRendering.L.navigationDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Left, true);
                 this.displayRendering.R.navigationDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Right, true);
+                this.displayRendering.L.verticalDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Left);
+                this.displayRendering.R.verticalDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Right);
 
                 Promise.all([
                     this.displayRendering.L.navigationDisplay.initialize(),
