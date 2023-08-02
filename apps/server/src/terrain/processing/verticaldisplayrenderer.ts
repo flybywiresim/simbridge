@@ -96,6 +96,11 @@ export class VerticalDisplayRenderer {
         }
     }
 
+    public pathDataUpdate(latitudes: number[], longitudes: number[]): void {
+        this.elevationConfig.waypointsLatitudes = latitudes;
+        this.elevationConfig.waypointsLongitudes = longitudes;
+    }
+
     public reset(): void {
         this.renderingData = {
             startTransitionBorder: 0,
