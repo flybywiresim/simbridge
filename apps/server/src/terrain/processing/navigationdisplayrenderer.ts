@@ -533,7 +533,7 @@ export class NavigationDisplayRenderer {
         }
 
         // perform the last frame
-        if (this.renderingData.currentTransitionBorder + verticalStep > 0) {
+        if (this.renderingData.currentTransitionBorder + verticalStep >= 0) {
             this.renderingData.currentFrame = this.scanlineModeTransitionFrame(
                 this.renderingData.lastFrame,
                 this.renderingData.finalFrame,
