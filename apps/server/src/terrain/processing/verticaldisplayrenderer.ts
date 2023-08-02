@@ -14,7 +14,7 @@ import { renderVerticalDisplay } from './gpu/rendering/verticaldisplay';
 import { VerticalDisplayConstants } from './gpu/interfaces';
 import { Logger } from './logging/logger';
 import { MapHandler } from './maphandler';
-import { AircraftStatus, DisplaySide, ElevationProfile } from '../types';
+import { AircraftStatus, DisplaySide, ElevationProfile, VerticalDisplay } from '../types';
 
 const RenderingElevationProfileWidth = 600;
 const RenderingElevationProfileHeight = 250;
@@ -28,6 +28,8 @@ export class VerticalDisplayRenderer {
         waypointsLongitudes: [],
         range: 0.0,
     };
+
+    private displayConfig: VerticalDisplay = { range: 0.0 };
 
     private renderingData: {
         startTransitionBorder: number,
@@ -87,8 +89,10 @@ export class VerticalDisplayRenderer {
     public aircraftStatusUpdate(status: AircraftStatus, side: DisplaySide): void {
         if (side === DisplaySide.Left) {
             this.elevationConfig.range = status.navigationDisplayCapt.range;
+            this.displayConfig.range = status.navigationDisplayCapt.range;
         } else {
             this.elevationConfig.range = status.navigationDisplayFO.range;
+            this.displayConfig.range = status.navigationDisplayFO.range;
         }
     }
 
@@ -108,10 +112,15 @@ export class VerticalDisplayRenderer {
             waypointsLongitudes: [],
             range: 0.0,
         };
+
+        this.displayConfig = { range: 0.0 };
     }
 
     public startNewMapCycle(): void {
         if (this.elevationConfig === null) return;
+
+        this.displayConfig.mapWidth = RenderingElevationProfileWidth;
+        this.displayConfig.mapHeight = RenderingElevationProfileHeight;
 
         // TODO get current route and check width
         const profile = this.maphandler.createElevationProfile(this.elevationConfig, 1.0);
@@ -193,6 +202,10 @@ export class VerticalDisplayRenderer {
         this.renderingData.lastFrame = this.renderingData.currentFrame;
 
         return true;
+    }
+
+    public displayConfiguration(): VerticalDisplay {
+        return this.displayConfig;
     }
 
     public currentFrame(): Uint8ClampedArray {
