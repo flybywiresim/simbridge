@@ -181,7 +181,7 @@ export class VerticalDisplayRenderer {
         const horizontalStep = Math.round((RenderingElevationProfileWidth / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
         this.renderingData.currentTransitionBorder += horizontalStep;
 
-        if (this.renderingData.currentTransitionBorder > 0) {
+        if (this.renderingData.currentTransitionBorder < RenderingElevationProfileWidth) {
             this.renderingData.currentFrame = this.transitionFrame(
                 this.renderingData.lastFrame,
                 this.renderingData.finalFrame,
