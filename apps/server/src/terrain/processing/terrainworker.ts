@@ -59,7 +59,9 @@ class TerrainWorker {
             durationInterval: NodeJS.Timer,
             startupTimestamp: number,
             navigationDisplay: NavigationDisplayRenderer,
+            renderedLastFrameNavigationDisplay: boolean,
             verticalDisplay: VerticalDisplayRenderer,
+            renderedLastFrameVerticalDisplay: boolean,
             cycleData: {
                 timestamp: number,
                 thresholds: NavigationDisplayThresholdsDto,
@@ -164,7 +166,9 @@ class TerrainWorker {
             durationInterval: null,
             startupTimestamp: startupTime,
             navigationDisplay: new NavigationDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime),
+            renderedLastFrameNavigationDisplay: false,
             verticalDisplay: new VerticalDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime),
+            renderedLastFrameVerticalDisplay: false,
             cycleData: {
                 timestamp: 0,
                 thresholds: null,
@@ -177,7 +181,9 @@ class TerrainWorker {
             // offset the rendering to have a more realistic bahaviour
             startupTimestamp: startupTime - 1500,
             navigationDisplay: new NavigationDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime - 1500),
+            renderedLastFrameNavigationDisplay: false,
             verticalDisplay: new VerticalDisplayRenderer(this.mapHandler, this.logging, this.gpu, startupTime - 1500),
+            renderedLastFrameVerticalDisplay: false,
             cycleData: {
                 timestamp: 0,
                 thresholds: null,
@@ -326,14 +332,26 @@ class TerrainWorker {
             this.displayRendering[side].durationInterval = null;
         }
 
+        this.displayRendering[side].renderedLastFrameNavigationDisplay = false;
+        this.displayRendering[side].renderedLastFrameVerticalDisplay = false;
         this.displayRendering[side].navigationDisplay.startNewMapCycle();
         this.displayRendering[side].cycleData.frames = [];
 
         this.displayRendering[side].durationInterval = setInterval(() => {
-            const lastFrameCreated = this.displayRendering[side].navigationDisplay.render();
+            if (this.displayRendering[side].renderedLastFrameNavigationDisplay === false) {
+                this.displayRendering[side].renderedLastFrameNavigationDisplay = this.displayRendering[side].navigationDisplay.render();
+            }
             const ndMap = this.displayRendering[side].navigationDisplay.currentFrame();
 
             let vdMap = null;
+            if (this.verticalDisplayRequired === true) {
+                if (this.displayRendering[side].renderedLastFrameVerticalDisplay === false) {
+                    this.displayRendering[side].renderedLastFrameVerticalDisplay = this.displayRendering[side].verticalDisplay.render();
+                }
+                vdMap = this.displayRendering[side].verticalDisplay.currentFrame();
+            } else {
+                this.displayRendering[side].renderedLastFrameVerticalDisplay = true;
+            }
 
             const frame = this.createScreenResolutionFrame(side, ndMap, vdMap);
 
@@ -354,7 +372,7 @@ class TerrainWorker {
                     });
             }
 
-            if (lastFrameCreated === true) {
+            if (this.displayRendering[side].renderedLastFrameNavigationDisplay === true && this.displayRendering[side].renderedLastFrameVerticalDisplay === true) {
                 if (this.displayRendering[side].durationInterval !== null) {
                     clearInterval(this.displayRendering[side].durationInterval);
                     this.displayRendering[side].durationInterval = null;
