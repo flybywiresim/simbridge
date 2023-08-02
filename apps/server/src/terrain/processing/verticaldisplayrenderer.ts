@@ -164,7 +164,7 @@ export class VerticalDisplayRenderer {
         let arrayIndex = 0;
         for (let y = 0; y < RenderingElevationProfileHeight; ++y) {
             for (let x = 0; x < RenderingElevationProfileWidth; ++x) {
-                if (x <= this.renderingData.startTransitionBorder && x >= this.renderingData.currentTransitionBorder) {
+                if (x >= this.renderingData.startTransitionBorder && x <= this.renderingData.currentTransitionBorder) {
                     destination[arrayIndex] = newSource[arrayIndex];
                 } else if (oldSource !== null) {
                     destination[arrayIndex] = oldSource[arrayIndex];
