@@ -354,6 +354,9 @@ class TerrainWorker {
         this.displayRendering[side].renderedLastFrameNavigationDisplay = false;
         this.displayRendering[side].renderedLastFrameVerticalDisplay = false;
         this.displayRendering[side].navigationDisplay.startNewMapCycle();
+        if (this.verticalDisplayRequired === true) {
+            this.displayRendering[side].verticalDisplay.startNewMapCycle();
+        }
         this.displayRendering[side].cycleData.frames = [];
 
         this.displayRendering[side].durationInterval = setInterval(() => {
