@@ -29,7 +29,8 @@ import { MapHandler } from './maphandler';
 import { NavigationDisplayRenderer } from './navigationdisplayrenderer';
 import { VerticalDisplayRenderer } from './verticaldisplayrenderer';
 
-const DisplayScreenPixelHeight = 768;
+const DisplayScreenPixelHeightWithoutVerticalDisplay = 768;
+const DisplayScreenPixelHeightWithVerticalDisplay = 1024;
 
 class TerrainWorker {
     private initialized: boolean = false;
@@ -41,6 +42,16 @@ class TerrainWorker {
     private gpu: GPU = null;
 
     private mapHandler: MapHandler = null;
+
+    private displayDimension: {
+        width: number,
+        height: number,
+    } = {
+        width: 0,
+        height: 0,
+    }
+
+    private verticalDisplayRequired: boolean = false;
 
     private displayRendering: {
         [side: string]: {
@@ -116,6 +127,16 @@ class TerrainWorker {
 
     private onAircraftStatusUpdate(data: AircraftStatus): void {
         if (this.initialized === false) return;
+
+        // eslint-disable-next-line no-bitwise
+        this.verticalDisplayRequired = (data.navigationDisplayRenderingMode & TerrainRenderingMode.VerticalDisplayRequired) === TerrainRenderingMode.VerticalDisplayRequired;
+
+        if (this.verticalDisplayRequired === true) {
+            this.displayDimension.height = DisplayScreenPixelHeightWithVerticalDisplay;
+        } else {
+            this.displayDimension.height = DisplayScreenPixelHeightWithoutVerticalDisplay;
+        }
+        this.displayDimension.width = NavigationDisplayMaxPixelWidth;
 
         if (this.mapHandler !== null) this.mapHandler.aircraftStatusUpdate(data);
         this.updateRendering(DisplaySide.Left, data);
@@ -268,7 +289,7 @@ class TerrainWorker {
     }
 
     private createScreenResolutionFrame(side: DisplaySide, navigationDisplay: Uint8ClampedArray): Uint8ClampedArray {
-        const result = new Uint8ClampedArray(NavigationDisplayMaxPixelWidth * RenderingColorChannelCount * DisplayScreenPixelHeight);
+        const result = new Uint8ClampedArray(this.displayDimension.width * RenderingColorChannelCount * this.displayDimension.height);
 
         // access data as uint32-array for performance reasons
         const destination = new Uint32Array(result.buffer);
@@ -281,7 +302,7 @@ class TerrainWorker {
 
             // manual iteration is 2x faster compared to splice
             for (let y = 0; y < displayConfiguration.mapHeight; ++y) {
-                let destinationIndex = (NavigationDisplayMapStartOffsetY + y) * NavigationDisplayMaxPixelWidth + displayConfiguration.mapOffsetX;
+                let destinationIndex = (NavigationDisplayMapStartOffsetY + y) * this.displayDimension.width + displayConfiguration.mapOffsetX;
                 let sourceIndex = y * displayConfiguration.mapWidth;
 
                 for (let x = 0; x < displayConfiguration.mapWidth; ++x) {
@@ -315,7 +336,7 @@ class TerrainWorker {
             const frame = this.createScreenResolutionFrame(side, ndMap);
 
             if (frame !== null && this.simPaused === false) {
-                sharp(frame, { raw: { width: NavigationDisplayMaxPixelWidth, height: DisplayScreenPixelHeight, channels: RenderingColorChannelCount } })
+                sharp(frame, { raw: { width: this.displayDimension.width, height: this.displayDimension.height, channels: RenderingColorChannelCount } })
                     .png()
                     .toBuffer()
                     .then((buffer) => {
