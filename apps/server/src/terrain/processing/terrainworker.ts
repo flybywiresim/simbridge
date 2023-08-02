@@ -22,6 +22,8 @@ import {
     RenderingColorChannelCount,
     RenderingMapTransitionDeltaTime,
     RenderingMapUpdateTimeout,
+    VerticalDisplayMapStartOffsetX,
+    VerticalDisplayMapStartOffsetY,
 } from './generic/constants';
 import { Logger } from './logging/logger';
 import { ThreadLogger } from './logging/threadlogger';
@@ -315,6 +317,21 @@ class TerrainWorker {
                     destination[destinationIndex] = source[sourceIndex];
                     destinationIndex++;
                     sourceIndex++;
+                }
+            }
+        }
+
+        // add the vertical display map
+        if (verticalDisplay !== null) {
+            const source = new Uint32Array(verticalDisplay.buffer);
+            const displayConfiguration = this.displayRendering[side].verticalDisplay.displayConfiguration();
+
+            for (let y = 0; y < displayConfiguration.mapHeight; ++y) {
+                let destinationIndex = (VerticalDisplayMapStartOffsetY + y) * this.displayDimension.width + VerticalDisplayMapStartOffsetX;
+                let sourceIndex = y * displayConfiguration.mapWidth;
+
+                for (let x = 0; x < displayConfiguration.mapWidth; ++x) {
+                    destination[destinationIndex++] = source[sourceIndex++];
                 }
             }
         }
