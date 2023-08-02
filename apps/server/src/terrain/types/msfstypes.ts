@@ -14,6 +14,12 @@ export interface NavigationDisplay {
     mapHeight?: number,
 }
 
+export interface VerticalDisplay {
+    range: number,
+    mapWidth?: number,
+    mapHeight?: number,
+}
+
 export interface AircraftStatus {
     adiruDataValid: boolean,
     latitude: number,
