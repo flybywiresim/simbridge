@@ -214,18 +214,13 @@ export class NavigationDisplayRenderer {
         if (this.aircraftStatus === null || status.navigationDisplayRenderingMode !== this.aircraftStatus.navigationDisplayRenderingMode || this.pixelPattern === null) {
             let patternData: Uint8ClampedArray = null;
 
-            switch (status.navigationDisplayRenderingMode) {
-            case TerrainRenderingMode.ArcMode:
-                patternData = createArcModePatternMap();
-                if (startup === false) this.logging.info('ARC-mode rendering activated');
-                break;
-            case TerrainRenderingMode.ScanlineMode:
+            // eslint-disable-next-line no-bitwise
+            if ((status.navigationDisplayRenderingMode & TerrainRenderingMode.ScanlineMode) === TerrainRenderingMode.ScanlineMode) {
                 patternData = createScanlineModePatternMap();
                 if (startup === false) this.logging.info('Scanline-mode rendering activated');
-                break;
-            default:
-                if (startup === false) this.logging.error(`No known rendering mode selected: ${status.navigationDisplayRenderingMode}`);
-                break;
+            } else {
+                patternData = createArcModePatternMap();
+                if (startup === false) this.logging.info('ARC-mode rendering activated');
             }
 
             if (patternData !== null) {
@@ -628,16 +623,11 @@ export class NavigationDisplayRenderer {
     public render(): boolean {
         let renderingDone = false;
 
-        switch (this.aircraftStatus.navigationDisplayRenderingMode) {
-        case TerrainRenderingMode.ArcMode:
-            renderingDone = this.arcModeTransition();
-            break;
-        case TerrainRenderingMode.ScanlineMode:
+        // eslint-disable-next-line no-bitwise
+        if ((this.aircraftStatus.navigationDisplayRenderingMode & TerrainRenderingMode.ScanlineMode) === TerrainRenderingMode.ScanlineMode) {
             renderingDone = this.scanlineModeTransition();
-            break;
-        default:
-            this.logging.error(`Unknown rendering mode defined: ${this.aircraftStatus.navigationDisplayRenderingMode}`);
-            break;
+        } else {
+            renderingDone = this.arcModeTransition();
         }
 
         return renderingDone;
