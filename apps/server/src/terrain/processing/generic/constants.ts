@@ -20,6 +20,10 @@ export const NavigationDisplayArcModePixelHeight = 492;
 export const NavigationDisplayRoseModePixelHeight = 250;
 export const NavigationDisplayMaxPixelHeight = Math.max(NavigationDisplayArcModePixelHeight, NavigationDisplayRoseModePixelHeight);
 
+// vertical display parameters
+export const VerticalDisplayMapStartOffsetY = 750;
+export const VerticalDisplayMapStartOffsetX = 84;
+
 // rendering parameters
 export const RenderingMapTransitionDeltaTime = 40;
 export const RenderingMapTransitionDuration = 1000;
