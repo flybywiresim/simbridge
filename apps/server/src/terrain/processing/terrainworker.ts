@@ -351,11 +351,12 @@ class TerrainWorker {
             this.displayRendering[side].durationInterval = null;
         }
 
+        const currentTime = new Date().getTime();
         this.displayRendering[side].renderedLastFrameNavigationDisplay = false;
         this.displayRendering[side].renderedLastFrameVerticalDisplay = false;
-        this.displayRendering[side].navigationDisplay.startNewMapCycle();
+        this.displayRendering[side].navigationDisplay.startNewMapCycle(currentTime);
         if (this.verticalDisplayRequired === true) {
-            this.displayRendering[side].verticalDisplay.startNewMapCycle();
+            this.displayRendering[side].verticalDisplay.startNewMapCycle(currentTime);
         }
         this.displayRendering[side].cycleData.frames = [];
 

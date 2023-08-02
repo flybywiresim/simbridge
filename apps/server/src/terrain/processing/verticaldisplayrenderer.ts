@@ -81,7 +81,7 @@ export class VerticalDisplayRenderer {
             range: 20.0,
         };
 
-        this.startNewMapCycle();
+        this.startNewMapCycle(this.startupTime);
 
         return true;
     }
@@ -116,7 +116,7 @@ export class VerticalDisplayRenderer {
         this.displayConfig = { range: 0.0 };
     }
 
-    public startNewMapCycle(): void {
+    public startNewMapCycle(currentTime: number): void {
         if (this.elevationConfig === null) return;
 
         this.displayConfig.mapWidth = RenderingElevationProfileWidth;
@@ -134,7 +134,7 @@ export class VerticalDisplayRenderer {
         this.renderingData.finalFrame = new Uint8ClampedArray(fastFlatten(verticaldisplay));
 
         if (this.renderingData.lastFrame === null) {
-            const timeSinceStart = new Date().getTime() - this.startupTime;
+            const timeSinceStart = currentTime - this.startupTime;
             const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 

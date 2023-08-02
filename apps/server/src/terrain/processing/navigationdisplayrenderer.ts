@@ -178,7 +178,7 @@ export class NavigationDisplayRenderer {
     }
 
     public async initialize(): Promise<boolean> {
-        this.startNewMapCycle();
+        this.startNewMapCycle(this.startupTime);
         return true;
     }
 
@@ -567,7 +567,7 @@ export class NavigationDisplayRenderer {
         };
     }
 
-    public startNewMapCycle(): void {
+    public startNewMapCycle(currentTime: number): void {
         this.configuration.mapWidth = this.configuration.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
         this.configuration.mapHeight = this.configuration.arcMode ? NavigationDisplayArcModePixelHeight : NavigationDisplayRoseModePixelHeight;
         this.configuration.mapOffsetX = Math.ceil((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
@@ -590,7 +590,7 @@ export class NavigationDisplayRenderer {
         this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
         if (this.renderingData.lastFrame === null) {
-            const timeSinceStart = new Date().getTime() - this.startupTime;
+            const timeSinceStart = currentTime - this.startupTime;
             const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 
