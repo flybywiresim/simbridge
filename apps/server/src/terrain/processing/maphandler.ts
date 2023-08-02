@@ -412,6 +412,8 @@ export class MapHandler {
 
     public createElevationProfile(profile: ElevationProfile, profileWidth: number): Texture {
         if (this.cachedElevationData.gpuData === null) return null;
+        if (profile.waypointsLatitudes === undefined || profile.waypointsLongitudes === undefined) return null;
+        if (profile.waypointsLatitudes.length === 0 || profile.waypointsLatitudes.length !== profile.waypointsLongitudes.length) return null;
 
         if (this.extractElevationProfile.output === null
             || this.extractElevationProfile.output[0] !== profileWidth
