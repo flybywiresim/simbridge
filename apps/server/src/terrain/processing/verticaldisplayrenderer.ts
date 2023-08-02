@@ -22,7 +22,7 @@ const RenderingElevationProfileHeight = 250;
 export class VerticalDisplayRenderer {
     private renderer: IKernelRunShortcut = null;
 
-    private configuration: ElevationProfile = {
+    private elevationConfig: ElevationProfile = {
         pathWidth: 1.0,
         waypointsLatitudes: [],
         waypointsLongitudes: [],
@@ -68,7 +68,7 @@ export class VerticalDisplayRenderer {
     }
 
     public async initialize(): Promise<boolean> {
-        this.configuration = {
+        this.elevationConfig = {
             pathWidth: 1.0,
             waypointsLatitudes: [
                 47.26081085205078,
@@ -86,9 +86,9 @@ export class VerticalDisplayRenderer {
 
     public aircraftStatusUpdate(status: AircraftStatus, side: DisplaySide): void {
         if (side === DisplaySide.Left) {
-            this.configuration.range = status.navigationDisplayCapt.range;
+            this.elevationConfig.range = status.navigationDisplayCapt.range;
         } else {
-            this.configuration.range = status.navigationDisplayFO.range;
+            this.elevationConfig.range = status.navigationDisplayFO.range;
         }
     }
 
@@ -102,7 +102,7 @@ export class VerticalDisplayRenderer {
             currentFrame: null,
         };
 
-        this.configuration = {
+        this.elevationConfig = {
             pathWidth: 1.0,
             waypointsLatitudes: [],
             waypointsLongitudes: [],
@@ -111,10 +111,10 @@ export class VerticalDisplayRenderer {
     }
 
     public startNewMapCycle(): void {
-        if (this.configuration === null) return;
+        if (this.elevationConfig === null) return;
 
         // TODO get current route and check width
-        const profile = this.maphandler.createElevationProfile(this.configuration, 1.0);
+        const profile = this.maphandler.createElevationProfile(this.elevationConfig, 1.0);
 
         // TODO fix min and max
         const verticaldisplay = this.renderer(profile, 0, 38000) as number[][];
