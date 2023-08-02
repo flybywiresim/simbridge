@@ -288,7 +288,7 @@ class TerrainWorker {
         if (this.gpu !== null) this.gpu.destroy();
     }
 
-    private createScreenResolutionFrame(side: DisplaySide, navigationDisplay: Uint8ClampedArray): Uint8ClampedArray {
+    private createScreenResolutionFrame(side: DisplaySide, navigationDisplay: Uint8ClampedArray, verticalDisplay: Uint8ClampedArray): Uint8ClampedArray {
         const result = new Uint8ClampedArray(this.displayDimension.width * RenderingColorChannelCount * this.displayDimension.height);
 
         // access data as uint32-array for performance reasons
@@ -333,7 +333,9 @@ class TerrainWorker {
             const lastFrameCreated = this.displayRendering[side].navigationDisplay.render();
             const ndMap = this.displayRendering[side].navigationDisplay.currentFrame();
 
-            const frame = this.createScreenResolutionFrame(side, ndMap);
+            let vdMap = null;
+
+            const frame = this.createScreenResolutionFrame(side, ndMap, vdMap);
 
             if (frame !== null && this.simPaused === false) {
                 sharp(frame, { raw: { width: this.displayDimension.width, height: this.displayDimension.height, channels: RenderingColorChannelCount } })
