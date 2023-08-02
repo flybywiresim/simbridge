@@ -122,8 +122,8 @@ export class VerticalDisplayRenderer {
         this.displayConfig.mapWidth = RenderingElevationProfileWidth;
         this.displayConfig.mapHeight = RenderingElevationProfileHeight;
 
-        // TODO get current route and check width
-        const profile = this.maphandler.createElevationProfile(this.elevationConfig, 1.0);
+        const profile = this.maphandler.createElevationProfile(this.elevationConfig, RenderingElevationProfileWidth);
+        if (profile === null) return;
 
         // TODO fix min and max
         const verticaldisplay = this.renderer(profile, 0, 38000) as number[][];
