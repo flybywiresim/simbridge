@@ -594,27 +594,17 @@ export class NavigationDisplayRenderer {
             const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 
-            switch (this.aircraftStatus.navigationDisplayRenderingMode) {
-            case TerrainRenderingMode.ArcMode:
-                this.renderingData.startTransitionBorder = Math.floor(90 * ratioSinceLastFrame);
-                break;
-            case TerrainRenderingMode.ScanlineMode:
+            // eslint-disable-next-line no-bitwise
+            if ((this.aircraftStatus.navigationDisplayRenderingMode & TerrainRenderingMode.ScanlineMode) === TerrainRenderingMode.ScanlineMode) {
                 this.renderingData.startTransitionBorder = this.configuration.mapHeight - Math.floor(this.configuration.mapHeight * ratioSinceLastFrame);
-                break;
-            default:
-                break;
+            } else {
+                this.renderingData.startTransitionBorder = Math.floor(90 * ratioSinceLastFrame);
             }
+        // eslint-disable-next-line no-bitwise
+        } else if ((this.aircraftStatus.navigationDisplayRenderingMode & TerrainRenderingMode.ScanlineMode) === TerrainRenderingMode.ScanlineMode) {
+            this.renderingData.startTransitionBorder = this.configuration.mapHeight;
         } else {
-            switch (this.aircraftStatus.navigationDisplayRenderingMode) {
-            case TerrainRenderingMode.ArcMode:
-                this.renderingData.startTransitionBorder = 0;
-                break;
-            case TerrainRenderingMode.ScanlineMode:
-                this.renderingData.startTransitionBorder = this.configuration.mapHeight;
-                break;
-            default:
-                break;
-            }
+            this.renderingData.startTransitionBorder = 0;
         }
 
         this.renderingData.currentTransitionBorder = this.renderingData.startTransitionBorder;
