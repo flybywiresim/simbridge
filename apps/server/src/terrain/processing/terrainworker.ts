@@ -22,7 +22,8 @@ import {
     NavigationDisplayMaxPixelWidth,
     RenderingColorChannelCount,
     RenderingMapTransitionDeltaTime,
-    RenderingMapUpdateTimeout,
+    RenderingMapUpdateTimeoutArcMode,
+    RenderingMapUpdateTimeoutScanlineMode,
     VerticalDisplayMapStartOffsetX,
     VerticalDisplayMapStartOffsetY,
 } from './generic/constants';
@@ -42,6 +43,8 @@ class TerrainWorker {
     private simconnect: SimConnect = null;
 
     private simPaused: boolean = true;
+
+    private renderingMode: TerrainRenderingMode = TerrainRenderingMode.ArcMode;
 
     private gpu: GPU = null;
 
@@ -143,6 +146,8 @@ class TerrainWorker {
 
         // eslint-disable-next-line no-bitwise
         this.verticalDisplayRequired = (data.navigationDisplayRenderingMode & TerrainRenderingMode.VerticalDisplayRequired) === TerrainRenderingMode.VerticalDisplayRequired;
+        // eslint-disable-next-line no-bitwise
+        this.renderingMode = data.navigationDisplayRenderingMode & (TerrainRenderingMode.ArcMode | TerrainRenderingMode.ScanlineMode);
 
         if (this.verticalDisplayRequired === true) {
             this.displayDimension.height = DisplayScreenPixelHeightWithVerticalDisplay;
@@ -426,7 +431,8 @@ class TerrainWorker {
                 }
 
                 if (this.displayRendering[side].navigationDisplay.displayConfiguration().active === true) {
-                    this.displayRendering[side].timeout = setTimeout(() => this.startNavigationDisplayRenderingCycle(side), RenderingMapUpdateTimeout);
+                    const timeout = this.renderingMode === TerrainRenderingMode.ArcMode ? RenderingMapUpdateTimeoutArcMode : RenderingMapUpdateTimeoutScanlineMode;
+                    this.displayRendering[side].timeout = setTimeout(() => this.startNavigationDisplayRenderingCycle(side), timeout);
                 }
             }
         }, RenderingMapTransitionDeltaTime);

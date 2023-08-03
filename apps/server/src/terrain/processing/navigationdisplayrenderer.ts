@@ -8,9 +8,11 @@ import {
     NavigationDisplayMaxPixelWidth,
     NavigationDisplayRoseModePixelHeight,
     RenderingColorChannelCount,
-    RenderingMapFrameValidityTime,
+    RenderingMapFrameValidityTimeArcMode,
+    RenderingMapFrameValidityTimeScanlineMode,
     RenderingMapTransitionDeltaTime,
-    RenderingMapTransitionDuration,
+    RenderingMapTransitionDurationArcMode,
+    RenderingMapTransitionDurationScanlineMode,
     ThreeNauticalMilesInFeet,
     UnknownElevation,
     WaterElevation,
@@ -56,7 +58,7 @@ const RenderingNormalModeHighDensityRedOffset = 2000;
 const RenderingGearDownOffset = 250;
 const RenderingNonGearDownOffset = 500;
 const RenderingDensityPatchSize = 13;
-const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
+const RenderingMapTransitionAngularStep = Math.round((90 / RenderingMapTransitionDurationArcMode) * RenderingMapTransitionDeltaTime);
 
 export class NavigationDisplayRenderer {
     private configuration: NavigationDisplay = null;
@@ -81,6 +83,7 @@ export class NavigationDisplayRenderer {
         finalFrame: Uint8ClampedArray,
         lastFrame: Uint8ClampedArray,
         currentFrame: Uint8ClampedArray,
+        frameValidityDuration: number,
     } = {
         startTransitionBorder: 0,
         currentTransitionBorder: 0,
@@ -89,6 +92,7 @@ export class NavigationDisplayRenderer {
         finalFrame: null,
         lastFrame: null,
         currentFrame: null,
+        frameValidityDuration: 0,
     };
 
     constructor(private readonly maphandler: MapHandler, private logging: Logger, private readonly gpu: GPU, private readonly startupTime: number) {
@@ -217,9 +221,11 @@ export class NavigationDisplayRenderer {
             // eslint-disable-next-line no-bitwise
             if ((status.navigationDisplayRenderingMode & TerrainRenderingMode.ScanlineMode) === TerrainRenderingMode.ScanlineMode) {
                 patternData = createScanlineModePatternMap();
+                this.renderingData.frameValidityDuration = RenderingMapFrameValidityTimeScanlineMode;
                 if (startup === false) this.logging.info('Scanline-mode rendering activated');
             } else {
                 patternData = createArcModePatternMap();
+                this.renderingData.frameValidityDuration = RenderingMapFrameValidityTimeArcMode;
                 if (startup === false) this.logging.info('ARC-mode rendering activated');
             }
 
@@ -523,7 +529,7 @@ export class NavigationDisplayRenderer {
         // nothing to do here
         if (this.renderingData.finalFrame === null) return true;
 
-        const verticalStep = Math.round((this.configuration.mapHeight / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
+        const verticalStep = Math.round((this.configuration.mapHeight / RenderingMapTransitionDurationScanlineMode) * RenderingMapTransitionDeltaTime);
 
         this.renderingData.thresholdData.DisplayRange = this.configuration.range;
         this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
@@ -570,6 +576,7 @@ export class NavigationDisplayRenderer {
             finalFrame: null,
             lastFrame: null,
             currentFrame: null,
+            frameValidityDuration: 0,
         };
     }
 
@@ -602,7 +609,7 @@ export class NavigationDisplayRenderer {
 
         if (this.renderingData.lastFrame === null) {
             const timeSinceStart = currentTime - this.startupTime;
-            const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
+            const frameUpdateCount = timeSinceStart / this.renderingData.frameValidityDuration;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 
             // eslint-disable-next-line no-bitwise

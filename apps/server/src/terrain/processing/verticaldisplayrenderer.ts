@@ -5,9 +5,9 @@ import {
     UnknownElevation,
     WaterElevation,
     GpuProcessingActive,
-    RenderingMapFrameValidityTime,
-    RenderingMapTransitionDuration,
     RenderingMapTransitionDeltaTime,
+    RenderingMapFrameValidityTimeScanlineMode,
+    RenderingMapTransitionDurationScanlineMode,
 } from './generic/constants';
 import { fastFlatten } from './generic/helper';
 import { renderVerticalDisplay } from './gpu/rendering/verticaldisplay';
@@ -143,7 +143,7 @@ export class VerticalDisplayRenderer {
 
         if (this.renderingData.lastFrame === null) {
             const timeSinceStart = currentTime - this.startupTime;
-            const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTime;
+            const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTimeScanlineMode;
             const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
 
             this.renderingData.startTransitionBorder = Math.floor(RenderingElevationProfileWidth * ratioSinceLastFrame);
@@ -189,7 +189,7 @@ export class VerticalDisplayRenderer {
         // nothing to do here
         if (this.renderingData.finalFrame === null) return true;
 
-        const horizontalStep = Math.round((RenderingElevationProfileWidth / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
+        const horizontalStep = Math.round((RenderingElevationProfileWidth / RenderingMapTransitionDurationScanlineMode) * RenderingMapTransitionDeltaTime);
         this.renderingData.currentTransitionBorder += horizontalStep;
 
         if (this.renderingData.currentTransitionBorder < RenderingElevationProfileWidth) {
