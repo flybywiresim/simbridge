@@ -122,7 +122,10 @@ export class VerticalDisplayRenderer {
     }
 
     public startNewMapCycle(currentTime: number): void {
-        if (this.elevationConfig === null) return;
+        if (this.elevationConfig === null || this.elevationConfig.range === 0) {
+            this.reset();
+            return;
+        }
 
         this.displayConfig.mapWidth = RenderingElevationProfileWidth;
         this.displayConfig.mapHeight = RenderingElevationProfileHeight;
@@ -183,6 +186,9 @@ export class VerticalDisplayRenderer {
     }
 
     public render(): boolean {
+        // nothing to do here
+        if (this.renderingData.finalFrame === null) return true;
+
         const horizontalStep = Math.round((RenderingElevationProfileWidth / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
         this.renderingData.currentTransitionBorder += horizontalStep;
 

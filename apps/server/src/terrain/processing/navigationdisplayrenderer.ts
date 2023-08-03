@@ -453,6 +453,9 @@ export class NavigationDisplayRenderer {
     }
 
     private arcModeTransition(): boolean {
+        // nothing to do here
+        if (this.renderingData.finalFrame === null) return true;
+
         this.renderingData.thresholdData.DisplayRange = this.configuration.range;
         this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
@@ -517,6 +520,9 @@ export class NavigationDisplayRenderer {
     }
 
     private scanlineModeTransition(): boolean {
+        // nothing to do here
+        if (this.renderingData.finalFrame === null) return true;
+
         const verticalStep = Math.round((this.configuration.mapHeight / RenderingMapTransitionDuration) * RenderingMapTransitionDeltaTime);
 
         this.renderingData.thresholdData.DisplayRange = this.configuration.range;
@@ -571,6 +577,11 @@ export class NavigationDisplayRenderer {
         this.configuration.mapWidth = this.configuration.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
         this.configuration.mapHeight = this.configuration.arcMode ? NavigationDisplayArcModePixelHeight : NavigationDisplayRoseModePixelHeight;
         this.configuration.mapOffsetX = Math.ceil((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
+
+        if (this.configuration.range === 0) {
+            this.reset();
+            return;
+        }
 
         const elevationMap = this.maphandler.createLocalElevationMap(this.configuration);
         const histogram = this.createElevationHistogram(elevationMap);
