@@ -134,7 +134,7 @@ export class VerticalDisplayRenderer {
         if (profile === null) return;
 
         // TODO fix min and max
-        const verticaldisplay = this.renderer(profile, 0, 24000) as number[][];
+        const verticaldisplay = this.renderer(profile, -500, 24000) as number[][];
 
         // some GPU drivers require the flush call to release internal memory
         if (GpuProcessingActive) this.renderer.context.flush();
