@@ -16,6 +16,7 @@ import { SimConnect } from '../communication/simconnect';
 import { NavigationDisplayThresholdsDto } from '../dto/navigationdisplaythresholds.dto';
 import {
     GpuProcessingActive,
+    NauticalMilesToMetres,
     NavigationDisplayMapStartOffsetY,
     NavigationDisplayMaxPixelHeight,
     NavigationDisplayMaxPixelWidth,
@@ -30,6 +31,7 @@ import { ThreadLogger } from './logging/threadlogger';
 import { MapHandler } from './maphandler';
 import { NavigationDisplayRenderer } from './navigationdisplayrenderer';
 import { VerticalDisplayRenderer } from './verticaldisplayrenderer';
+import { projectWgs84 } from './gpu/helper';
 
 const DisplayScreenPixelHeightWithoutVerticalDisplay = 768;
 const DisplayScreenPixelHeightWithVerticalDisplay = 1024;
@@ -126,6 +128,10 @@ class TerrainWorker {
 
         this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
         this.displayRendering[side].verticalDisplay.aircraftStatusUpdate(status, side);
+
+        // TODO replace by in aircraft code and endpoints
+        const endpoint = projectWgs84(status.latitude, status.longitude, status.heading, 360 * NauticalMilesToMetres);
+        this.displayRendering[side].verticalDisplay.pathDataUpdate([endpoint[0]], [endpoint[1]]);
 
         if (startRendering) {
             this.startNavigationDisplayRenderingCycle(side);
