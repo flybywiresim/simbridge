@@ -77,7 +77,9 @@ class TerrainWorker {
 
         if (this.mapHandler !== null) this.mapHandler.reset();
         if (this.displayRendering.L.navigationDisplay !== null) this.displayRendering.L.navigationDisplay.reset();
+        if (this.displayRendering.L.verticalDisplay !== null) this.displayRendering.L.verticalDisplay.reset();
         if (this.displayRendering.R.navigationDisplay !== null) this.displayRendering.R.navigationDisplay.reset();
+        if (this.displayRendering.R.verticalDisplay !== null) this.displayRendering.R.verticalDisplay.reset();
     }
 
     private onPaused(): void {
@@ -116,6 +118,7 @@ class TerrainWorker {
             }
 
             this.displayRendering[side].navigationDisplay.reset();
+            this.displayRendering[side].verticalDisplay.reset();
 
             // reset also the aircraft data
             this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, this.displayRendering[side].navigationDisplay.displayData());
@@ -274,6 +277,7 @@ class TerrainWorker {
         }
         if (this.displayRendering[side].navigationDisplay !== null) {
             this.displayRendering[side].navigationDisplay.reset();
+            this.displayRendering[side].verticalDisplay.reset();
 
             this.simconnect.sendNavigationDisplayTerrainMapMetadata(
                 side,
