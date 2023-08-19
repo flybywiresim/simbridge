@@ -1,30 +1,9 @@
-import { PositionData } from '../communication/types';
-import { ElevationGrid } from '../fileformat/elevationgrid';
+import { PositionData, GridDefinition, GridLookupData } from '../types';
+import { ElevationGrid } from '../types/elevationgrid';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Tile } from '../fileformat/tile';
 import { projectWgs84 } from '../processing/gpu/helper';
 import { TileManager } from './tilemanager';
-
-export interface GridDefinition {
-    rows: number,
-    columns: number,
-    latitudeStep: number,
-    longitudeStep: number,
-}
-
-export interface TileData {
-    row: number,
-    column: number,
-    grid: ElevationGrid,
-}
-
-export interface GridLookupData {
-    southwest: { latitude: number; longitude: number },
-    northeast: { latitude: number; longitude: number },
-    grid: { row: number; column: number }[][],
-    minWidthPerTile: number,
-    minHeightPerTile: number,
-}
 
 export class Worldmap {
     public GridData: GridDefinition = {

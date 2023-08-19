@@ -1,13 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiBody, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { DisplaySide } from './types';
+import { ElevationSamplePathDto } from './dto/elevationsamplepath.dto';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { TerrainService } from './terrain.service';
 import { ShutDownService } from '../utilities/shutdown.service';
-
-enum DisplaySide {
-    Left = 'L',
-    Right = 'R',
-}
 
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
@@ -21,7 +18,7 @@ export class TerrainController {
         description: 'The timestamp of the current rendering data',
         type: Number,
     })
-    renderingTimestamp(@Query('display') display) {
+    renderingTimestamp(@Query('display') display: DisplaySide) {
         return this.terrainService.frameData(display).then((data) => {
             if (data === undefined) return -1;
             return data.timestamp;
@@ -35,7 +32,7 @@ export class TerrainController {
         description: 'The thresholds for the current rendering data',
         type: NavigationDisplayThresholdsDto,
     })
-    renderingThresholds(@Query('display') display) {
+    renderingThresholds(@Query('display') display: DisplaySide) {
         return this.terrainService.frameData(display).then((data) => {
             if (data === undefined) return undefined;
             return data.thresholds;
@@ -49,7 +46,7 @@ export class TerrainController {
         description: 'The base64 strings for the current frames',
         type: [String],
     })
-    renderingFrames(@Query('display') display) {
+    renderingFrames(@Query('display') display: DisplaySide) {
         return this.terrainService.frameData(display).then((data) => {
             if (data === undefined) return [];
 
@@ -57,5 +54,16 @@ export class TerrainController {
             data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
             return retval;
         });
+    }
+
+    @Post('verticalDisplayPath')
+    @ApiQuery({ name: 'side', required: true, enum: DisplaySide })
+    @ApiBody({ required: true, type: ElevationSamplePathDto })
+    @ApiResponse({
+        status: 200,
+        description: 'Update of the path was successful',
+    })
+    verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
+        this.terrainService.updateFlightPath(side, path);
     }
 }

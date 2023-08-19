@@ -1,5 +1,5 @@
 import { gunzipSync } from 'zlib';
-import { ElevationGrid } from './elevationgrid';
+import { ElevationGrid } from '../types';
 import { TerrainMap } from './terrainmap';
 
 export class Tile {
