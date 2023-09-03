@@ -20,6 +20,39 @@ export function distanceWgs84(latitude0: number, longitude0: number, latitude1: 
     return distanceMetres * 0.000539957;
 }
 
+export function degreesPerPixel(
+    southwestLatitude: number,
+    southwestLongitude: number,
+    northeastLatitude: number,
+    northeastLongitude: number,
+    currentLatitude: number,
+    mapWidth: number,
+    mapHeight: number,
+): [number, number] {
+    let latStep = 0.0;
+    if (southwestLatitude >= currentLatitude) {
+        // we are at the south pole
+        latStep = southwestLatitude + northeastLatitude + 180.0;
+    } else if (northeastLatitude <= currentLatitude) {
+        // we are at the north pole
+        latStep = 180.0 - southwestLatitude - northeastLatitude;
+    } else {
+        latStep = northeastLatitude - southwestLatitude;
+    }
+    latStep /= mapHeight;
+
+    // get the longitudinal step and check for 180 deg wrap arounds
+    let longStep = 0.0;
+    if (northeastLongitude < southwestLongitude) {
+        longStep = 180.0 - southwestLongitude + Math.abs(northeastLongitude + 180.0);
+    } else {
+        longStep = northeastLongitude - southwestLongitude;
+    }
+    longStep /= mapWidth;
+
+    return [latStep, longStep];
+}
+
 export function fastFlatten<T>(arr: T[][]): T[] {
     const numElementsUptoIndex = Array(arr.length);
     numElementsUptoIndex[0] = 0;
