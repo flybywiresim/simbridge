@@ -1,4 +1,4 @@
-import { NavigationDisplayParameters } from './interfaces';
+import { NavigationDisplayParameters } from '../interfaces';
 
 export function calculateNormalModeGreenThresholds(
     referenceAltitude: number,
@@ -230,7 +230,6 @@ export function renderNavigationDisplay(
     patternMap: number[][],
     width: number,
     height: number,
-    mapOffsetX: number,
     altitude: number,
     verticalSpeed: number,
     gearDownAltitudeOffset: number,
@@ -300,24 +299,27 @@ export function renderNavigationDisplay(
 
     // check the corner cases only for pixels inside the real rendering area
     if (this.thread.y < this.constants.maxImageHeight) {
-        if (this.thread.y < height && pixelX >= mapOffsetX) {
+        if (this.thread.y < height) {
             // find highest elevation in 8x8 patch to simulate the lower resolution of the real system
             const patchXStart = pixelX - (pixelX % 8);
+            const patchXEnd = Math.min(width, patchXStart + 8);
             const patchYStart = this.thread.y - (this.thread.y % 8);
-            for (let y = 0; y < 8; ++y) {
-                for (let x = 0; x < 8; ++x) {
-                    const currentElevation = elevationGrid[y + patchYStart][x + patchXStart - mapOffsetX];
+            const patchYEnd = Math.min(height, patchYStart + 8);
+
+            for (let y = patchYStart; y < patchYEnd; ++y) {
+                for (let x = patchXStart; x < patchXEnd; ++x) {
+                    const currentElevation = elevationGrid[y][x];
                     if (currentElevation > pixelElevation && currentElevation !== this.constants.invalidElevation) {
                         pixelElevation = currentElevation;
                     }
                 }
             }
 
-            patternValue = patternMap[this.thread.y][pixelX - mapOffsetX];
+            patternValue = patternMap[this.thread.y][pixelX];
         }
 
         // the pixel is disabled at all or the ROSE mode is active and the areas are clipped
-        if (patternValue === 0 || pixelX >= (mapOffsetX + width) || this.thread.y >= height) {
+        if (patternValue === 0 || this.thread.y >= height) {
             return [4, 4, 5, 255][colorChannel];
         }
     }

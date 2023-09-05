@@ -1,6 +1,6 @@
 {
 	"name": "fbw-simbridge",
-	"version": "0.4.2",
+	"version": "0.4.4",
 	"description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
 	"author": "",
 	"private": false,
@@ -51,7 +51,7 @@
 		"react-dom": "^17.0.0"
 	},
 	"dependencies": {
-		"@flybywiresim/msfs-nodejs": "^0.2.0",
+		"@flybywiresim/msfs-nodejs": "^0.3.0",
 		"@nestjs/axios": "^0.0.6",
 		"@nestjs/common": "^8.0.0",
 		"@nestjs/config": "^1.2.0",

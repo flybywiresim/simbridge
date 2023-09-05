@@ -1,5 +1,5 @@
 import { gunzipSync } from 'zlib';
-import { ElevationGrid } from './elevationgrid';
+import { ElevationGrid } from '../types';
 import { TerrainMap } from './terrainmap';
 
 export class Tile {
@@ -9,7 +9,7 @@ export class Tile {
 
     public BufferSize: number = 0;
 
-    private GridDimension: { rows: number, columns: number } = { rows: 0, columns: 0 };
+    public GridDimension: { rows: number, columns: number } = { rows: 0, columns: 0 };
 
     private compressedData: Buffer = null;
 
