@@ -24,7 +24,7 @@ NodeJS 16 - [Homepage](https://nodejs.org/en/)
 
 First time
 ```bash
-$ ./setup.sh
+$ ./scripts/setup.sh
 ```
 
 then every time to want to run it
