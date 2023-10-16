@@ -1,5 +1,7 @@
 import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { getCurrentPath } from 'apps/server/src/utilities/pathUtil';
 import {
     AircraftStatus,
     ElevationProfile,
@@ -168,7 +170,7 @@ export class MapHandler {
 
     private async readTerrainMap(): Promise<TerrainMap | undefined> {
         try {
-            const buffer = await readFile('./terrain/terrain.map');
+            const buffer = await readFile(join(getCurrentPath(), './terrain/terrain.map'));
             this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
             return new TerrainMap(buffer);
         } catch (err) {

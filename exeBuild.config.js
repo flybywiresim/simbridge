@@ -8,7 +8,7 @@ module.exports = {
     copyright: 'GNU v3',
     pkg: {
         targets: [
-            'node16-win-x64',
+            'node18-win-x64',
         ],
         assets: [
             'node_modules/linebreak/src/classes.trie',

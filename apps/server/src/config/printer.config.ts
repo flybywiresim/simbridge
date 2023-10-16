@@ -1,11 +1,13 @@
 import { registerAs } from '@nestjs/config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import * as path from 'path';
 
 const CONFIG_FILENAME = 'resources/properties.json';
 
 export default registerAs('printer', () => {
-    const configPath = join(process.cwd(), CONFIG_FILENAME);
+    // @ts-ignore
+    const configPath = join(process.pkg ? path.dirname(process.argv[0]) : process.cwd(), CONFIG_FILENAME);
     const properties = JSON.parse(readFileSync(configPath, 'utf8'));
 
     return {
