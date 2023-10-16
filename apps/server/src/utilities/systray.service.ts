@@ -33,7 +33,7 @@ export class SysTrayService implements OnApplicationShutdown {
                     this.exitItem,
                 ],
             },
-            copyDir: false,
+            copyDir: true,
         });
 
         this.sysTray.onClick((action) => {

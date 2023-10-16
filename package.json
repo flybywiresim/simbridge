@@ -21,11 +21,11 @@
     "build:server": "nest build server",
     "build:exec": "npm run build && npm run install:exec",
     "build:package": "node scripts/package.js",
-    "install:exec": "pkg-exe-build build && npm run copy:deps && npm run build:package",
+    "install:exec": "node doExe.mjs && npm run copy:deps && npm run build:package",
     "copy:deps": "npm run copy:resources && npm run copy:modules && copyfiles -s -f LICENSE build && npm run fetch:terrain",
     "copy:resources": "copyfiles -s -f apps/server/src/config/properties.json ./node_modules/pdf-to-printer/dist/SumatraPDF.exe build/resources",
     "copy:modules": "npm run copy:traybin && npm run copy:pdfjs && npm run copy:nodehide && npm run copy:sharp && npm run copy:simconnect && npm run copy:open",
-    "copy:traybin": "copyfiles -s -f ./node_modules/systray2/traybin/tray_windows_release.exe build/traybin",
+    "copy:traybin": "copyfiles -s -f ./node_modules/systray2/traybin/tray_windows_release.exe build/traybin && copyfiles -s -f \"node_modules/systray2/**/*.*\" build/node_modules/systray2",
     "copy:pdfjs": "copyfiles -s -f \"node_modules/pdfjs-dist/build/**/*.*\" build/node_modules/pdfjs-dist/build && npm run copy:pdfjs:fonts && npm run copy:pdfjs:cmaps",
     "copy:pdfjs:fonts": "copyfiles -s -f \"node_modules/pdfjs-dist/standard_fonts/**/*.*\" build/node_modules/pdfjs-dist/standard_fonts",
     "copy:pdfjs:cmaps": "copyfiles -s -f \"node_modules/pdfjs-dist/cmaps/**/*.*\" build/node_modules/pdfjs-dist/cmaps",
@@ -94,6 +94,7 @@
     "xml2js": "^0.4.23"
   },
   "devDependencies": {
+    "@angablue/exe": "^2.0.2",
     "@babel/core": "^7.17.5",
     "@babel/plugin-proposal-class-properties": "^7.16.7",
     "@babel/plugin-syntax-dynamic-import": "^7.8.3",
@@ -140,7 +141,6 @@
     "mini-css-extract-plugin": "^2.5.3",
     "node-fetch": "^2.6.7",
     "pkg": "^5.5.1",
-    "pkg-exe-build": "^1.0.15",
     "rollup": "^2.67.2",
     "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-css-only": "^2.1.0",
@@ -181,5 +181,38 @@
     "roots": [
       "<rootDir>/apps/"
     ]
+  },
+  "pkg": {
+    "targets": [
+      "node18-win-x64"
+    ],
+    "assets": [
+      "node_modules/linebreak/src/classes.trie",
+      "node_modules/sharp/**/*.*",
+      "node_modules/skia-canvas/**/*.*",
+      "node_modules/canvas/**/*.*",
+      "node_modules/pdfkit/js/data/Helvetica.afm",
+      "node_modules/swagger-ui-dist/**/*.*",
+      "node_modules/gpu.js/**/*.*",
+      "node_modules/gl/**/*.*",
+      "node_modules/gl-wiretap/**/*.*",
+      "node_modules/glsl-tokenizer/**/*.*",
+      "node_modules/gpu-mock.js/**/*.*",
+      "node_modules/bindings/**/*.*",
+      "node_modules/file-uri-to-path/**/*.*",
+      "node_modules/bit-twiddle/**/*.*",
+      "node_modules/bit-twiddle/**/*.*",
+      "node_modules/systray2/traybin/**/*.*",
+      "node_modules/@flybywiresim/msfs-nodejs/**/*.*",
+      "dist/mcdu/**/*",
+      "dist/assets/**/*",
+      "dist/terrain/mapdata/**/*.*",
+      "dist/terrain/processing/**/*.*",
+      "dist/terrain/communication/**/*.*",
+      "dist/terrain/fileformat/**/*.*",
+      "build/SimConnect.dll",
+      "node_modules/es-get-iterator/**/*.*"
+    ],
+    "outputPath": "build"
   }
 }

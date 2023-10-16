@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
+import * as path from 'path';
+import { getCurrentPath } from 'apps/server/src/utilities/pathUtil';
 import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
 import { NetworkService } from './utilities/network.service';
@@ -61,7 +63,7 @@ async function bootstrap() {
     logger.log(`FlyByWire SimBridge started on: http://${await app.get(NetworkService).getLocalIp(true)}:${port}`, 'NestApplication');
 
     if (platform() === 'win32' && isConsoleHidden) {
-        hideConsole();
+        // hideConsole();
     }
 
     if (module.hot) {
@@ -75,7 +77,7 @@ bootstrap();
 function generateResourceFolders() {
     dirs.forEach((dir) => {
         access(dir, (error) => {
-            if (error) mkdirSync(dir, { recursive: true });
+            if (error) mkdirSync(path.join(getCurrentPath(), dir), { recursive: true });
         });
     });
 }

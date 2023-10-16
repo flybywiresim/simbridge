@@ -26,6 +26,7 @@ module.exports = {
             'node_modules/file-uri-to-path/**/*.*',
             'node_modules/bit-twiddle/**/*.*',
             'node_modules/bit-twiddle/**/*.*',
+            'node_modules/systray2/traybin/**/*.*',
             'node_modules/@flybywiresim/msfs-nodejs/**/*.*',
             'dist/mcdu/**/*',
             'dist/assets/**/*',
