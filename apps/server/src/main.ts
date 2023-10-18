@@ -63,7 +63,7 @@ async function bootstrap() {
     logger.log(`FlyByWire SimBridge started on: http://${await app.get(NetworkService).getLocalIp(true)}:${port}`, 'NestApplication');
 
     if (platform() === 'win32' && isConsoleHidden) {
-        // hideConsole();
+        hideConsole();
     }
 
     if (module.hot) {
