@@ -16,11 +16,11 @@ jobs:
       BUILD_DIR_NAME: release
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: set Node version
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
       - name: Build Local API
         run: |
           npm install
