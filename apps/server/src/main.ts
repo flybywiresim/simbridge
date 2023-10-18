@@ -9,7 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
 import * as path from 'path';
-import { getCurrentPath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
 import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
 import { NetworkService } from './utilities/network.service';
@@ -77,7 +77,7 @@ bootstrap();
 function generateResourceFolders() {
     dirs.forEach((dir) => {
         access(dir, (error) => {
-            if (error) mkdirSync(path.join(getCurrentPath(), dir), { recursive: true });
+            if (error) mkdirSync(path.join(getExecutablePath(), dir), { recursive: true });
         });
     });
 }
