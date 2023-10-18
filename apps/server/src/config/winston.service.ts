@@ -32,7 +32,7 @@ const defaultFormat = winston.format.combine(
     winston.format.ms(),
     nestWinstonModuleUtilities.format.nestLike('FBW-SimBridge', { prettyPrint: true }),
     winston.format.errors({ stack: true }),
-    // winston.format.uncolorize(),
+    winston.format.uncolorize(),
 );
 
 @Injectable()
