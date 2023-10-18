@@ -200,17 +200,14 @@
       "node_modules/bindings/**/*.*",
       "node_modules/file-uri-to-path/**/*.*",
       "node_modules/bit-twiddle/**/*.*",
-      "node_modules/bit-twiddle/**/*.*",
-      "node_modules/systray2/traybin/**/*.*",
       "node_modules/@flybywiresim/msfs-nodejs/**/*.*",
+      "node_modules/es-get-iterator/**/*.*",
       "dist/mcdu/**/*",
       "dist/assets/**/*",
       "dist/terrain/mapdata/**/*.*",
       "dist/terrain/processing/**/*.*",
       "dist/terrain/communication/**/*.*",
-      "dist/terrain/fileformat/**/*.*",
-      "build/SimConnect.dll",
-      "node_modules/es-get-iterator/**/*.*"
+      "dist/terrain/fileformat/**/*.*"
     ],
     "outputPath": "build"
   }

@@ -7,10 +7,10 @@ const build = exe({
     pkg: ['-C', 'GZip', '-c', './package.json'], // Specify extra pkg arguments
     version: '0.4.4',
     target: 'node18-win-x64',
-    icon: './apps/server/src/assets/images/tail.ico', // Application icons must be in .ico format
+    icon: './apps/server/src/assets/images/tail.ico',
     properties: {
         FileDescription: 'fbw-simbridge',
-        ProductName: 'fbw-simbridge',
+        ProductName: 'FlyByWire Simbridge',
         LegalCopyright: 'https://flybywiresim.com/',
         OriginalFilename: 'fbw-simbridge.exe',
     },
