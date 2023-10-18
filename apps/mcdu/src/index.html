@@ -14,6 +14,9 @@
     <div id="root">
         <script type='text/javascript' src="index.js"></script>
         <script>
+            // window close prompt
+            window.onbeforeunload = () => { return false; }
+
             // Workaround for a webkit "feature" where 100vh is not actually 100vh
             function appHeight() {
                 const doc = document.documentElement;
