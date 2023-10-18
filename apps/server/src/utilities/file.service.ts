@@ -4,11 +4,12 @@ import { readFileSync, lstatSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
+import { getExecutablePath } from './pathUtil';
 import { pdfToPng } from './pdfConversion';
 
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = join(process.cwd(), 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js');
+pdfjsLib.GlobalWorkerOptions.workerSrc = join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js');
 
 @Injectable()
 export class FileService {
@@ -21,7 +22,7 @@ export class FileService {
     async getFileCount(directory: string): Promise<number> {
         try {
             this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-            const dir = join(process.cwd(), directory);
+            const dir = join(getExecutablePath(), directory);
             this.checkFilePathSafety(dir);
             const retrievedDir = await readdir(dir, { withFileTypes: true });
             const fileNames = retrievedDir.filter((dir) => dir.isFile()).map((dir) => dir.name);
@@ -37,7 +38,7 @@ export class FileService {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
 
-            const dir = join(process.cwd(), directory);
+            const dir = join(getExecutablePath(), directory);
             this.checkFilePathSafety(dir);
             const fileNames = (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isFile()).map((dir) => dir.name);
 
@@ -56,7 +57,7 @@ export class FileService {
     async getFilenames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all files in directory: ${directory}`);
-            const dir = join(process.cwd(), directory);
+            const dir = join(getExecutablePath(), directory);
             this.checkFilePathSafety(dir);
             return (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isFile()).map((dir) => dir.name);
         } catch (err) {
@@ -83,7 +84,7 @@ export class FileService {
         try {
             this.logger.debug(`Retrieving file: ${fileName} in folder: ${directory}`);
 
-            const path = join(process.cwd(), directory, fileName);
+            const path = join(getExecutablePath(), directory, fileName);
             this.checkFilePathSafety(path);
 
             if (!lstatSync(path).isFile()) {
@@ -112,21 +113,21 @@ export class FileService {
             throw new HttpException('Unexpected null byte encountered', HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        if (filePath.indexOf(process.cwd()) !== 0) {
+        if (filePath.indexOf(getExecutablePath()) !== 0) {
             throw new HttpException('Unacceptable file path', HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 
     async getConvertedPdfFile(directory:string, fileName: string, pageNumber: number, scale: number = 4): Promise<StreamableFile> {
         // Some PDFs need external cmaps.
-        const CMAP_URL = `${join(process.cwd(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
+        const CMAP_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
         const CMAP_PACKED = true;
 
         // Where the standard fonts are located.
-        const STANDARD_FONT_DATA_URL = `${join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
+        const STANDARD_FONT_DATA_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
 
         try {
-            const conversionFilePath = join(process.cwd(), directory, fileName);
+            const conversionFilePath = join(getExecutablePath(), directory, fileName);
 
             this.checkFilePathSafety(conversionFilePath);
 
