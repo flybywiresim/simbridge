@@ -9,6 +9,15 @@ export type LocalElevationMapParameters = {
     constants: LocalElevationMapConstants,
 } & IKernelFunctionThis;
 
+export interface ElevationProfileConstants {
+    unknownElevation: number,
+    invalidElevation: number,
+}
+
+export type ElevationProfileParameters = {
+    constants: ElevationProfileConstants,
+} & IKernelFunctionThis;
+
 export interface HistogramConstants {
     minimumElevation: number,
     invalidElevation: number,
@@ -46,4 +55,16 @@ export interface NavigationDisplayConstants {
 
 export type NavigationDisplayParameters = {
     constants: NavigationDisplayConstants,
+} & IKernelFunctionThis;
+
+export interface VerticalDisplayConstants {
+    elevationProfileEntryCount: number,
+    invalidElevation: number,
+    unknownElevation: number,
+    waterElevation: number,
+    maxImageHeight: number,
+}
+
+export type VerticalDisplayParameters = {
+    constants: VerticalDisplayConstants,
 } & IKernelFunctionThis;
