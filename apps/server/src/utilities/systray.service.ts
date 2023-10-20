@@ -4,6 +4,7 @@ import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
 import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
+import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
 import { NetworkService } from './network.service';
 import serverConfig from '../config/server.config';
 import { ShutDownService } from './shutdown.service';
@@ -33,7 +34,7 @@ export class SysTrayService implements OnApplicationShutdown {
                     this.exitItem,
                 ],
             },
-            copyDir: true,
+            copyDir: getExecutablePath(),
         });
 
         this.sysTray.onClick((action) => {
