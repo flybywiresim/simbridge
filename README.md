@@ -16,16 +16,24 @@ This repo contains the source code to SimBridge
 Please make sure you have:
 
 NodeJS 16 - [Homepage](https://nodejs.org/en/)
+ - Install the latest node/npm,
+ - Install [NVM for windows](https://github.com/coreybutler/nvm-windows) or [nvm for *nix](https://github.com/nvm-sh/nvm)
+ - $ nvm install v16.20.0
+ - $ nvm use 16.20.0
 
+
+First time
 ```bash
-# Install all dependencies
-$ npm install
+$ ./scripts/setup.sh
+```
 
-# Build all packages
-$ npm run build
+then every time to want to run it
+```bash
 
-# Start server, to use interfaces you need to build them beforehand
 $ npm run start
+
+#or if you want to use magic hot reloading upon save
+$ npm run start:dev
 
 # Wipe build/ and dist/ folders, build all packages, package to exe and copy dependencies/resources to build folder
 $ npm run build:exec
