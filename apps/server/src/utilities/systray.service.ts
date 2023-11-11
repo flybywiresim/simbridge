@@ -70,7 +70,7 @@ export class SysTrayService implements OnApplicationShutdown {
         tooltip: 'Open resource folder in your file explorer',
         enabled: true,
         click: () => {
-            open.openApp('explorer', { arguments: [`${process.cwd()}\\resources`] });
+            open.openApp('explorer', { arguments: [`${getExecutablePath()}\\resources`] });
         },
     };
 

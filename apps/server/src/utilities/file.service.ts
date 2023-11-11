@@ -70,7 +70,7 @@ export class FileService {
     async getFoldernames(directory: string): Promise<string[]> {
         try {
             this.logger.debug(`Reading all Dirs in directory: ${directory}`);
-            const dir = join(process.cwd(), directory);
+            const dir = join(getExecutablePath(), directory);
             this.checkFilePathSafety(dir);
             return (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isDirectory()).map((dir) => dir.name);
         } catch (err) {
