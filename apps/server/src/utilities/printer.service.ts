@@ -5,6 +5,7 @@ import { tmpdir, platform } from 'os';
 import * as print from 'pdf-to-printer';
 import * as PDFDocument from 'pdfkit';
 import { createWriteStream, readFileSync } from 'fs';
+import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
 import printerConfig from '../config/printer.config';
 
 @Injectable()
@@ -63,7 +64,7 @@ export class PrinterService {
                     doc.moveDown();
                 }
                 doc.end();
-                print.print(pdfPath, { printer: foundPrinter.name, sumatraPdfPath: `${process.cwd()}/resources/SumatraPDF.exe` });
+                print.print(pdfPath, { printer: foundPrinter.name, sumatraPdfPath: `${getExecutablePath()}/resources/SumatraPDF.exe` });
             }
         } catch (error) {
             this.logger.error('Error printing document', error);
