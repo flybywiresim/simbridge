@@ -13,18 +13,18 @@ import serverConfig from './config/server.config';
 import { HealthModule } from './health/health.module';
 
 @Module({
-    imports: [
-        ServeStaticModule.forRoot({
-            rootPath: join(__dirname, '..', 'dist/mcdu'),
-            serveRoot: '/interfaces/mcdu',
-        }),
-        WinstonModule.forRootAsync({ useClass: WinstonConfigService }),
-        ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig] }),
-        CoRouteModule,
-        TerrainModule,
-        UtilitiesModule,
-        InterfacesModule,
-        HealthModule,
-    ],
+  imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'dist/mcdu'),
+      serveRoot: '/interfaces/mcdu',
+    }),
+    WinstonModule.forRootAsync({ useClass: WinstonConfigService }),
+    ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig] }),
+    CoRouteModule,
+    TerrainModule,
+    UtilitiesModule,
+    InterfacesModule,
+    HealthModule,
+  ],
 })
 export class AppModule {}

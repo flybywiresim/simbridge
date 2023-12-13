@@ -36,7 +36,7 @@
     "start:dev": "nest start server --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint  --cache **/*.{js,mjs,jsx,ts,ts,tsx}",
+    "lint": "eslint  --cache **/*.{js,mjs,jsx,ts,tsx}",
     "lint:fix": "npm run lint -- --fix",
     "test": "jest",
     "test:watch": "jest --watch",

@@ -31,17 +31,24 @@
 			"parserOptions": { "sourceType": "module" }
 		},
 		{
-			"files": ["*.ts", "*.tsx"],
+			"files": ["*.js"],
 			"rules": {
-				"no-undef": "off"
+				"@typescript-eslint/no-var-requires": "off"
 			}
 		}
 	],
-	// overrides airbnb, use sparingly
 	"rules": {
 		// Required for dependency injection
 		"no-useless-constructor": "off",
 		"no-empty-function": "off",
+
+		"@typescript-eslint/no-unused-vars": [
+			"error",
+			{
+				"varsIgnorePattern": "^_.+$",
+				"argsIgnorePattern": "^_.+$"
+			}
+		],
 
 		"prettier/prettier": [
 			"error",
@@ -52,8 +59,13 @@
 			}
 		],
 
+		"@typescript-eslint/no-explicit-any": "off",
+
 		// Annoying shit
+		"no-undef": "off",
+		"no-redeclare": "off",
 		"no-await-in-loop":"off",
+		"no-constant-condition":"off",
 		"strict": "off",
 		"jsx-a11y/click-events-have-key-events": "off",
 		"jsx-a11y/no-static-element-interactions": "off"

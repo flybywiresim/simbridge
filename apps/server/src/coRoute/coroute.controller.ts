@@ -6,43 +6,43 @@ import { CoRouteDto } from './dto/coroute.dto';
 @ApiTags('COROUTE')
 @Controller('api/v1/coroute')
 export class CoRouteController {
-    constructor(private coRouteService: CoRouteService) {}
+  constructor(private coRouteService: CoRouteService) {}
 
-    @Get('length')
-    @ApiResponse({
-        status: 200,
-        description: 'the number of files in the coroutes folder',
-        type: Number,
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'unable to find the coroutes folder',
-    })
-    async getNumOfRoutes(): Promise<number> {
-        return this.coRouteService.getNumOfRoutes();
-    }
+  @Get('length')
+  @ApiResponse({
+    status: 200,
+    description: 'the number of files in the coroutes folder',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'unable to find the coroutes folder',
+  })
+  async getNumOfRoutes(): Promise<number> {
+    return this.coRouteService.getNumOfRoutes();
+  }
 
-    @Get()
-    @ApiResponse({
-        status: 200,
-        description: 'The company route in JSON format',
-        type: CoRouteDto,
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Unable to find the coroute',
-    })
-    async getRte(@Query('rteNum') routeNum: String): Promise<CoRouteDto> {
-        return this.coRouteService.getForRteNum(routeNum);
-    }
+  @Get()
+  @ApiResponse({
+    status: 200,
+    description: 'The company route in JSON format',
+    type: CoRouteDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Unable to find the coroute',
+  })
+  async getRte(@Query('rteNum') routeNum: string): Promise<CoRouteDto> {
+    return this.coRouteService.getForRteNum(routeNum);
+  }
 
-    @Get('list')
-    @ApiResponse({
-        status: 200,
-        description: 'The list of company routes matching the given origin and destination ICAOs',
-        type: [CoRouteDto],
-    })
-    async getRteForIcaos(@Query('origin') originIcao: String, @Query('destination') destinationIcao: String) {
-        return this.coRouteService.getRoutesForIcao(originIcao, destinationIcao);
-    }
+  @Get('list')
+  @ApiResponse({
+    status: 200,
+    description: 'The list of company routes matching the given origin and destination ICAOs',
+    type: [CoRouteDto],
+  })
+  async getRteForIcaos(@Query('origin') originIcao: string, @Query('destination') destinationIcao: string) {
+    return this.coRouteService.getRoutesForIcao(originIcao, destinationIcao);
+  }
 }
