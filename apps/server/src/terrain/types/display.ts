@@ -1,4 +1,4 @@
 export enum DisplaySide {
-    Left = 'L',
-    Right = 'R',
+  Left = 'L',
+  Right = 'R',
 }

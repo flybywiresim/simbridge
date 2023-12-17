@@ -9,61 +9,64 @@ import { ShutDownService } from '../utilities/shutdown.service';
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
 export class TerrainController {
-    constructor(private terrainService: TerrainService, private shutdownService: ShutDownService) {}
+  constructor(
+    private terrainService: TerrainService,
+    private shutdownService: ShutDownService,
+  ) {}
 
-    @Get('renderingTimestamp')
-    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
-    @ApiResponse({
-        status: 200,
-        description: 'The timestamp of the current rendering data',
-        type: Number,
-    })
-    renderingTimestamp(@Query('display') display: DisplaySide) {
-        return this.terrainService.frameData(display).then((data) => {
-            if (data === undefined) return -1;
-            return data.timestamp;
-        });
-    }
+  @Get('renderingTimestamp')
+  @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+  @ApiResponse({
+    status: 200,
+    description: 'The timestamp of the current rendering data',
+    type: Number,
+  })
+  renderingTimestamp(@Query('display') display: DisplaySide) {
+    return this.terrainService.frameData(display).then((data) => {
+      if (data === undefined) return -1;
+      return data.timestamp;
+    });
+  }
 
-    @Get('renderingThresholds')
-    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
-    @ApiResponse({
-        status: 200,
-        description: 'The thresholds for the current rendering data',
-        type: NavigationDisplayThresholdsDto,
-    })
-    renderingThresholds(@Query('display') display: DisplaySide) {
-        return this.terrainService.frameData(display).then((data) => {
-            if (data === undefined) return undefined;
-            return data.thresholds;
-        });
-    }
+  @Get('renderingThresholds')
+  @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+  @ApiResponse({
+    status: 200,
+    description: 'The thresholds for the current rendering data',
+    type: NavigationDisplayThresholdsDto,
+  })
+  renderingThresholds(@Query('display') display: DisplaySide) {
+    return this.terrainService.frameData(display).then((data) => {
+      if (data === undefined) return undefined;
+      return data.thresholds;
+    });
+  }
 
-    @Get('renderingFrames')
-    @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
-    @ApiResponse({
-        status: 200,
-        description: 'The base64 strings for the current frames',
-        type: [String],
-    })
-    renderingFrames(@Query('display') display: DisplaySide) {
-        return this.terrainService.frameData(display).then((data) => {
-            if (data === undefined) return [];
+  @Get('renderingFrames')
+  @ApiQuery({ name: 'display', required: true, enum: DisplaySide })
+  @ApiResponse({
+    status: 200,
+    description: 'The base64 strings for the current frames',
+    type: [String],
+  })
+  renderingFrames(@Query('display') display: DisplaySide) {
+    return this.terrainService.frameData(display).then((data) => {
+      if (data === undefined) return [];
 
-            const retval = [];
-            data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
-            return retval;
-        });
-    }
+      const retval = [];
+      data.frames.forEach((frame: Uint8ClampedArray) => retval.push(Buffer.from(frame).toString('base64')));
+      return retval;
+    });
+  }
 
-    @Post('verticalDisplayPath')
-    @ApiQuery({ name: 'side', required: true, enum: DisplaySide })
-    @ApiBody({ required: true, type: ElevationSamplePathDto })
-    @ApiResponse({
-        status: 200,
-        description: 'Update of the path was successful',
-    })
-    verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
-        this.terrainService.updateFlightPath(side, path);
-    }
+  @Post('verticalDisplayPath')
+  @ApiQuery({ name: 'side', required: true, enum: DisplaySide })
+  @ApiBody({ required: true, type: ElevationSamplePathDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Update of the path was successful',
+  })
+  verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
+    this.terrainService.updateFlightPath(side, path);
+  }
 }
