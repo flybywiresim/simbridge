@@ -24,6 +24,7 @@ jobs:
       - name: Build Local API
         run: |
           npm install
+          npm run typecheck
           npm run build:exec
       - name: Build ZIP File
         run: |
