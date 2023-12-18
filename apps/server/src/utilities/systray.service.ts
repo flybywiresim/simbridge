@@ -52,6 +52,14 @@ export class SysTrayService implements OnApplicationShutdown {
     tooltip: 'Open remote displays',
     items: [
       {
+        title: 'Open Remote App',
+        tooltip: 'Open the remote app with your default browser, using your local IP',
+        enabled: true,
+        click: async () => {
+          open(`http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}/interfaces/remote`);
+        },
+      },
+      {
         title: 'Open MCDU',
         tooltip: 'Open the MCDU remote display with your default browser, using your local IP',
         enabled: true,
