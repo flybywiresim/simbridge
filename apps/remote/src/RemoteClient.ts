@@ -23,17 +23,14 @@ export type ViewListenerOnCallback = (
   listenerID: string,
   event: string,
   callback: (...args: unknown[]) => void,
-) => void;
+) => string;
+
+export type ViewListenerOffCallback = (subscriptionID: string) => void;
 
 interface PendingViewListenerOnCall {
   event: string;
   subscriptionID: string;
   subscriptionGroupID: string;
-}
-
-interface GaugeBundles {
-  js: string;
-  css: string;
 }
 
 export interface RemoteClientEvents {
@@ -256,8 +253,17 @@ export class RemoteClient {
       });
     }
 
-    // TODO clean this up when `off` is called on viewlistener
     this.eventSubscriptionCallbacks.set(subscriptionID, (data) => callback(...data));
+  }
+
+  public viewListenerOff(subscriptionID: string): void {
+    this.eventSubscriptionCallbacks.delete(subscriptionID);
+
+    this.sendMessage({
+      type: 'remoteSubscriptionCancel',
+      subscriptionID,
+      fromClientID: this.clientID,
+    });
   }
 
   public cancelSubscriptionGroup(subscriptionGroupID: string): void {
@@ -315,7 +321,6 @@ export class RemoteClient {
   private onMessage(message: string): void {
     const msg: protocolV0.Messages = JSON.parse(message);
 
-    // TODO move this elsewhere
     applicationStore.dispatch(appendMessage({ direction: 'down', contents: message }));
 
     let messageHandled = false;
@@ -424,7 +429,6 @@ export class RemoteClient {
         return;
       }
       case 'aircraftEventNotification': {
-        console.log('aircraftEventNotification', msg);
         const callback = this.eventSubscriptionCallbacks.get(msg.subscriptionID);
 
         if (callback) {
@@ -433,7 +437,6 @@ export class RemoteClient {
         return;
       }
       case 'aircraftStatus': {
-        // TODO maybe move this out of the client
         applicationStore.dispatch(setFlightState(msg));
         return;
       }

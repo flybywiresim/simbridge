@@ -1,5 +1,5 @@
 import { simvar } from './SimVar';
-import { RegisterViewListenerCallback, ViewListenerOnCallback } from '../RemoteClient';
+import { RegisterViewListenerCallback, ViewListenerOffCallback, ViewListenerOnCallback } from '../RemoteClient';
 
 export class Coherent {
   constructor(private readonly simvar: simvar) {}
@@ -41,6 +41,7 @@ export class Coherent {
 export function RegisterViewListenerFactory(
   registerViewListenerCallback: RegisterViewListenerCallback,
   viewListenerOnCallback: ViewListenerOnCallback,
+  viewListenerOffCallback: ViewListenerOffCallback,
 ) {
   return function RegisterViewListener(name: string, callback: () => void) {
     console.log(`[shim](RegisterViewListener) '${name}'`);
@@ -49,11 +50,31 @@ export function RegisterViewListenerFactory(
 
     promise.then(callback); // TODO handle errors
 
-    // TODO unregister, off
+    const eventSubscriptionIDs = new Map<string, Map<(...args: unknown[]) => void, string>>();
+
+    // TODO unregister
     return {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      on: (event: string, callback: (...args: unknown[]) => void) => {
-        viewListenerOnCallback(listenerID, event, callback);
+      on: (event: string, callback: (...args: any[]) => void) => {
+        const subscriptionID = viewListenerOnCallback(listenerID, event, callback);
+
+        let existingMap = eventSubscriptionIDs.get(event);
+
+        if (!existingMap) {
+          const map = new Map();
+
+          eventSubscriptionIDs.set(event, map);
+          existingMap = map;
+        }
+
+        existingMap.set(callback, subscriptionID);
+      },
+
+      off: (event: string, callback: (...args: unknown[]) => void) => {
+        const subscriptionID = eventSubscriptionIDs.get(event)?.get(callback);
+
+        if (subscriptionID) {
+          viewListenerOffCallback(subscriptionID);
+        }
       },
 
       triggerToAllSubscribers: (event: string, data: unknown[]) => {
