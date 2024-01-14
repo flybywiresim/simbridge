@@ -8,6 +8,7 @@ import {
   SimVarSetCallback,
   RegisterViewListenerCallback,
   ViewListenerOnCallback,
+  ViewListenerOffCallback,
 } from '../RemoteClient';
 
 export function installShims(
@@ -17,16 +18,20 @@ export function installShims(
   dataStorageSetCallback: DataStorageSetCallback,
   registerViewListenerCallback: RegisterViewListenerCallback,
   viewListenerOnCallback: ViewListenerOnCallback,
+  viewListenerOffCallback: ViewListenerOffCallback,
 ): void {
   const simvar = new SimVarShim.simvar(simVarSetCallback);
   const dataStorage = new DataStorage.StoredDataShim(dataStorageSetCallback);
 
+  const RegisterViewListener = CoherentShim.RegisterViewListenerFactory(
+    registerViewListenerCallback,
+    viewListenerOnCallback,
+    viewListenerOffCallback,
+  );
+
   const shim = {
     Coherent: new CoherentShim.Coherent(simvar),
-    RegisterViewListener: CoherentShim.RegisterViewListenerFactory(
-      registerViewListenerCallback,
-      viewListenerOnCallback,
-    ),
+    RegisterViewListener,
     SimVar: new SimVarShim.SimVar(simVarSubscribeCallback, simVarSetCallback),
     simvar,
     Avionics: {

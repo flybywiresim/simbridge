@@ -6,6 +6,7 @@ import {
   RemoteClient,
   SimVarSetCallback,
   SimVarSubscribeCallback,
+  ViewListenerOffCallback,
   ViewListenerOnCallback,
 } from './RemoteClient';
 import { installShims } from './shims';
@@ -63,14 +64,22 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
     return [listenerID, client.registerViewListener(name, listenerID)];
   };
 
-  const viewListenerOnCallback: ViewListenerOnCallback = (listenerID, event, callback) => {
+  const viewListenerOnCallback: ViewListenerOnCallback = (listenerID, event, callback): string => {
+    const subscriptionID = v4();
+
     client.viewListenerOn(
       listenerID,
       event,
       callback,
-      v4(),
+      subscriptionID,
       applicationStore.getState().connectionState.currentSubscriptionGroupID!,
     );
+
+    return subscriptionID;
+  };
+
+  const viewListenerOffCallback: ViewListenerOffCallback = (subscriptionID): void => {
+    client.viewListenerOff(subscriptionID);
   };
 
   const resizeIframe = useCallback(() => {
@@ -162,6 +171,7 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
       dataStorageSetCallback,
       registerViewListenerCallback,
       viewListenerOnCallback,
+      viewListenerOffCallback,
     );
 
     const scriptTag = iframeDocument.createElement('script');
