@@ -51,8 +51,20 @@ export function installShims(
     BaseInstrument: MsfsSdk.BaseInstrument,
     registerInstrument: MsfsSdk.registerInstrument,
     LaunchFlowEvent: MsfsSdk.LaunchFlowEvent,
-    RegisterGenericDataListener: () => {
-      return {};
+    RegisterGenericDataListener(callback: () => void) {
+      const listener = RegisterViewListener('JS_LISTENER_GENERICDATA', callback);
+
+      (listener as any).onDataReceived = (key: string, callback: (data: unknown) => void) => {
+        listener.on(key, (e: string) => {
+          try {
+            callback(JSON.parse(e));
+          } catch (e) {
+            console.error(e);
+          }
+        });
+      };
+
+      return listener;
     },
     GetStoredData: dataStorage.GetStoredData.bind(dataStorage),
     SetStoredData: dataStorage.SetStoredData.bind(dataStorage),
