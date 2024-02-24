@@ -127,6 +127,55 @@ export class FileService {
     }
   }
 
+  async getConvertedPdfFileFromUrl(url: string, pageNumber: number, scale: number = 4): Promise<StreamableFile> {
+    // Some PDFs need external cmaps.
+    const CMAP_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
+    const CMAP_PACKED = true;
+
+    // Where the standard fonts are located.
+    const STANDARD_FONT_DATA_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
+
+    try {
+      const pngKey = `${url};;${pageNumber};;${scale}`;
+      if (this.pngCache.has(pngKey)) {
+        return new StreamableFile(this.pngCache.get(pngKey));
+      }
+
+      if (!this.pdfCache.has(url)) {
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          throw new Error('encountered error retrieving PDF file');
+        }
+
+        const data = new Uint8Array(await resp.arrayBuffer());
+
+        // Load the PDF file.
+        const pdfDocument = await getDocument({
+          data,
+          cMapUrl: CMAP_URL,
+          cMapPacked: CMAP_PACKED,
+          standardFontDataUrl: STANDARD_FONT_DATA_URL,
+        }).promise;
+
+        this.pdfCache.set(url, pdfDocument);
+      }
+
+      const file = this.pdfCache.get(url);
+
+      const pngBuffer = await pdfToPng(file, pageNumber, scale);
+
+      if (!this.pngCache.has(pngKey)) {
+        this.pngCache.set(pngKey, pngBuffer);
+      }
+
+      return new StreamableFile(pngBuffer);
+    } catch (err) {
+      const message = `Error converting PDF to PNG: ${url}`;
+      this.logger.log(message, err);
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async getConvertedPdfFile(
     directory: string,
     fileName: string,
