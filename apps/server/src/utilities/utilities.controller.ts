@@ -59,6 +59,17 @@ export class UtilityController {
     return convertedPdfFile;
   }
 
+  @Get('pdf/fromUrl/numpages')
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the number of pages in the pdf at the URL',
+    type: Number,
+  })
+  async getNumberOfPagesFromUrl(@Query('encodedUrl') encodedUrl: string): Promise<number> {
+    const url = decodeURIComponent(encodedUrl);
+    return this.fileService.getNumberOfPdfPagesFromUrl(url);
+  }
+
   @Get('pdf/list')
   @ApiResponse({
     status: 200,
