@@ -15,24 +15,10 @@ export const FlightStatusBar: React.FC<FlightStatusProps> = ({ dropdownOpen, onT
 
   return (
     <div
-      className={`w-full sm:w-[420px] h-12 bg-navy border-2 border-t-0 border-navy-light sm:rounded-b-md text-white mx-auto px-5 flex flex-row items-center gap-x-2.5 transition-all duration-300`}
+      className={`w-full sm:w-[440px] h-12 bg-navy border-2 border-t-0 border-navy-light sm:rounded-b-md text-white mx-auto px-5 flex flex-row items-center gap-x-2.5 transition-all duration-300`}
     >
-      <span className="w-48 flex-grow flex flex-row items-center gap-x-2 overflow-hidden">
-        <span className="font-manrope">{flightStatus.airframe.name}</span>
-        <span className="font-manrope">{flightStatus.airframe.livery}</span>
-      </span>
-
       <span
-        className={
-          'w-20 bg-navy-lightest hover:bg-navy-lighter self-stretch flex flex-col justify-center items-center transition-colors duration-300 cursor-pointer'
-        }
-        onClick={onToggleDropdown}
-      >
-        <ChevronDown size={22} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
-      </span>
-
-      <span
-        className={`w-48 flex-grow flex justify-end items-center gap-x-1.5 ${
+        className={`w-52 flex-grow flex items-center gap-x-1.5 ${
           connectionState.connected === ConnectionPhase.ConnectedToAircraft
             ? 'text-green-500 animate-pulse'
             : connectionState.connected === ConnectionPhase.ConnectedToBridge
@@ -47,6 +33,20 @@ export const FlightStatusBar: React.FC<FlightStatusProps> = ({ dropdownOpen, onT
           : connectionState.connected === ConnectionPhase.ConnectedToBridge
             ? 'Waiting on aircraft'
             : 'Not connected'}
+      </span>
+
+      <span
+        className={
+          'w-20 bg-navy-lightest hover:bg-navy-lighter self-stretch flex flex-col justify-center items-center transition-colors duration-300 cursor-pointer'
+        }
+        onClick={onToggleDropdown}
+      >
+        <ChevronDown size={22} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+      </span>
+
+      <span className="w-52 flex-grow flex flex-row justify-center items-center gap-x-2 overflow-hidden">
+        <span className="font-manrope">{flightStatus.airframe.name}</span>
+        <span className="font-manrope">{flightStatus.airframe.livery}</span>
       </span>
     </div>
   );

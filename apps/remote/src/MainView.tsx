@@ -104,6 +104,9 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
       return;
     }
 
+    iframeRef.current.style.width = '0px';
+    iframeRef.current.style.height = '0px';
+
     const iframeWindow = iframeRef.current.contentWindow!;
 
     iframeWindow.location.reload();
@@ -222,7 +225,7 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
   }, [resizeIframe, loadedInstrument]);
 
   const handleLoadInstrument = useCallback(
-    async (instrument: protocolV0.InstrumentMetadata) => {
+    async (instrument: protocolV0.InstrumentMetadata | null) => {
       await resetIframe();
 
       dispatch(clearSimVars());
@@ -233,16 +236,21 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
         client.cancelSubscriptionGroup(currentSubscriptionGroupID);
       }
 
-      const jsData = await client.downloadFile(instrument.gauges[0].bundles.js);
-      const cssData = await client.downloadFile(instrument.gauges[0].bundles.css);
+      if (instrument) {
+        const jsData = await client.downloadFile(instrument.gauges[0].bundles.js);
+        const cssData = await client.downloadFile(instrument.gauges[0].bundles.css);
 
-      const jsText = new TextDecoder('utf8').decode(jsData);
-      const cssText = new TextDecoder('utf8').decode(cssData);
+        const jsText = new TextDecoder('utf8').decode(jsData);
+        const cssText = new TextDecoder('utf8').decode(cssData);
 
-      dispatch(setLoadedInstrument(instrument));
-      dispatch(setCurrentSubscriptionGroupID(v4()));
+        dispatch(setLoadedInstrument(instrument));
+        dispatch(setCurrentSubscriptionGroupID(v4()));
 
-      runCodeInIframe(jsText, cssText, instrument.dimensions.width, instrument.dimensions.height);
+        runCodeInIframe(jsText, cssText, instrument.dimensions.width, instrument.dimensions.height);
+      } else {
+        dispatch(setLoadedInstrument(null));
+        dispatch(setCurrentSubscriptionGroupID(null));
+      }
     },
     [client, dispatch, runCodeInIframe],
   );
@@ -288,7 +296,6 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
         onFullScreenToggled={() => setFullScreenOpened((old) => !old)}
         handleLoadInstrument={handleLoadInstrument}
       />
-      {/*<MessagesPanel />*/}
     </div>
   );
 };
@@ -325,7 +332,7 @@ const NoInstrumentLoadedOverlay: React.FC<NoInstrumentLoadedOverlayProps> = ({ o
 
 interface InstrumentFrameProps {
   onFullScreenToggled: () => void;
-  handleLoadInstrument: (instrument: protocolV0.InstrumentMetadata) => void;
+  handleLoadInstrument: (instrument: protocolV0.InstrumentMetadata | null) => void;
 }
 
 const InstrumentFrame = forwardRef<HTMLIFrameElement, InstrumentFrameProps>(
@@ -379,7 +386,17 @@ const InstrumentFrame = forwardRef<HTMLIFrameElement, InstrumentFrameProps>(
           ref.current.style.transform = `scale(${
             1 / Math.max(ref.current.clientWidth / window.innerWidth, ref.current.clientHeight / window.innerHeight)
           })`;
-          // ref.current.style.margin = '0 auto';
+
+          // Evaluate this the next frame so that we get the fullscreen dimensions
+          setTimeout(() => {
+            if (!ref.current) {
+              return;
+            }
+
+            ref.current.style.marginLeft = `${
+              window.innerWidth / 2 - ref.current?.getBoundingClientRect().width / 2
+            }px`;
+          });
         } else {
           ref.current.style.transform = '';
           ref.current.style.margin = '';
@@ -407,6 +424,10 @@ const InstrumentFrame = forwardRef<HTMLIFrameElement, InstrumentFrameProps>(
       elm?.requestFullscreen();
     };
 
+    const handleClearInstrument = () => {
+      handleLoadInstrument(null);
+    };
+
     const connectionLost = connectionState === ConnectionPhase.ConnectedToBridge;
 
     return (
@@ -416,7 +437,7 @@ const InstrumentFrame = forwardRef<HTMLIFrameElement, InstrumentFrameProps>(
           <div className="absolute w-0 h-full -left-12">
             <div className="h-full w-12 bg-navy px-3 py-4 flex flex-col items-center rounded-l-md">
               <span className={`text-xl vertical-writing-lr rotate-180 ${!loadedInstrument ? 'opacity-40' : ''}`}>
-                -{loadedInstrument?.instrumentID ?? '-----'}
+                {loadedInstrument?.instrumentID ?? '-----'}
               </span>
 
               <Fullscreen
@@ -432,6 +453,7 @@ const InstrumentFrame = forwardRef<HTMLIFrameElement, InstrumentFrameProps>(
                 className={`mt-4 hover:text-cyan hover:cursor-pointer ${
                   !loadedInstrument ? 'opacity-40 pointer-events-none' : ''
                 }`}
+                onClick={handleClearInstrument}
               />
             </div>
           </div>

@@ -35,7 +35,7 @@ export const connectionStateSlice = createSlice({
       clientName !== undefined && (state.clientName = clientName);
       bridgeName !== undefined && (state.bridgeName = bridgeName);
     },
-    setCurrentSubscriptionGroupID: (state, action: PayloadAction<string>) => {
+    setCurrentSubscriptionGroupID: (state, action: PayloadAction<string | null>) => {
       state.currentSubscriptionGroupID = action.payload;
     },
   },
