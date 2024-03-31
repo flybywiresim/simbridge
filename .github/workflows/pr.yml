@@ -22,9 +22,13 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-      - name: Build Local API
+      - name: Install dependencies
         run: |
           npm install
+          cd apps/remote/
+          npm install
+      - name: Build Local API
+        run: |
           npm run typecheck
           npm run build:exec
       - name: Build ZIP File
