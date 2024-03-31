@@ -8,9 +8,26 @@ on:
       - ready_for_review
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: set Node version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: |
+          npm install
+          cd apps/remote/
+          npm install
+      - name: npm run lint
+        run: |
+          npm run lint
   build:
     name: Build and upload SimBridge
-    if: github.repository_owner == 'flybywiresim'
     runs-on: windows-latest
     env:
       RELEASE_ZIP_NAME: fbw-simbridge.zip
