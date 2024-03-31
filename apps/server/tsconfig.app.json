@@ -4,7 +4,7 @@
     "outDir": "../../dist",
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"],
+  "exclude": ["test", "**/*spec.ts"],
   "esModuleInterop": true,
   "allowSyntheticDefaultImports": true,
 }
