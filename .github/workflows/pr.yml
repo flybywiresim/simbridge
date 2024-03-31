@@ -27,7 +27,7 @@ jobs:
           npm install
           cd apps/remote/
           npm install
-      - name: Build Local API
+      - name: Build SimBridge
         run: |
           npm run typecheck
           npm run build:exec
