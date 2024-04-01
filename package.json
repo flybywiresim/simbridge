@@ -210,6 +210,7 @@
       "node_modules/es-get-iterator/**/*.*",
       "/node_modules/systray2/traybin/*.exe",
       "dist/mcdu/**/*",
+      "dist/remote/**/*",
       "dist/assets/**/*",
       "dist/terrain/mapdata/**/*.*",
       "dist/terrain/processing/**/*.*",
