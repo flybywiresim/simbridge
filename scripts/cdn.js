@@ -16,84 +16,84 @@ const TOKEN = process.env.BUNNY_SECRET_TOKEN;
 let MAX_RETRY = 5;
 
 const uploadFile = async (url, buffer) => {
-    if (MAX_RETRY === 0) {
-        return;
+  if (MAX_RETRY === 0) {
+    return;
+  }
+
+  try {
+    const putOptions = {
+      method: 'PUT',
+      headers: { AccessKey: PASSWORD },
+      body: buffer,
+    };
+
+    const response = await fetch(url, putOptions);
+
+    if (response.status !== 201) {
+      console.log('Failed to upload file, trying again');
+      MAX_RETRY--;
+      await uploadFile(url, buffer);
+    } else {
+      MAX_RETRY = 5;
+      console.log('File Uploaded');
     }
-
-    try {
-        const putOptions = {
-            method: 'PUT',
-            headers: { AccessKey: PASSWORD },
-            body: buffer,
-        };
-
-        const response = await fetch(url, putOptions);
-
-        if (response.status !== 201) {
-            console.log('Failed to upload file, trying again');
-            MAX_RETRY--;
-            await uploadFile(url, buffer);
-        } else {
-            MAX_RETRY = 5;
-            console.log('File Uploaded');
-        }
-    } catch (e) {
-        console.error(e);
-        process.exit(1);
-    }
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
 };
 
 const upload = async (fileName, buffer) => {
-    try {
-        MAX_RETRY = 5;
-        const url = `${CDN_URL}/${CDN_DIR}/${fileName}`;
+  try {
+    MAX_RETRY = 5;
+    const url = `${CDN_URL}/${CDN_DIR}/${fileName}`;
 
-        console.log(`Syncing file: ${LOCAL_DIR}/${fileName}`);
-        console.log(`Destination: ${url}`);
+    console.log(`Syncing file: ${LOCAL_DIR}/${fileName}`);
+    console.log(`Destination: ${url}`);
 
-        await uploadFile(url, buffer);
-    } catch (e) {
-        console.error(e);
-        process.exit(1);
-    }
+    await uploadFile(url, buffer);
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
 };
 
 const purge = async (filename) => {
-    try {
-        console.log('Purging cache');
+  try {
+    console.log('Purging cache');
 
-        const url = `${CDN_PURGE_LINK}/${CDN_DIR}/${filename}`;
-        console.log(`Purging cache for file: ${filename}`);
-        console.log(`Purge URL: ${url} \n`);
+    const url = `${CDN_PURGE_LINK}/${CDN_DIR}/${filename}`;
+    console.log(`Purging cache for file: ${filename}`);
+    console.log(`Purge URL: ${url} \n`);
 
-        const putOptions = {
-            method: 'POST',
-            headers: {
-                'AccessKey': TOKEN,
-                'Content-Length': 0,
-            },
-        };
+    const putOptions = {
+      method: 'POST',
+      headers: {
+        AccessKey: TOKEN,
+        'Content-Length': 0,
+      },
+    };
 
-        await fetch(url, putOptions);
-    } catch (e) {
-        console.error(e);
-        process.exit(1);
-    }
+    await fetch(url, putOptions);
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
 };
 
 const execute = async () => {
-    try {
-        const files = await readdir(LOCAL_DIR);
+  try {
+    const files = await readdir(LOCAL_DIR);
 
-        for (const fileName of files) {
-            const buffer = await readFile(`${LOCAL_DIR}/${fileName}`);
-            await upload(fileName, buffer);
-            await purge(fileName);
-        }
-    } catch (e) {
-        console.error(e);
-        process.exit(1);
+    for (const fileName of files) {
+      const buffer = await readFile(`${LOCAL_DIR}/${fileName}`);
+      await upload(fileName, buffer);
+      await purge(fileName);
     }
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
 };
 
 execute();

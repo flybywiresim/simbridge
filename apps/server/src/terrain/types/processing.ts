@@ -1,6 +1,6 @@
 export interface ElevationProfile {
-    pathWidth: number,
-    waypointsLatitudes: number[],
-    waypointsLongitudes: number[],
-    range: number,
+  pathWidth: number;
+  waypointsLatitudes: number[];
+  waypointsLongitudes: number[];
+  range: number;
 }
