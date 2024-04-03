@@ -24,7 +24,7 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection {
     async afterInit(server: Server) {
         this.server = server;
         this.logger.log('Remote MCDU websocket initialised');
-        this.logger.log(`Initialised on http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}${server.path}`);
+        this.logger.log(`Initialised websocket gateway on http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}${server.path}`);
     }
 
     handleConnection(client: WebSocket) {
