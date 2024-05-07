@@ -110,7 +110,7 @@ export class FileService {
 
   async getNumberOfPdfPages(Directory: string, fileName: string): Promise<number> {
     const retrievedFile = await this.getFile(Directory, fileName);
-    return getDocument({ data: retrievedFile }).promise.then((document) => document.numPages);
+    return getDocument({ data: retrievedFile, isEvalSupported: false }).promise.then((document) => document.numPages);
   }
 
   /**
@@ -160,6 +160,7 @@ export class FileService {
           cMapUrl: CMAP_URL,
           cMapPacked: CMAP_PACKED,
           standardFontDataUrl: STANDARD_FONT_DATA_URL,
+          isEvalSupported: false,
         }).promise;
 
         this.pdfCache.set(conversionFilePath, pdfDocument);
