@@ -1,6 +1,6 @@
 {
   "name": "fbw-simbridge",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
   "author": "",
   "private": false,
@@ -81,7 +81,7 @@
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^7.2.0",
-    "sharp": "^0.30.3",
+    "sharp": "^0.32.6",
     "skia-canvas": "^0.9.29",
     "swagger-ui-express": "^4.3.0",
     "systray2": "^2.1.4",
