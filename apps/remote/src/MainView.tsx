@@ -148,7 +148,8 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
     const panelTag = iframeDocument.createElement('vcockpit-panel');
     iframeDocument.body.appendChild(panelTag);
 
-    const instrumentTag = iframeDocument.createElement('a32nx-nd');
+    const instrumentTag = iframeDocument.createElement('fbw-remote-instrument');
+    instrumentTag.setAttribute('Index', '1');
     panelTag.appendChild(instrumentTag);
 
     const contentTag = iframeDocument.createElement('div');
