@@ -1,6 +1,6 @@
 {
   "name": "fbw-simbridge",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "The simbridge server for FBW addons for various tasks the addons themselves can't achieve",
   "author": "",
   "private": false,
@@ -72,7 +72,7 @@
     "nest-winston": "^1.6.2",
     "node-hide-console-window": "^2.2.0",
     "open": "^8.4.0",
-    "pdf-to-printer": "^5.2.0",
+    "pdf-to-printer": "5.3.0",
     "pdfjs-dist": "^2.13.216",
     "pdfkit": "^0.13.0",
     "react": "^17.0.0",

@@ -44,7 +44,7 @@ export class PrinterService {
       this.logger.warn('Printer disabled or null printerName');
       return null;
     } catch (error) {
-      this.logger.error('Error retrieving printers list', error);
+      this.logger.error(`Error retrieving printers list: ${error}`, error);
       return null;
     }
   }
