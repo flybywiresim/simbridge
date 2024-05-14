@@ -49,13 +49,6 @@ jobs:
           asset_path: .\${{env.BUILD_DIR_NAME }}\${{ env.RELEASE_ZIP_NAME }}
           asset_name: ${{ env.RELEASE_ZIP_NAME }}
           asset_content_type: application/zip
-      - name: Upload to Bunny CDN
-        env:
-          BUNNY_BUCKET_PASSWORD: ${{ secrets.BUNNY_BUCKET_PASSWORD }}
-          BUNNY_SECRET_TOKEN: ${{ secrets.BUNNY_SECRET_TOKEN }}
-          BUNNY_BUCKET_DESTINATION: addons/simbridge/release
-        run: |
-          node scripts\cdn.js ${{ env.BUNNY_BUCKET_DESTINATION }} .\build-modules
       - name: Upload to CloudFlare CDN
         env:
           CLOUDFLARE_BUCKET_PASSWORD: ${{ secrets.CLOUDFLARE_BUCKET_PASSWORD }}
