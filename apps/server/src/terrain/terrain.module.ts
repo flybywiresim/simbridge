@@ -4,8 +4,8 @@ import { TerrainController } from './terrain.controller';
 import { TerrainService } from './terrain.service';
 
 @Module({
-    controllers: [TerrainController],
-    providers: [TerrainService],
-    imports: [UtilitiesModule],
+  controllers: [TerrainController],
+  providers: [TerrainService],
+  imports: [UtilitiesModule],
 })
 export class TerrainModule {}

@@ -8,15 +8,8 @@ import { MsfsService } from './msfs.service';
 import { ShutDownService } from './shutdown.service';
 
 @Module({
-    controllers: [UtilityController],
-    providers: [
-        FileService,
-        PrinterService,
-        SysTrayService,
-        MsfsService,
-        ShutDownService,
-        NetworkService,
-    ],
-    exports: [FileService, PrinterService, ShutDownService, NetworkService],
+  controllers: [UtilityController],
+  providers: [FileService, PrinterService, SysTrayService, MsfsService, ShutDownService, NetworkService],
+  exports: [FileService, PrinterService, ShutDownService, NetworkService],
 })
 export class UtilitiesModule {}

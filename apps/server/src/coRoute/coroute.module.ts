@@ -5,8 +5,8 @@ import { CoRouteController } from './coroute.controller';
 import { CoRouteService } from './coroute.service';
 
 @Module({
-    controllers: [CoRouteController],
-    providers: [CoRouteService, CoRouteConverter],
-    imports: [UtilitiesModule],
+  controllers: [CoRouteController],
+  providers: [CoRouteService, CoRouteConverter],
+  imports: [UtilitiesModule],
 })
 export class CoRouteModule {}

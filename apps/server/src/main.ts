@@ -14,68 +14,66 @@ import { NetworkService } from './utilities/network.service';
 
 declare const module: any;
 
-const dirs = [
-    'resources/logs',
-    'resources/coroutes',
-    'resources/pdfs',
-    'resources/images',
-];
+const dirs = ['resources/logs', 'resources/coroutes', 'resources/pdfs', 'resources/images'];
 
 async function bootstrap() {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, cors: true });
 
-    app.enableShutdownHooks();
+  app.enableShutdownHooks();
 
-    // Shutdown listener
-    app.get(ShutDownService).subscribeToShutdown(() => app.close());
+  // Shutdown listener
+  app.get(ShutDownService).subscribeToShutdown(() => app.close());
 
-    // Gateway Adapter
-    app.useWebSocketAdapter(new WsAdapter(app));
+  // Gateway Adapter
+  app.useWebSocketAdapter(new WsAdapter(app));
 
-    // Config
-    const configService = app.get(ConfigService);
-    const port = configService.get('server.port');
-    const isConsoleHidden = configService.get('server.hidden');
+  // Config
+  const configService = app.get(ConfigService);
+  const port = configService.get('server.port');
+  const isConsoleHidden = configService.get('server.hidden');
 
-    // Pino
-    app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+  // Pino
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
-    // Validation
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  // Validation
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
-    // Folder creation
-    generateResourceFolders();
+  // Folder creation
+  generateResourceFolders();
 
-    // Swagger
-    const swaggerConfig = new DocumentBuilder()
-        .setTitle('FlyByWire SimBridge')
-        .setDescription('API Documentation for the Restful Endpoints of the FBW SimBridge application')
-        .setVersion('1.0')
-        .build();
-    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api', app, swaggerDocument);
+  // Swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('FlyByWire SimBridge')
+    .setDescription('API Documentation for the Restful Endpoints of the FBW SimBridge application')
+    .setVersion('1.0')
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, swaggerDocument);
 
-    await app.listen(port);
+  await app.listen(port);
 
-    const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    logger.log(`FlyByWire SimBridge started on: http://${await app.get(NetworkService).getLocalIp(true)}:${port}`, 'NestApplication');
+  const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
+  logger.log(
+    `FlyByWire SimBridge started on: http://${await app.get(NetworkService).getLocalIp(true)}:${port}`,
+    'NestApplication',
+  );
 
-    if (platform() === 'win32' && isConsoleHidden) {
-        hideConsole();
-    }
+  if (platform() === 'win32' && isConsoleHidden) {
+    hideConsole();
+  }
 
-    if (module.hot) {
-        module.hot.accept();
-        module.hot.dispose(() => app.close());
-    }
+  if (module.hot) {
+    module.hot.accept();
+    module.hot.dispose(() => app.close());
+  }
 }
 
 bootstrap();
 
 function generateResourceFolders() {
-    dirs.forEach((dir) => {
-        access(dir, (error) => {
-            if (error) mkdirSync(dir, { recursive: true });
-        });
+  dirs.forEach((dir) => {
+    access(dir, (error) => {
+      if (error) mkdirSync(dir, { recursive: true });
     });
+  });
 }
