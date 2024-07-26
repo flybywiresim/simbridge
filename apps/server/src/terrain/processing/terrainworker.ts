@@ -21,7 +21,7 @@ import {
   NavigationDisplayMaxPixelWidth,
   RenderingColorChannelCount,
   RenderingMapTransitionDeltaTime,
-  RenderingMapUpdateTimeout,
+  RenderingMapUpdateTimeoutArcMode,
 } from './generic/constants';
 import { Logger } from './logging/logger';
 import { ThreadLogger } from './logging/threadlogger';
@@ -305,7 +305,7 @@ class TerrainWorker {
       this.displayRendering[side].durationInterval = null;
     }
 
-    this.displayRendering[side].navigationDisplay.startNewMapCycle();
+    this.displayRendering[side].navigationDisplay.startNewMapCycle(new Date().getTime());
     this.displayRendering[side].cycleData.frames = [];
 
     this.displayRendering[side].durationInterval = setInterval(() => {
@@ -368,7 +368,7 @@ class TerrainWorker {
         if (this.displayRendering[side].navigationDisplay.displayConfiguration().active === true) {
           this.displayRendering[side].timeout = setTimeout(
             () => this.startNavigationDisplayRenderingCycle(side),
-            RenderingMapUpdateTimeout,
+            RenderingMapUpdateTimeoutArcMode,
           );
         }
       }
