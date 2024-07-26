@@ -4,6 +4,7 @@ import { hideConsole, showConsole } from 'node-hide-console-window';
 import open = require('open');
 import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
+import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
 import { NetworkService } from './network.service';
 import serverConfig from '../config/server.config';
 import { ShutDownService } from './shutdown.service';
@@ -28,7 +29,7 @@ export class SysTrayService implements OnApplicationShutdown {
         tooltip: 'Flybywire SimBridge',
         items: [this.remoteDisplayItem, this.resourcesFolderItem, this.consoleVisibleItem, this.exitItem],
       },
-      copyDir: false,
+      copyDir: getExecutablePath(),
     });
 
     this.sysTray.onClick((action) => {
@@ -66,7 +67,7 @@ export class SysTrayService implements OnApplicationShutdown {
     tooltip: 'Open resource folder in your file explorer',
     enabled: true,
     click: () => {
-      open.openApp('explorer', { arguments: [`${process.cwd()}\\resources`] });
+      open.openApp('explorer', { arguments: [`${getExecutablePath()}\\resources`] });
     },
   };
 

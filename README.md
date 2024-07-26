@@ -15,7 +15,7 @@ This repo contains the source code to SimBridge
 
 Please make sure you have:
 
-NodeJS 16 - [Homepage](https://nodejs.org/en/)
+NodeJS 18 - [Homepage](https://nodejs.org/en/)
 
 ```bash
 # Install all dependencies

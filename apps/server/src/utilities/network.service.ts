@@ -131,7 +131,7 @@ export class NetworkService implements OnApplicationShutdown {
    */
   async getLocalIp(defaultToLocalhost = false): Promise<string | undefined> {
     return new Promise<string | undefined>((resolve) => {
-      const conn = createConnection({ host: 'api.flybywiresim.com', port: 443, timeout: 1000 })
+      const conn = createConnection({ host: 'api.flybywiresim.com', port: 443, timeout: 1000, family: 4 })
         .on('connect', () => {
           const { address } = conn.address() as AddressInfo;
           // Calling destroy on every event to make sure simbridge can shut down cleanly

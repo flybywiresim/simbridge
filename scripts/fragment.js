@@ -17,10 +17,6 @@ const execute = async () => {
           sourceDir: './node_modules',
         },
         {
-          name: 'traybin',
-          sourceDir: './traybin',
-        },
-        {
           name: 'terrain',
           sourceDir: './terrain',
         },

@@ -6,7 +6,7 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { ModuleFederationPlugin } = require('webpack').container;
 
-module.exports = (_env, _argv) => ({
+module.exports = () => ({
   mode: 'development',
   devtool: 'inline-source-map',
   entry: ['./apps/mcdu/src/index.jsx'],

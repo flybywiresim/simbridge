@@ -8,6 +8,8 @@ import { FileService } from './file.service';
 export class UtilityController {
   constructor(private fileService: FileService) {}
 
+  private readonly RES_PDF = 'resources/pdfs/';
+
   @Get('pdf')
   @ApiResponse({
     status: 200,
@@ -18,8 +20,14 @@ export class UtilityController {
     @Query('filename') filename: string,
     @Query('pagenumber', ParseIntPipe) pagenumber: number,
     @Response({ passthrough: true }) res,
+    @Query('dirname') dirname?: string,
   ): Promise<StreamableFile> {
-    const convertedPdfFile = await this.fileService.getConvertedPdfFile(`${filename}`, pagenumber);
+    if (undefined === dirname) {
+      dirname = this.RES_PDF;
+    } else {
+      dirname = this.RES_PDF + dirname;
+    }
+    const convertedPdfFile = await this.fileService.getConvertedPdfFile(`${dirname}`, `${filename}`, pagenumber);
 
     res.set({
       'Content-Type': 'image/png',
@@ -35,8 +43,28 @@ export class UtilityController {
     description: 'An array of all the filenames within the pdfs folder',
     type: [String],
   })
-  async getPdfFileList() {
-    return this.fileService.getFolderFilenames('resources/pdfs/');
+  async getPdfFileList(@Query('dirname') dirname?: string) {
+    if (undefined === dirname) {
+      dirname = this.RES_PDF;
+    } else {
+      dirname = this.RES_PDF + dirname;
+    }
+    return this.fileService.getFilenames(`${dirname}`);
+  }
+
+  @Get('pdf/listdir')
+  @ApiResponse({
+    status: 200,
+    description: 'An array of all the directories within the pdfs folder',
+    type: [String],
+  })
+  async getPdfDirList(@Query('dirname') dirname?: string) {
+    if (undefined === dirname) {
+      dirname = this.RES_PDF;
+    } else {
+      dirname = this.RES_PDF + dirname;
+    }
+    return this.fileService.getFoldernames(`${dirname}`);
   }
 
   @Get('pdf/numpages')
@@ -45,8 +73,13 @@ export class UtilityController {
     description: 'Returns the number of pages in the pdf',
     type: Number,
   })
-  async getNumberOfPages(@Query('filename') filename: string): Promise<number> {
-    return this.fileService.getNumberOfPdfPages(`${filename}`);
+  async getNumberOfPages(@Query('filename') filename: string, @Query('dirname') dirname?: string): Promise<number> {
+    if (undefined === dirname) {
+      dirname = this.RES_PDF;
+    } else {
+      dirname = this.RES_PDF + dirname;
+    }
+    return this.fileService.getNumberOfPdfPages(`${dirname}`, `${filename}`);
   }
 
   @Get('image')
@@ -72,6 +105,6 @@ export class UtilityController {
     type: [String],
   })
   async getImageFileList() {
-    return this.fileService.getFolderFilenames('resources/images/');
+    return this.fileService.getFilenames('resources/images/');
   }
 }
