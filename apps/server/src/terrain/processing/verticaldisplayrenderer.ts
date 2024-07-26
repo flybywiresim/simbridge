@@ -16,8 +16,8 @@ import { Logger } from './logging/logger';
 import { MapHandler } from './maphandler';
 import { AircraftStatus, DisplaySide, ElevationProfile, VerticalDisplay } from '../types';
 
-const RenderingElevationProfileWidth = 600;
-const RenderingElevationProfileHeight = 250;
+const RenderingElevationProfileWidth = 540;
+const RenderingElevationProfileHeight = 200;
 
 export class VerticalDisplayRenderer {
   private renderer: IKernelRunShortcut = null;
@@ -164,8 +164,8 @@ export class VerticalDisplayRenderer {
 
     // access data as uint32-array due to performance reasons
     const destination = new Uint32Array(result.buffer);
-    // UInt32-version of RGBA (4, 4, 5, 255)
-    destination.fill(4278518788);
+    // UInt32-version of RGBA (4, 4, 4, 255)
+    destination.fill(4278453252);
     const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
     const newSource = new Uint32Array(newFrame.buffer);
 

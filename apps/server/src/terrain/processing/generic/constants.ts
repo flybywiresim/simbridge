@@ -24,8 +24,8 @@ export const NavigationDisplayMaxPixelHeight = Math.max(
 );
 
 // vertical display parameters
-export const VerticalDisplayMapStartOffsetY = 750;
-export const VerticalDisplayMapStartOffsetX = 84;
+export const VerticalDisplayMapStartOffsetY = 800;
+export const VerticalDisplayMapStartOffsetX = 150;
 
 // rendering parameters
 export const RenderingMapTransitionDeltaTime = 40;

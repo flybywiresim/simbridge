@@ -101,7 +101,7 @@ export class NavigationDisplayRenderer {
     finalFrame: null,
     lastFrame: null,
     currentFrame: null,
-    frameValidityDuration: 0,
+    frameValidityDuration: 1000,
   };
 
   constructor(
@@ -587,7 +587,7 @@ export class NavigationDisplayRenderer {
       finalFrame: null,
       lastFrame: null,
       currentFrame: null,
-      frameValidityDuration: 0,
+      frameValidityDuration: 1000,
     };
   }
 
