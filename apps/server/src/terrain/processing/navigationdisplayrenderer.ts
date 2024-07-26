@@ -353,7 +353,8 @@ export class NavigationDisplayRenderer {
 
     if (metadata[0] === 0) {
       // normal mode
-      const [_a, __, maxElevation, highDensityRed, ___, lowDensityYellow, highDensityGreen, lowDensityGreen] = metadata;
+      const [__, ___, maxElevation, highDensityRed, ____, lowDensityYellow, highDensityGreen, lowDensityGreen] =
+        metadata;
 
       retval.MinimumElevation = cutOffAltitude > lowDensityGreen ? cutOffAltitude : lowDensityGreen;
       if (lowDensityYellow <= highDensityGreen) {
@@ -370,7 +371,7 @@ export class NavigationDisplayRenderer {
       }
     } else {
       // peaks mode
-      const [_a, minElevation, maxElevation, __, ___, lowDensityGreen] = metadata;
+      const [__, minElevation, maxElevation, ___, ____, lowDensityGreen] = metadata;
 
       if (maxElevation < 0) {
         retval.MinimumElevation = -1;
