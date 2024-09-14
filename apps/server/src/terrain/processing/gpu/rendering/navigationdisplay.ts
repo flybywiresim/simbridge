@@ -83,7 +83,7 @@ export function drawDensityPixel(
   if (Math.round(patternValue % patternIndex) === 0) {
     return color;
   }
-  return [4, 4, 5, 255];
+  return [4, 4, 5, 0];
 }
 
 export function renderNormalMode(
@@ -163,7 +163,7 @@ export function renderNormalMode(
     return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
   }
 
-  return [4, 4, 5, 255];
+  return [4, 4, 5, 0];
 }
 
 export function renderPeaksMode(
@@ -227,7 +227,7 @@ export function renderPeaksMode(
     return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
   }
 
-  return [4, 4, 5, 255];
+  return [4, 4, 5, 0];
 }
 
 export function renderNavigationDisplay(
@@ -333,7 +333,7 @@ export function renderNavigationDisplay(
 
     // the pixel is disabled at all or the ROSE mode is active and the areas are clipped
     if (patternValue === 0 || this.thread.y >= height) {
-      return [4, 4, 5, 255][colorChannel];
+      return [4, 4, 5, 0][colorChannel];
     }
   }
 

@@ -164,8 +164,8 @@ export class VerticalDisplayRenderer {
 
     // access data as uint32-array due to performance reasons
     const destination = new Uint32Array(result.buffer);
-    // UInt32-version of RGBA (4, 4, 4, 255)
-    destination.fill(4278453252);
+    // UInt32-version of RGBA (4, 4, 4, 0)
+    destination.fill(263172);
     const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
     const newSource = new Uint32Array(newFrame.buffer);
 

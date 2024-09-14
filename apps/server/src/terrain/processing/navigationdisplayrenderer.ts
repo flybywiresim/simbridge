@@ -3,10 +3,12 @@ import {
   FeetPerNauticalMile,
   GpuProcessingActive,
   InvalidElevation,
-  NavigationDisplayArcModePixelHeight,
+  NavigationDisplayArcModePixelHeightA32NX,
+  NavigationDisplayArcModePixelHeightA380X,
   NavigationDisplayMaxPixelHeight,
   NavigationDisplayMaxPixelWidth,
-  NavigationDisplayRoseModePixelHeight,
+  NavigationDisplayRoseModePixelHeightA32NX,
+  NavigationDisplayRoseModePixelHeightA380X,
   RenderingColorChannelCount,
   RenderingMapFrameValidityTimeArcMode,
   RenderingMapFrameValidityTimeScanlineMode,
@@ -442,8 +444,8 @@ export class NavigationDisplayRenderer {
 
     // access data as uint32-array for performance reasons
     const destination = new Uint32Array(result.buffer);
-    // UInt32-version of RGBA (4, 4, 5, 255)
-    destination.fill(4278518788);
+    // UInt32-version of RGBA (4, 4, 5, 0)
+    destination.fill(328708);
     const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
     const newSource = new Uint32Array(newFrame.buffer);
 
@@ -513,8 +515,8 @@ export class NavigationDisplayRenderer {
 
     // access data as uint32-array due to performance reasons
     const destination = new Uint32Array(result.buffer);
-    // UInt32-version of RGBA (4, 4, 5, 255)
-    destination.fill(4278518788);
+    // UInt32-version of RGBA (4, 4, 5, 0)
+    destination.fill(328708);
     const oldSource = oldFrame !== null ? new Uint32Array(oldFrame.buffer) : null;
     const newSource = new Uint32Array(newFrame.buffer);
 
@@ -593,9 +595,19 @@ export class NavigationDisplayRenderer {
 
   public startNewMapCycle(currentTime: number): void {
     this.configuration.mapWidth = this.configuration.arcMode ? RenderingArcModePixelWidth : RenderingRoseModePixelWidth;
-    this.configuration.mapHeight = this.configuration.arcMode
-      ? NavigationDisplayArcModePixelHeight
-      : NavigationDisplayRoseModePixelHeight;
+    if (
+      (this.aircraftStatus.navigationDisplayRenderingMode & TerrainRenderingMode.VerticalDisplayRequired) ===
+      TerrainRenderingMode.VerticalDisplayRequired
+    ) {
+      // Only A380X requires vertical display
+      this.configuration.mapHeight = this.configuration.arcMode
+        ? NavigationDisplayArcModePixelHeightA380X
+        : NavigationDisplayRoseModePixelHeightA380X;
+    } else {
+      this.configuration.mapHeight = this.configuration.arcMode
+        ? NavigationDisplayArcModePixelHeightA32NX
+        : NavigationDisplayRoseModePixelHeightA32NX;
+    }
     this.configuration.mapOffsetX = Math.ceil((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
 
     if (this.configuration.range === 0) {

@@ -333,8 +333,8 @@ class TerrainWorker {
 
     // access data as uint32-array for performance reasons
     const destination = new Uint32Array(result.buffer);
-    // UInt32-version of RGBA (4, 4, 5, 255)
-    destination.fill(4278518788);
+    // UInt32-version of RGBA (4, 4, 5, 0)
+    destination.fill(328708);
 
     if (navigationDisplay !== null) {
       const source = new Uint32Array(navigationDisplay.buffer);
@@ -374,6 +374,10 @@ class TerrainWorker {
   }
 
   public startNavigationDisplayRenderingCycle(side: DisplaySide): void {
+    const verticalDisplayRenderedOnSide =
+      this.verticalDisplayRequired &&
+      [2, 3].includes(this.displayRendering[side].navigationDisplay.displayConfiguration().efisMode);
+
     if (this.displayRendering[side].timeout !== null) {
       clearTimeout(this.displayRendering[side].timeout);
       this.displayRendering[side].timeout = null;
@@ -387,7 +391,7 @@ class TerrainWorker {
     this.displayRendering[side].renderedLastFrameNavigationDisplay = false;
     this.displayRendering[side].renderedLastFrameVerticalDisplay = false;
     this.displayRendering[side].navigationDisplay.startNewMapCycle(currentTime);
-    if (this.verticalDisplayRequired === true) {
+    if (verticalDisplayRenderedOnSide === true) {
       this.displayRendering[side].verticalDisplay.startNewMapCycle(currentTime);
     }
     this.displayRendering[side].cycleData.frames = [];
@@ -400,7 +404,7 @@ class TerrainWorker {
       const ndMap = this.displayRendering[side].navigationDisplay.currentFrame();
 
       let vdMap = null;
-      if (this.verticalDisplayRequired === true) {
+      if (verticalDisplayRenderedOnSide === true) {
         if (this.displayRendering[side].renderedLastFrameVerticalDisplay === false) {
           this.displayRendering[side].renderedLastFrameVerticalDisplay =
             this.displayRendering[side].verticalDisplay.render();

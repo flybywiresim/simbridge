@@ -16,11 +16,15 @@ export const DefaultTileSize = 300;
 // navigation display parameters
 export const NavigationDisplayMapStartOffsetY = 128;
 export const NavigationDisplayMaxPixelWidth = 768;
-export const NavigationDisplayArcModePixelHeight = 492;
-export const NavigationDisplayRoseModePixelHeight = 250;
+export const NavigationDisplayArcModePixelHeightA32NX = 492;
+export const NavigationDisplayRoseModePixelHeightA32NX = 250;
+export const NavigationDisplayArcModePixelHeightA380X = 592;
+export const NavigationDisplayRoseModePixelHeightA380X = 592;
 export const NavigationDisplayMaxPixelHeight = Math.max(
-  NavigationDisplayArcModePixelHeight,
-  NavigationDisplayRoseModePixelHeight,
+  NavigationDisplayArcModePixelHeightA32NX,
+  NavigationDisplayRoseModePixelHeightA32NX,
+  NavigationDisplayArcModePixelHeightA380X,
+  NavigationDisplayRoseModePixelHeightA380X,
 );
 
 // vertical display parameters
