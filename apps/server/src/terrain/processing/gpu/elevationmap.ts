@@ -30,7 +30,8 @@ export function createLocalElevationMap(
 
   // calculate distance and bearing for the projection
   const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
-  if (arcMode === true && distancePixels > ndHeight) return this.constants.invalidElevation;
+  // Cut off ARC shape when in A32NX and arc mode
+  if (centerOffsetY === 0 && arcMode === true && distancePixels > ndHeight) return this.constants.invalidElevation;
 
   const distance = distancePixels * (meterPerPixel / 2.0);
   const angle = rad2deg(Math.acos(delta[1] / distancePixels));
