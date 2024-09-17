@@ -12,6 +12,7 @@ export interface NavigationDisplay {
   mapOffsetX?: number;
   mapWidth?: number;
   mapHeight?: number;
+  centerOffsetY?: number;
 }
 
 export interface VerticalDisplay {

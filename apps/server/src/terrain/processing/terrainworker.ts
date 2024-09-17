@@ -228,6 +228,7 @@ class TerrainWorker {
           mapOffsetX: 0,
           mapWidth: NavigationDisplayMaxPixelWidth,
           mapHeight: NavigationDisplayMaxPixelHeight,
+          centerOffsetY: 0,
         };
         const startupNdConfigR: NavigationDisplay = {
           range: 10,
@@ -237,6 +238,7 @@ class TerrainWorker {
           mapOffsetX: 0,
           mapWidth: NavigationDisplayMaxPixelWidth,
           mapHeight: NavigationDisplayMaxPixelHeight,
+          centerOffsetY: 0,
         };
         const startupStatus: AircraftStatus = {
           adiruDataValid: true,

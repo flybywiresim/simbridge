@@ -3,10 +3,13 @@ import {
   FeetPerNauticalMile,
   GpuProcessingActive,
   InvalidElevation,
+  NavigationDisplayArcModeCenterOffsetYA380X,
   NavigationDisplayArcModePixelHeightA32NX,
   NavigationDisplayArcModePixelHeightA380X,
+  NavigationDisplayCenterOffsetYA32NX,
   NavigationDisplayMaxPixelHeight,
   NavigationDisplayMaxPixelWidth,
+  NavigationDisplayRoseModeCenterOffsetYA380X,
   NavigationDisplayRoseModePixelHeightA32NX,
   NavigationDisplayRoseModePixelHeightA380X,
   RenderingColorChannelCount,
@@ -215,6 +218,7 @@ export class NavigationDisplayRenderer {
       this.configuration.mapWidth = lastConfig.mapWidth;
       this.configuration.mapHeight = lastConfig.mapHeight;
       this.configuration.mapOffsetX = lastConfig.mapOffsetX;
+      this.configuration.centerOffsetY = lastConfig.centerOffsetY;
     }
 
     if (stopRendering || startRendering) {
@@ -603,10 +607,14 @@ export class NavigationDisplayRenderer {
       this.configuration.mapHeight = this.configuration.arcMode
         ? NavigationDisplayArcModePixelHeightA380X
         : NavigationDisplayRoseModePixelHeightA380X;
+      this.configuration.centerOffsetY = this.configuration.arcMode
+        ? NavigationDisplayArcModeCenterOffsetYA380X
+        : NavigationDisplayRoseModeCenterOffsetYA380X;
     } else {
       this.configuration.mapHeight = this.configuration.arcMode
         ? NavigationDisplayArcModePixelHeightA32NX
         : NavigationDisplayRoseModePixelHeightA32NX;
+      this.configuration.centerOffsetY = NavigationDisplayCenterOffsetYA32NX;
     }
     this.configuration.mapOffsetX = Math.ceil((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
 

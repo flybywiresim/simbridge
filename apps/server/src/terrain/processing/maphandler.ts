@@ -186,6 +186,7 @@ export class MapHandler {
         mapOffsetX: 0,
         mapWidth: NavigationDisplayMaxPixelWidth,
         mapHeight: NavigationDisplayMaxPixelHeight,
+        centerOffsetY: 0,
       };
       const startupStatus: AircraftStatus = {
         adiruDataValid: true,
@@ -402,6 +403,7 @@ export class MapHandler {
       config.mapHeight,
       metresPerPixel,
       config.arcMode,
+      config.centerOffsetY,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory

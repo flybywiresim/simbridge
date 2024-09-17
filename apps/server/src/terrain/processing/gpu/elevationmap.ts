@@ -22,9 +22,10 @@ export function createLocalElevationMap(
   ndHeight: number,
   meterPerPixel: number,
   arcMode: boolean,
+  centerOffsetY: number,
 ): number {
   const centerX = ndWidth / 2.0;
-  const delta = [this.thread.x - centerX, ndHeight - this.thread.y];
+  const delta = [this.thread.x - centerX, ndHeight - this.thread.y - centerOffsetY];
   if (this.thread.x >= ndWidth || this.thread.y >= ndHeight) return this.constants.invalidElevation;
 
   // calculate distance and bearing for the projection
