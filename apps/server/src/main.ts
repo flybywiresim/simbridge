@@ -9,7 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
 import * as path from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath } from './utilities/pathUtil';
 import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
 import { NetworkService } from './utilities/network.service';

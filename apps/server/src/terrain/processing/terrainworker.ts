@@ -44,7 +44,7 @@ class TerrainWorker {
   private displayRendering: {
     [side: string]: {
       timeout: NodeJS.Timeout;
-      durationInterval: NodeJS.Timer;
+      durationInterval: NodeJS.Timeout;
       startupTimestamp: number;
       navigationDisplay: NavigationDisplayRenderer;
       cycleData: {

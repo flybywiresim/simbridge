@@ -1,7 +1,8 @@
 import { Injectable, Logger, Inject, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { hideConsole, showConsole } from 'node-hide-console-window';
-import open = require('open');
+import { openApp } from 'open';
+import type open from 'open';
 import SysTray, { MenuItem } from 'systray2';
 import { join } from 'path';
 import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
@@ -13,6 +14,15 @@ interface MenuItemClickable extends MenuItem {
   click?: () => void;
   items?: MenuItemClickable[];
 }
+
+
+let openModule: typeof open;
+let openAppModule: typeof openApp;
+eval(`import('open')`).then((module) => {
+  openModule = module.default;
+  openAppModule = module.openApp;
+});
+
 
 @Injectable()
 export class SysTrayService implements OnApplicationShutdown {
@@ -56,7 +66,7 @@ export class SysTrayService implements OnApplicationShutdown {
         tooltip: 'Open the MCDU remote display with your default browser, using your local IP',
         enabled: true,
         click: async () => {
-          open(`http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}/interfaces/mcdu`);
+          openModule(`http://${await this.networkService.getLocalIp(true)}:${this.serverConf.port}/interfaces/mcdu`);
         },
       },
     ],
@@ -67,7 +77,7 @@ export class SysTrayService implements OnApplicationShutdown {
     tooltip: 'Open resource folder in your file explorer',
     enabled: true,
     click: () => {
-      open.openApp('explorer', { arguments: [`${getExecutablePath()}\\resources`] });
+      openAppModule('explorer', { arguments: [`${getExecutablePath()}\\resources`] });
     },
   };
 
