@@ -380,7 +380,7 @@ export class MapHandler {
       this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
     }
 
-    let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
+    let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / (config.mapHeight - config.centerOffsetY));
     if (config.arcMode) metresPerPixel *= 2.0;
 
     // create the local elevation map

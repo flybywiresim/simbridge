@@ -28,7 +28,7 @@ export const NavigationDisplayMaxPixelHeight = Math.max(
 );
 export const NavigationDisplayCenterOffsetYA32NX = 0;
 export const NavigationDisplayArcModeCenterOffsetYA380X = 100;
-export const NavigationDisplayRoseModeCenterOffsetYA380X = 350;
+export const NavigationDisplayRoseModeCenterOffsetYA380X = 342;
 
 // vertical display parameters
 export const VerticalDisplayMapStartOffsetY = 800;
