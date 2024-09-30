@@ -1,7 +1,7 @@
 import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -22,6 +22,8 @@ import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } 
 import { ElevationProfileConstants, LocalElevationMapConstants } from './gpu/interfaces';
 import { uploadTextureData } from './gpu/upload';
 import { Logger } from './logging/logger';
+import { existsSync } from 'fs';
+import  execute from '../../terrain';
 
 // defines the maximum dimension length of the world map
 const GpuMaxPixelSize = 16384;
@@ -146,7 +148,10 @@ export class MapHandler {
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
     try {
-      const buffer = await readFile(join(getExecutablePath(), './terrain/terrain.map'));
+      if(!existsSync(join(getSimbridgeDir(), './terrain/terrain.map'))){
+       await execute();
+      }
+      const buffer = await readFile(join(getSimbridgeDir(), './terrain/terrain.map'));
       this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
       return new TerrainMap(buffer);
     } catch (err) {
