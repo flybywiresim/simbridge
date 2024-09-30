@@ -1,15 +1,12 @@
 import * as fs from 'fs';
-
+import * as path from 'path';
 import axios from 'axios';
 
-import * as path from 'path';
-import * as os from 'os';
+import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 
-
-const SIMBRIDGE_FOLDER = path.join(os.homedir() + '/flybywire-externaltools-simbridge');
-const TERRAIN_MAP_FOLDER = path.join(SIMBRIDGE_FOLDER, '/terrain');
-const TERRAIN_MAP_PATH = path.join(TERRAIN_MAP_FOLDER, '/terrain.map');
-
+const SIMBRIDGE_FOLDER = getSimbridgeDir();
+const TERRAIN_MAP_FOLDER = path.join(SIMBRIDGE_FOLDER, 'terrain');
+const TERRAIN_MAP_PATH = path.join(TERRAIN_MAP_FOLDER, 'terrain.map');
 
 const TERRAIN_MAP_CDN = 'https://cdn.flybywiresim.com/addons/simbridge/terrain-db-binaries/terrain.map';
 
@@ -18,28 +15,26 @@ const execute = async () => {
     // Create the folders if they don't exist
     if (!fs.existsSync(TERRAIN_MAP_FOLDER)) fs.mkdirSync(TERRAIN_MAP_FOLDER);
 
-    // Make sure to unlink the old terrain map so we can update it if needed
-   // if (fs.existsSync(TERRAIN_MAP_PATH)) fs.unlinkSync(TERRAIN_MAP_PATH);
-
     if (!fs.existsSync(TERRAIN_MAP_PATH)) {
-      // Terrain map is not cached, download it
-      console.log('Downloading and caching terrain map');
+      console.log('Downloading terrain map');
 
       const terrainResponse = await axios.get(TERRAIN_MAP_CDN, { responseType: 'stream' });
 
       return new Promise((resolve, reject) => {
         const writer = fs.createWriteStream(TERRAIN_MAP_PATH);
         terrainResponse.data.pipe(writer);
+        let error: Error = null;
 
-       /*  writer.on('error', err => {
+        writer.on('error', (err) => {
+          error = err;
           writer.close();
           reject(err);
-        }); */
+        });
 
-        writer.on('close', resolve);
+        writer.on('close', () => {
+          if (!error) resolve(0);
+        });
       });
-
-
     }
   } catch (error) {
     console.error(error);

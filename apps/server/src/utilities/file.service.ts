@@ -134,11 +134,11 @@ export class FileService {
     scale: number = 4,
   ): Promise<StreamableFile> {
     // Some PDFs need external cmaps.
-    const CMAP_URL = `${join(getSimbridgeDir(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
+    const CMAP_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'cmaps')}/`;
     const CMAP_PACKED = true;
 
     // Where the standard fonts are located.
-    const STANDARD_FONT_DATA_URL = `${join(getSimbridgeDir(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
+    const STANDARD_FONT_DATA_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
 
     try {
       const conversionFilePath = join(getSimbridgeDir(), directory, fileName);

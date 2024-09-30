@@ -75,31 +75,30 @@ bootstrap();
 
 function generateResourceFolders() {
   dirs.forEach((dir) => {
-    access(dir, (error) => {
-      if (error) mkdirSync(path.join(getSimbridgeDir(), dir), { recursive: true });
+    const actualDir = path.join(getSimbridgeDir(), dir);
+    access(actualDir, (error) => {
+      if (error) mkdirSync(actualDir, { recursive: true });
     });
   });
 }
 
 function generateDefaultProperties() {
-
   const propertiesFilePath = path.join(getSimbridgeDir(), '/resources', '/properties.json');
 
   const defaultProperties = {
     server: {
       port: 8380,
       hidden: true,
-      closeWithMSFS: false
+      closeWithMSFS: false,
     },
     printer: {
       enabled: false,
       printerName: null,
       fontSize: 19,
-      paperSize: "A4",
-      margin: 30
-    }
+      paperSize: 'A4',
+      margin: 30,
+    },
   };
-
 
   if (!existsSync(propertiesFilePath)) {
     writeFileSync(propertiesFilePath, JSON.stringify(defaultProperties));
