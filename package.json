@@ -204,6 +204,7 @@
       "node_modules/bit-twiddle/**/*.*",
       "node_modules/@flybywiresim/msfs-nodejs/**/*.*",
       "node_modules/es-get-iterator/**/*.*",
+      "node_modules/platform-folders/build/**/*.*",
       "/node_modules/systray2/traybin/*.exe",
       "dist/mcdu/**/*",
       "dist/assets/**/*",
