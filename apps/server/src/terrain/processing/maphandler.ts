@@ -1,7 +1,7 @@
 import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath, getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -22,7 +22,7 @@ import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } 
 import { ElevationProfileConstants, LocalElevationMapConstants } from './gpu/interfaces';
 import { uploadTextureData } from './gpu/upload';
 import { Logger } from './logging/logger';
-import { existsSync } from 'fs';
+import { copyFileSync, existsSync } from 'fs';
 import  execute from '../../terrain';
 
 // defines the maximum dimension length of the world map
@@ -148,10 +148,11 @@ export class MapHandler {
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
     try {
-      if(!existsSync(join(getSimbridgeDir(), './terrain/terrain.map'))){
-       await execute();
-      }
-      const buffer = await readFile(join(getSimbridgeDir(), './terrain/terrain.map'));
+/*       if(!existsSync(join(getSimbridgeDir(), '/terrain/terrain.map'))){
+       copyFileSync(join(getExecutablePath(), '/terrain/terrain.map'), join(getSimbridgeDir(), '/terrain/terrain.map'));
+      } */
+      // TODO shall we move this as well? Currently the installer downloads the terrain.map file
+      const buffer = await readFile(join(getExecutablePath(), './terrain/terrain.map'));
       this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
       return new TerrainMap(buffer);
     } catch (err) {
