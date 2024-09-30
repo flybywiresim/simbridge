@@ -4,14 +4,14 @@ import { readFileSync, lstatSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
-import { getSimbridgeDir } from './pathUtil';
+import { getExecutablePath, getSimbridgeDir } from './pathUtil';
 import { pdfToPng } from './pdfConversion';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = join(
-  getSimbridgeDir(),
+  getExecutablePath(),
   'node_modules',
   'pdfjs-dist',
   'build',
