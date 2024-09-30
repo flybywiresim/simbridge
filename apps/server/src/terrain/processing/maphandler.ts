@@ -186,6 +186,7 @@ export class MapHandler {
         mapOffsetX: 0,
         mapWidth: NavigationDisplayMaxPixelWidth,
         mapHeight: NavigationDisplayMaxPixelHeight,
+        centerOffsetY: 0,
       };
       const startupStatus: AircraftStatus = {
         adiruDataValid: true,
@@ -379,7 +380,7 @@ export class MapHandler {
       this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
     }
 
-    let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
+    let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / (config.mapHeight - config.centerOffsetY));
     if (config.arcMode) metresPerPixel *= 2.0;
 
     // create the local elevation map
@@ -402,6 +403,7 @@ export class MapHandler {
       config.mapHeight,
       metresPerPixel,
       config.arcMode,
+      config.centerOffsetY,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory
@@ -412,6 +414,12 @@ export class MapHandler {
 
   public createElevationProfile(profile: ElevationProfile, profileWidth: number): Texture {
     if (this.cachedElevationData.gpuData === null) return null;
+    if (profile.waypointsLatitudes === undefined || profile.waypointsLongitudes === undefined) return null;
+    if (
+      profile.waypointsLatitudes.length === 0 ||
+      profile.waypointsLatitudes.length !== profile.waypointsLongitudes.length
+    )
+      return null;
 
     if (this.extractElevationProfile.output === null || this.extractElevationProfile.output[0] !== profileWidth) {
       this.extractElevationProfile = this.extractElevationProfile.setOutput([profileWidth]);

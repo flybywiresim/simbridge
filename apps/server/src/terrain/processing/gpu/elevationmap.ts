@@ -22,14 +22,16 @@ export function createLocalElevationMap(
   ndHeight: number,
   meterPerPixel: number,
   arcMode: boolean,
+  centerOffsetY: number,
 ): number {
   const centerX = ndWidth / 2.0;
-  const delta = [this.thread.x - centerX, ndHeight - this.thread.y];
+  const delta = [this.thread.x - centerX, ndHeight - this.thread.y - centerOffsetY];
   if (this.thread.x >= ndWidth || this.thread.y >= ndHeight) return this.constants.invalidElevation;
 
   // calculate distance and bearing for the projection
   const distancePixels = Math.sqrt(delta[0] ** 2 + delta[1] ** 2);
-  if (arcMode === true && distancePixels > ndHeight) return this.constants.invalidElevation;
+  // Cut off ARC shape when in A32NX and arc mode
+  if (centerOffsetY === 0 && arcMode === true && distancePixels > ndHeight) return this.constants.invalidElevation;
 
   const distance = distancePixels * (meterPerPixel / 2.0);
   const angle = rad2deg(Math.acos(delta[1] / distancePixels));
