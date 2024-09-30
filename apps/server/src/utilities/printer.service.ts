@@ -5,7 +5,7 @@ import { tmpdir, platform } from 'os';
 import * as print from 'pdf-to-printer';
 import * as PDFDocument from 'pdfkit';
 import { createWriteStream, readFileSync } from 'fs';
-import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath, getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import printerConfig from '../config/printer.config';
 
 @Injectable()
@@ -66,7 +66,7 @@ export class PrinterService {
         doc.end();
         print.print(pdfPath, {
           printer: foundPrinter.name,
-          sumatraPdfPath: `${getSimbridgeDir()}/resources/SumatraPDF.exe`,
+          sumatraPdfPath: `${getExecutablePath()}/resources/SumatraPDF.exe`,
         });
       }
     } catch (error) {
