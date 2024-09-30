@@ -22,8 +22,6 @@ import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } 
 import { ElevationProfileConstants, LocalElevationMapConstants } from './gpu/interfaces';
 import { uploadTextureData } from './gpu/upload';
 import { Logger } from './logging/logger';
-import { copyFileSync, existsSync } from 'fs';
-import  execute from '../../terrain';
 
 // defines the maximum dimension length of the world map
 const GpuMaxPixelSize = 16384;
@@ -148,9 +146,6 @@ export class MapHandler {
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
     try {
-/*       if(!existsSync(join(getSimbridgeDir(), '/terrain/terrain.map'))){
-       copyFileSync(join(getExecutablePath(), '/terrain/terrain.map'), join(getSimbridgeDir(), '/terrain/terrain.map'));
-      } */
       // TODO shall we move this as well? Currently the installer downloads the terrain.map file
       const buffer = await readFile(join(getExecutablePath(), '/terrain/terrain.map'));
       this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
