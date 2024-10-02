@@ -1,7 +1,7 @@
 import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath, getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -146,7 +146,8 @@ export class MapHandler {
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
     try {
-      const buffer = await readFile(join(getExecutablePath(), './terrain/terrain.map'));
+      // TODO shall we move this as well? Currently the installer downloads the terrain.map file
+      const buffer = await readFile(join(getExecutablePath(), '/terrain/terrain.map'));
       this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
       return new TerrainMap(buffer);
     } catch (err) {

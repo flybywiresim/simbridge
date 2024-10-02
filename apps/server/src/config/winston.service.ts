@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import {
   WinstonModuleOptions,
   WinstonModuleOptionsFactory,
@@ -23,7 +23,7 @@ const consoleTransport = new winston.transports.Console({
 const fileTransport = new winston.transports.DailyRotateFile({
   frequency: '24h',
   filename: 'fbw-simbridge-%DATE%.log',
-  dirname: `${join(getExecutablePath(), 'resources/logs')}`,
+  dirname: `${join(getSimbridgeDir(), 'resources/logs')}`,
   datePattern: 'YYYY-MM-DD-HH',
   zippedArchive: true,
   maxSize: '20m',
