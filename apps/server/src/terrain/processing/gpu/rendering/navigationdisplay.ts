@@ -163,7 +163,7 @@ export function renderNormalMode(
     return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
   }
 
-  return [4, 4, 5, 0];
+  return [0, 0, 0, 255];
 }
 
 export function renderPeaksMode(
@@ -227,7 +227,7 @@ export function renderPeaksMode(
     return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
   }
 
-  return [4, 4, 5, 0];
+  return [0, 0, 0, 255];
 }
 
 export function renderNavigationDisplay(
