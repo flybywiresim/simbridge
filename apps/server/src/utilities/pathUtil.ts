@@ -8,7 +8,7 @@ export const getSimbridgeDir = () => {
   try {
     return path.join(getPath('documents'), 'FlyByWireSim', 'Simbridge');
   } catch (e) {
-    Logger.warn('Could not get documents path via WinAPI, trying alternate method');
+    Logger.warn('Could not get documents path via WinAPI, trying alternate method', e);
   }
   try {
     const output = execFileSync('Powershell.exe', ['-Command', `[System.Environment]::GetFolderPath('MyDocuments')`]);
@@ -17,8 +17,8 @@ export const getSimbridgeDir = () => {
       throw new Error('Path is empty');
     }
     return path.join(documents, 'FlyByWireSim', 'Simbridge');
-  } catch (error) {
-    Logger.warn('Could not get documents path via Powershell, trying to use %USERPROFILE% method');
+  } catch (e) {
+    Logger.warn('Could not get documents path via Powershell, trying to use %USERPROFILE% method', e);
   }
 
   return path.join(homedir(), 'Documents', 'FlyByWireSim', 'Simbridge');
