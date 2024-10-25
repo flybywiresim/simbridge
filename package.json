@@ -62,7 +62,7 @@
     "@nestjs/websockets": "^10.4.0",
     "@types/pdfjs-dist": "^2.10.378",
     "class-transformer": "^0.4.0",
-    "class-validator": "^0.13.2",
+    "class-validator": "^0.14.1",
     "copyfiles": "^2.4.1",
     "dns-packet": "^5.4.0",
     "gpu.js": "^2.16.0",
@@ -89,7 +89,7 @@
     "winston": "^3.3.3",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.5.0",
-    "xml2js": "^0.4.23"
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@angablue/exe": "^2.0.2",
@@ -102,7 +102,7 @@
     "@babel/preset-env": "^7.16.11",
     "@babel/preset-react": "^7.16.7",
     "@babel/runtime": "^7.17.2",
-    "@flybywiresim/fragmenter": "^0.7.1",
+    "@flybywiresim/fragmenter": "^0.8.0",
     "@nestjs/cli": "^10.0.4",
     "@nestjs/schematics": "^10.2.2",
     "@nestjs/testing": "^10.4.6",
