@@ -14,7 +14,7 @@ export const getSimbridgeDir = () => {
   try {
     return path.join(getPath('appdata'), 'FlyByWireSim', 'Simbridge');
   } catch (e) {
-    Logger.warn('Could not get AppData path via WinAPI. Giving up.', e);
+    Logger.error('Could not get AppData path via WinAPI. Giving up.', e);
   }
 };
 
