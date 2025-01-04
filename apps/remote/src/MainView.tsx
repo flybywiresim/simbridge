@@ -115,7 +115,7 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
     await new Promise((resolve) => setTimeout(resolve, 100));
   };
 
-  const runCodeInIframe = (code: string, css: string, width: number, height: number) => {
+  const runCodeInIframe = (jsVfsUrl: string, cssVfsUrl: string, width: number, height: number) => {
     if (!iframeRef.current || !iframeRef.current.contentDocument) {
       return;
     }
@@ -134,6 +134,11 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
 
     iframeDocument.head.innerHTML = '';
     iframeDocument.body.innerHTML = '';
+
+    const baseTag = iframeDocument.createElement('base');
+    baseTag.setAttribute('href', `http://localhost:8380/api/v1/remote-app/vfs-proxy/`);
+
+    iframeDocument.head.appendChild(baseTag);
 
     const baseStyleTag = iframeDocument.createElement('style');
     baseStyleTag.textContent = `
@@ -179,7 +184,7 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
     );
 
     const scriptTag = iframeDocument.createElement('script');
-    scriptTag.textContent = code;
+    scriptTag.setAttribute('src', `.${jsVfsUrl}`);
 
     iframeDocument.head.appendChild(scriptTag);
 
@@ -193,12 +198,16 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
       iframeWindow.lastUpdate = now;
     });
 
-    const cssTag = iframeDocument.createElement('style');
-    cssTag.textContent = css;
+    setTimeout(() => {
+      const cssTag = iframeDocument.createElement('link');
+      cssTag.setAttribute('href', `.${cssVfsUrl}`);
+      cssTag.setAttribute('rel', 'stylesheet');
+      cssTag.setAttribute('type', 'text/css');
 
-    iframeDocument.head.appendChild(cssTag);
+      iframeDocument.head.appendChild(cssTag);
 
-    iframeDocument.body.style.backgroundColor = 'black';
+      iframeDocument.body.style.backgroundColor = 'black';
+    }, 1_000);
   };
 
   useEffect(() => {
@@ -238,16 +247,15 @@ const MainView: React.FC<MainViewProps> = ({ client }) => {
       }
 
       if (instrument) {
-        const jsData = await client.downloadFile(instrument.gauges[0].bundles.js);
-        const cssData = await client.downloadFile(instrument.gauges[0].bundles.css);
-
-        const jsText = new TextDecoder('utf8').decode(jsData);
-        const cssText = new TextDecoder('utf8').decode(cssData);
-
         dispatch(setLoadedInstrument(instrument));
         dispatch(setCurrentSubscriptionGroupID(v4()));
 
-        runCodeInIframe(jsText, cssText, instrument.dimensions.width, instrument.dimensions.height);
+        runCodeInIframe(
+          instrument.gauges[0].bundles.js,
+          instrument.gauges[0].bundles.css,
+          instrument.dimensions.width,
+          instrument.dimensions.height,
+        );
       } else {
         dispatch(setLoadedInstrument(null));
         dispatch(setCurrentSubscriptionGroupID(null));

@@ -327,7 +327,6 @@ export class RemoteClient {
     if (this.awaitedMessagesPromiseFns[msg.type]) {
       while (this.awaitedMessagesPromiseFns[msg.type].length > 0) {
         const [resolve] = this.awaitedMessagesPromiseFns[msg.type][0];
-        console.log(`calling handler`, resolve, 'for message type', msg.type);
 
         messageHandled = true;
         resolve(msg);

@@ -11,6 +11,7 @@ import { UtilitiesModule } from './utilities/utilities.module';
 import printerConfig from './config/printer.config';
 import serverConfig from './config/server.config';
 import { HealthModule } from './health/health.module';
+import { VfsModule } from './utilities/vfs.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { HealthModule } from './health/health.module';
     CoRouteModule,
     TerrainModule,
     UtilitiesModule,
+    VfsModule,
     InterfacesModule,
     HealthModule,
   ],
