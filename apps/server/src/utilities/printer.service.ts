@@ -5,7 +5,7 @@ import { tmpdir, platform } from 'os';
 import * as print from 'pdf-to-printer';
 import * as PDFDocument from 'pdfkit';
 import { createWriteStream, readFileSync } from 'fs';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath, getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import printerConfig from '../config/printer.config';
 
 @Injectable()
@@ -44,7 +44,7 @@ export class PrinterService {
       this.logger.warn('Printer disabled or null printerName');
       return null;
     } catch (error) {
-      this.logger.error('Error retrieving printers list', error);
+      this.logger.error(`Error retrieving printers list: ${error}`, error);
       return null;
     }
   }

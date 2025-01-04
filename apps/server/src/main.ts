@@ -9,10 +9,11 @@ import { NestFactory } from '@nestjs/core';
 import { platform } from 'os';
 import { hideConsole } from 'node-hide-console-window';
 import * as path from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
 import { NetworkService } from './utilities/network.service';
+import { existsSync, writeFileSync } from 'fs';
 
 declare const module: any;
 
@@ -39,9 +40,6 @@ async function bootstrap() {
 
   // Validation
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-
-  // Folder creation
-  generateResourceFolders();
 
   // Swagger
   const swaggerConfig = new DocumentBuilder()
@@ -70,12 +68,39 @@ async function bootstrap() {
   }
 }
 
+generateResourceFolders();
+generateDefaultProperties();
+
 bootstrap();
 
 function generateResourceFolders() {
   dirs.forEach((dir) => {
-    access(dir, (error) => {
-      if (error) mkdirSync(path.join(getExecutablePath(), dir), { recursive: true });
+    const actualDir = path.join(getSimbridgeDir(), dir);
+    access(actualDir, (error) => {
+      if (error) mkdirSync(actualDir, { recursive: true });
     });
   });
+}
+
+function generateDefaultProperties() {
+  const propertiesFilePath = path.join(getSimbridgeDir(), '/resources', '/properties.json');
+
+  const defaultProperties = {
+    server: {
+      port: 8380,
+      hidden: true,
+      closeWithMSFS: false,
+    },
+    printer: {
+      enabled: false,
+      printerName: null,
+      fontSize: 19,
+      paperSize: 'A4',
+      margin: 30,
+    },
+  };
+
+  if (!existsSync(propertiesFilePath)) {
+    writeFileSync(propertiesFilePath, JSON.stringify(defaultProperties));
+  }
 }

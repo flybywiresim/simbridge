@@ -1,12 +1,12 @@
 import { registerAs } from '@nestjs/config';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const CONFIG_FILENAME = 'resources/properties.json';
 
 export default registerAs('printer', () => {
-  const configPath = join(getExecutablePath(), CONFIG_FILENAME);
+  const configPath = join(getSimbridgeDir(), CONFIG_FILENAME);
   const properties = JSON.parse(readFileSync(configPath, 'utf8'));
 
   return {

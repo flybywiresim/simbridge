@@ -1,7 +1,7 @@
 import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath, getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { AircraftStatus, ElevationProfile, NavigationDisplay, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -146,7 +146,8 @@ export class MapHandler {
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
     try {
-      const buffer = await readFile(join(getExecutablePath(), './terrain/terrain.map'));
+      // TODO shall we move this as well? Currently the installer downloads the terrain.map file
+      const buffer = await readFile(join(getExecutablePath(), '/terrain/terrain.map'));
       this.logging.info(`Read MB of terrainmap: ${(Buffer.byteLength(buffer) / (1024 * 1024)).toFixed(2)}`);
       return new TerrainMap(buffer);
     } catch (err) {
@@ -186,6 +187,7 @@ export class MapHandler {
         mapOffsetX: 0,
         mapWidth: NavigationDisplayMaxPixelWidth,
         mapHeight: NavigationDisplayMaxPixelHeight,
+        centerOffsetY: 0,
       };
       const startupStatus: AircraftStatus = {
         adiruDataValid: true,
@@ -379,7 +381,7 @@ export class MapHandler {
       this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
     }
 
-    let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / config.mapHeight);
+    let metresPerPixel = Math.round((config.range * NauticalMilesToMetres) / (config.mapHeight - config.centerOffsetY));
     if (config.arcMode) metresPerPixel *= 2.0;
 
     // create the local elevation map
@@ -402,6 +404,7 @@ export class MapHandler {
       config.mapHeight,
       metresPerPixel,
       config.arcMode,
+      config.centerOffsetY,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory
@@ -412,6 +415,12 @@ export class MapHandler {
 
   public createElevationProfile(profile: ElevationProfile, profileWidth: number): Texture {
     if (this.cachedElevationData.gpuData === null) return null;
+    if (profile.waypointsLatitudes === undefined || profile.waypointsLongitudes === undefined) return null;
+    if (
+      profile.waypointsLatitudes.length === 0 ||
+      profile.waypointsLatitudes.length !== profile.waypointsLongitudes.length
+    )
+      return null;
 
     if (this.extractElevationProfile.output === null || this.extractElevationProfile.output[0] !== profileWidth) {
       this.extractElevationProfile = this.extractElevationProfile.setOutput([profileWidth]);

@@ -16,14 +16,31 @@ export const DefaultTileSize = 300;
 // navigation display parameters
 export const NavigationDisplayMapStartOffsetY = 128;
 export const NavigationDisplayMaxPixelWidth = 768;
-export const NavigationDisplayArcModePixelHeight = 492;
-export const NavigationDisplayRoseModePixelHeight = 250;
+export const NavigationDisplayArcModePixelHeightA32NX = 492;
+export const NavigationDisplayRoseModePixelHeightA32NX = 250;
+export const NavigationDisplayArcModePixelHeightA380X = 592;
+export const NavigationDisplayRoseModePixelHeightA380X = 592;
 export const NavigationDisplayMaxPixelHeight = Math.max(
-  NavigationDisplayArcModePixelHeight,
-  NavigationDisplayRoseModePixelHeight,
+  NavigationDisplayArcModePixelHeightA32NX,
+  NavigationDisplayRoseModePixelHeightA32NX,
+  NavigationDisplayArcModePixelHeightA380X,
+  NavigationDisplayRoseModePixelHeightA380X,
 );
+export const NavigationDisplayCenterOffsetYA32NX = 0;
+export const NavigationDisplayArcModeCenterOffsetYA380X = 100;
+export const NavigationDisplayRoseModeCenterOffsetYA380X = 342;
+
+// vertical display parameters
+export const VerticalDisplayMapStartOffsetY = 800;
+export const VerticalDisplayMapStartOffsetX = 150;
 
 // rendering parameters
 export const RenderingMapTransitionDeltaTime = 40;
-export const RenderingMapTransitionDuration = 1000;
-export const RenderingMapUpdateTimeout = 1500;
+export const RenderingMapTransitionDurationArcMode = 1500;
+export const RenderingMapUpdateTimeoutArcMode = 1000;
+export const RenderingMapTransitionDurationScanlineMode = 600;
+export const RenderingMapUpdateTimeoutScanlineMode = 500;
+export const RenderingMapFrameValidityTimeArcMode =
+  RenderingMapTransitionDurationArcMode + RenderingMapUpdateTimeoutArcMode;
+export const RenderingMapFrameValidityTimeScanlineMode =
+  RenderingMapTransitionDurationScanlineMode + RenderingMapUpdateTimeoutScanlineMode;

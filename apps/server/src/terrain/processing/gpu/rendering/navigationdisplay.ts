@@ -83,7 +83,7 @@ export function drawDensityPixel(
   if (Math.round(patternValue % patternIndex) === 0) {
     return color;
   }
-  return [4, 4, 5, 255];
+  return [4, 4, 5, 0];
 }
 
 export function renderNormalMode(
@@ -163,7 +163,7 @@ export function renderNormalMode(
     return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
   }
 
-  return [4, 4, 5, 255];
+  return [0, 0, 0, 255];
 }
 
 export function renderPeaksMode(
@@ -227,7 +227,7 @@ export function renderPeaksMode(
     return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
   }
 
-  return [4, 4, 5, 255];
+  return [0, 0, 0, 255];
 }
 
 export function renderNavigationDisplay(
@@ -311,30 +311,28 @@ export function renderNavigationDisplay(
   let patternValue = 0;
 
   // check the corner cases only for pixels inside the real rendering area
-  if (this.thread.y < this.constants.maxImageHeight) {
-    if (this.thread.y < height) {
-      // find highest elevation in 8x8 patch to simulate the lower resolution of the real system
-      const patchXStart = pixelX - (pixelX % 8);
-      const patchXEnd = Math.min(width, patchXStart + 8);
-      const patchYStart = this.thread.y - (this.thread.y % 8);
-      const patchYEnd = Math.min(height, patchYStart + 8);
+  if (this.thread.y < height) {
+    // find highest elevation in 8x8 patch to simulate the lower resolution of the real system
+    const patchXStart = pixelX - (pixelX % 8);
+    const patchXEnd = Math.min(width, patchXStart + 8);
+    const patchYStart = this.thread.y - (this.thread.y % 8);
+    const patchYEnd = Math.min(height, patchYStart + 8);
 
-      for (let y = patchYStart; y < patchYEnd; ++y) {
-        for (let x = patchXStart; x < patchXEnd; ++x) {
-          const currentElevation = elevationGrid[y][x];
-          if (currentElevation > pixelElevation && currentElevation !== this.constants.invalidElevation) {
-            pixelElevation = currentElevation;
-          }
+    for (let y = patchYStart; y < patchYEnd; ++y) {
+      for (let x = patchXStart; x < patchXEnd; ++x) {
+        const currentElevation = elevationGrid[y][x];
+        if (currentElevation > pixelElevation && currentElevation !== this.constants.invalidElevation) {
+          pixelElevation = currentElevation;
         }
       }
-
-      patternValue = patternMap[this.thread.y][pixelX];
     }
 
-    // the pixel is disabled at all or the ROSE mode is active and the areas are clipped
-    if (patternValue === 0 || this.thread.y >= height) {
-      return [4, 4, 5, 255][colorChannel];
-    }
+    patternValue = patternMap[this.thread.y][pixelX];
+  }
+
+  // the pixel is disabled at all or the areas are clipped. Be sure not to overdraw the metadata line though
+  if (patternValue === 0 && this.thread.y !== height) {
+    return [4, 4, 5, 0][colorChannel];
   }
 
   if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {

@@ -1,6 +1,7 @@
 export enum TerrainRenderingMode {
   ArcMode = 0,
-  VerticalMode = 1,
+  ScanlineMode = 1,
+  VerticalDisplayRequired = 2,
 }
 
 export interface NavigationDisplay {
@@ -9,6 +10,13 @@ export interface NavigationDisplay {
   active: boolean;
   efisMode: number;
   mapOffsetX?: number;
+  mapWidth?: number;
+  mapHeight?: number;
+  centerOffsetY?: number;
+}
+
+export interface VerticalDisplay {
+  range: number;
   mapWidth?: number;
   mapHeight?: number;
 }

@@ -4,7 +4,7 @@ import { readFileSync, lstatSync } from 'fs';
 import * as xml2js from 'xml2js';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
-import { getExecutablePath } from './pathUtil';
+import { getExecutablePath, getSimbridgeDir } from './pathUtil';
 import { pdfToPng } from './pdfConversion';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -29,7 +29,7 @@ export class FileService {
   async getFileCount(directory: string): Promise<number> {
     try {
       this.logger.debug(`Retrieving number of files in folder: ${directory}`);
-      const dir = join(getExecutablePath(), directory);
+      const dir = join(getSimbridgeDir(), directory);
       this.checkFilePathSafety(dir);
       const retrievedDir = await readdir(dir, { withFileTypes: true });
       const fileNames = retrievedDir.filter((dir) => dir.isFile()).map((dir) => dir.name);
@@ -45,7 +45,7 @@ export class FileService {
     try {
       this.logger.debug(`Reading all files in directory: ${directory}`);
 
-      const dir = join(getExecutablePath(), directory);
+      const dir = join(getSimbridgeDir(), directory);
       this.checkFilePathSafety(dir);
       const fileNames = (await readdir(dir, { withFileTypes: true }))
         .filter((dir) => dir.isFile())
@@ -66,7 +66,7 @@ export class FileService {
   async getFilenames(directory: string): Promise<string[]> {
     try {
       this.logger.debug(`Reading all files in directory: ${directory}`);
-      const dir = join(getExecutablePath(), directory);
+      const dir = join(getSimbridgeDir(), directory);
       this.checkFilePathSafety(dir);
       return (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isFile()).map((dir) => dir.name);
     } catch (err) {
@@ -79,7 +79,7 @@ export class FileService {
   async getFoldernames(directory: string): Promise<string[]> {
     try {
       this.logger.debug(`Reading all Dirs in directory: ${directory}`);
-      const dir = join(getExecutablePath(), directory);
+      const dir = join(getSimbridgeDir(), directory);
       this.checkFilePathSafety(dir);
       return (await readdir(dir, { withFileTypes: true })).filter((dir) => dir.isDirectory()).map((dir) => dir.name);
     } catch (err) {
@@ -93,7 +93,7 @@ export class FileService {
     try {
       this.logger.debug(`Retrieving file: ${fileName} in folder: ${directory}`);
 
-      const path = join(getExecutablePath(), directory, fileName);
+      const path = join(getSimbridgeDir(), directory, fileName);
       this.checkFilePathSafety(path);
 
       if (!lstatSync(path).isFile()) {
@@ -122,7 +122,7 @@ export class FileService {
       throw new HttpException('Unexpected null byte encountered', HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
-    if (filePath.indexOf(getExecutablePath()) !== 0) {
+    if (filePath.indexOf(getSimbridgeDir()) !== 0) {
       throw new HttpException('Unacceptable file path', HttpStatus.UNPROCESSABLE_ENTITY);
     }
   }
@@ -141,7 +141,7 @@ export class FileService {
     const STANDARD_FONT_DATA_URL = `${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'standard_fonts')}/`;
 
     try {
-      const conversionFilePath = join(getExecutablePath(), directory, fileName);
+      const conversionFilePath = join(getSimbridgeDir(), directory, fileName);
 
       this.checkFilePathSafety(conversionFilePath);
 
