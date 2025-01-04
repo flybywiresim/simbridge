@@ -1,0 +1,61 @@
+name: PR
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: set Node version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: |
+          npm install
+          cd apps/remote/
+          npm install
+      - name: npm run lint
+        run: |
+          npm run lint
+  build:
+    name: Build and upload SimBridge
+    runs-on: windows-latest
+    env:
+      RELEASE_ZIP_NAME: fbw-simbridge.zip
+      BUILD_DIR_NAME: pr
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: set Node version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: |
+          npm install
+          cd apps/remote/
+          npm install
+      - name: Build SimBridge
+        run: |
+          npm run typecheck
+          npm run build:exec
+      - name: Build ZIP File
+        run: |
+          node .\scripts\fragment.js
+          mkdir .\${{env.BUILD_DIR_NAME}}
+          Compress-Archive -Path .\build\* .\${{env.BUILD_DIR_NAME }}\${{ env.RELEASE_ZIP_NAME }}
+      - name: Upload PR artifact
+        uses: actions/upload-artifact@v4
+        if: github.event.pull_request.auto_merge == false
+        with:
+          name: flybywire-external-simbridge
+          path: .\${{env.BUILD_DIR_NAME }}\${{ env.RELEASE_ZIP_NAME }}

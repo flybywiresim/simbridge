@@ -11,6 +11,7 @@ import { UtilitiesModule } from './utilities/utilities.module';
 import printerConfig from './config/printer.config';
 import serverConfig from './config/server.config';
 import { HealthModule } from './health/health.module';
+import { VfsModule } from './utilities/vfs.module';
 
 @Module({
   imports: [
@@ -18,11 +19,16 @@ import { HealthModule } from './health/health.module';
       rootPath: join(__dirname, '..', 'dist/mcdu'),
       serveRoot: '/interfaces/mcdu',
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'dist/remote'),
+      serveRoot: '/interfaces/remote',
+    }),
     WinstonModule.forRootAsync({ useClass: WinstonConfigService }),
     ConfigModule.forRoot({ isGlobal: true, load: [printerConfig, serverConfig] }),
     CoRouteModule,
     TerrainModule,
     UtilitiesModule,
+    VfsModule,
     InterfacesModule,
     HealthModule,
   ],
