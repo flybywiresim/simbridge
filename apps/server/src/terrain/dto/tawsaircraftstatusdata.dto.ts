@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TawsEfisDataDto } from 'apps/server/src/terrain/dto/tawsefisdata';
-import { IsNumber, Max, Min } from 'class-validator';
+import { IsBoolean, IsDefined, IsNumber, Max, Min, ValidateNested } from 'class-validator';
 
 export class TawsAircraftStatusDataDto {
   @ApiProperty({ description: 'Concerning ADIRU is valid', example: 'true' })
-  @IsNumber()
+  @IsBoolean()
   adiruDataValid: boolean;
 
   @ApiProperty({ description: 'TAWS is INOP, i.e. disable terrain output', example: 'true' })
-  @IsNumber()
+  @IsBoolean()
   tawsInop: boolean;
 
   @ApiProperty({ description: 'Aircraft latitude', example: '48.0' })
@@ -32,11 +32,11 @@ export class TawsAircraftStatusDataDto {
   verticalSpeed: number;
 
   @ApiProperty({ description: 'Aircraft gear is down', example: 'true' })
-  @IsNumber()
+  @IsBoolean()
   gearIsDown: boolean;
 
   @ApiProperty({ description: 'Destination data is valid', example: 'true' })
-  @IsNumber()
+  @IsBoolean()
   runwayDataValid: boolean;
 
   @ApiProperty({ description: 'Arrival runway latitude', example: '48.0' })
@@ -47,18 +47,22 @@ export class TawsAircraftStatusDataDto {
   @IsNumber()
   runwayLongitude: number;
 
-  @ApiProperty({ description: 'EFIS CP settings for CAPT', type: [TawsEfisDataDto] })
-  efisDataCapt: TawsEfisDataDto[];
+  @ApiProperty({ description: 'EFIS CP settings for CAPT', type: TawsEfisDataDto })
+  @ValidateNested()
+  @IsDefined()
+  efisDataCapt: TawsEfisDataDto;
 
-  @ApiProperty({ description: 'EFIS CP settings for FO', type: [TawsEfisDataDto] })
-  efisDataFO: TawsEfisDataDto[];
+  @ApiProperty({ description: 'EFIS CP settings for FO', type: TawsEfisDataDto })
+  @ValidateNested()
+  @IsDefined()
+  efisDataFO: TawsEfisDataDto;
 
   @ApiProperty({ description: 'ND ON TERR rendering mode (a/c specific)', example: '11.0' })
   @IsNumber()
   navigationDisplayRenderingMode: number;
 
   @ApiProperty({ description: 'Manual AZIM mode is enabled', example: 'false' })
-  @IsNumber()
+  @IsBoolean()
   manualAzimEnabled: boolean;
 
   @ApiProperty({ description: 'Manual AZIM azimuth setting', example: '180' })

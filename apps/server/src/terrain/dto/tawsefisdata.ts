@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber } from 'class-validator';
+import { IsBoolean, IsNumber } from 'class-validator';
 
 export class TawsEfisDataDto {
   @ApiProperty({ description: 'ND range', example: '40' })
@@ -7,11 +7,11 @@ export class TawsEfisDataDto {
   ndRange: number;
 
   @ApiProperty({ description: 'ND is in ARC mode', example: 'true' })
-  @IsNumber()
+  @IsBoolean()
   arcMode: boolean;
 
   @ApiProperty({ description: 'TERR (ON ND) is selected', example: 'true' })
-  @IsNumber()
+  @IsBoolean()
   terrSelected: boolean;
 
   @ApiProperty({ description: 'EFIS mode enum', example: '1' })
