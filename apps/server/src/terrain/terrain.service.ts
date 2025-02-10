@@ -9,6 +9,7 @@ import {
   WorkerToMainThreadMessageTypes,
 } from './types';
 import { ElevationSamplePathDto } from './dto/elevationsamplepath.dto';
+import { TawsAircraftStatusDataDto } from 'apps/server/src/terrain/dto/tawsaircraftstatusdata.dto';
 
 @Injectable()
 export class TerrainService implements OnApplicationShutdown {
@@ -76,7 +77,16 @@ export class TerrainService implements OnApplicationShutdown {
     );
   }
 
-  public updateFlightPath(display: DisplaySide, path: ElevationSamplePathDto): void {
+  public updateAircraftStatusData(aircraftStatusData: TawsAircraftStatusDataDto): void {
+    if (this.terrainWorker) {
+      this.terrainWorker.postMessage({
+        type: MainToWorkerThreadMessageTypes.AircraftStatusData,
+        content: aircraftStatusData,
+      });
+    }
+  }
+
+  public updateFlightPath(path: ElevationSamplePathDto): void {
     if (this.terrainWorker) {
       this.terrainWorker.postMessage({
         type: MainToWorkerThreadMessageTypes.VerticalDisplayPath,

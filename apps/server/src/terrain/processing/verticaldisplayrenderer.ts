@@ -14,7 +14,7 @@ import { renderVerticalDisplay } from './gpu/rendering/verticaldisplay';
 import { VerticalDisplayConstants } from './gpu/interfaces';
 import { Logger } from './logging/logger';
 import { MapHandler } from './maphandler';
-import { AircraftStatus, DisplaySide, ElevationProfile, VerticalDisplay } from '../types';
+import { AircraftStatus, DisplaySide, ElevationProfile, VerticalDisplay, VerticalPathData } from '../types';
 
 const RenderingElevationProfileWidth = 540;
 const RenderingElevationProfileHeight = 200;
@@ -89,17 +89,18 @@ export class VerticalDisplayRenderer {
 
   public aircraftStatusUpdate(status: AircraftStatus, side: DisplaySide): void {
     if (side === DisplaySide.Left) {
-      this.elevationConfig.range = status.navigationDisplayCapt.range;
-      this.displayConfig.range = status.navigationDisplayCapt.range;
+      this.elevationConfig.range = status.efisDataCapt.ndRange;
+      this.displayConfig.range = status.efisDataCapt.ndRange;
     } else {
-      this.elevationConfig.range = status.navigationDisplayFO.range;
-      this.displayConfig.range = status.navigationDisplayFO.range;
+      this.elevationConfig.range = status.efisDataFO.ndRange;
+      this.displayConfig.range = status.efisDataFO.ndRange;
     }
   }
 
-  public pathDataUpdate(latitudes: number[], longitudes: number[]): void {
-    this.elevationConfig.waypointsLatitudes = latitudes;
-    this.elevationConfig.waypointsLongitudes = longitudes;
+  public pathDataUpdate(data: VerticalPathData): void {
+    this.elevationConfig.pathWidth = data.pathWidth;
+    this.elevationConfig.waypointsLatitudes = data.waypoints.map((wpts) => wpts.latitude);
+    this.elevationConfig.waypointsLongitudes = data.waypoints.map((wpts) => wpts.longitude);
   }
 
   public reset(): void {

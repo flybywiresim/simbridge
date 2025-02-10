@@ -291,6 +291,7 @@ export class SimConnect {
       if (this.callbacks.aircraftStatusUpdate !== null) {
         const status: AircraftStatus = {
           adiruDataValid: buffer.readUInt8(0) !== 0,
+          tawsInop: false,
           latitude: buffer.readFloatLE(1),
           longitude: buffer.readFloatLE(5),
           altitude: buffer.readInt32LE(9),
@@ -300,19 +301,27 @@ export class SimConnect {
           runwayDataValid: buffer.readUInt8(18) !== 0,
           runwayLatitude: buffer.readFloatLE(19),
           runwayLongitude: buffer.readFloatLE(23),
-          navigationDisplayCapt: {
-            range: buffer.readUInt16LE(27),
+          efisDataCapt: {
+            ndRange: buffer.readUInt16LE(27),
             arcMode: buffer.readUInt8(29) !== 0,
-            active: buffer.readUInt8(30) !== 0,
+            terrSelected: buffer.readUInt8(30) !== 0,
             efisMode: buffer.readUInt8(31),
+            vdRangeLower: -500,
+            vdRangeUpper: 24000,
           },
-          navigationDisplayFO: {
-            range: buffer.readUInt16LE(32),
+          efisDataFO: {
+            ndRange: buffer.readUInt16LE(32),
             arcMode: buffer.readUInt8(34) !== 0,
-            active: buffer.readUInt8(35) !== 0,
+            terrSelected: buffer.readUInt8(35) !== 0,
             efisMode: buffer.readUInt8(36),
+            vdRangeLower: -500,
+            vdRangeUpper: 24500,
           },
           navigationDisplayRenderingMode: buffer.readUInt8(37) as TerrainRenderingMode,
+          manualAzimEnabled: false,
+          manualAzimDegrees: 0,
+          groundTruthLatitude: buffer.readFloatLE(1),
+          groundTruthLongitude: buffer.readFloatLE(5),
         };
 
         this.callbacks.aircraftStatusUpdate(status);

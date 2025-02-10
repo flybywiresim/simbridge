@@ -4,11 +4,13 @@ export enum TerrainRenderingMode {
   VerticalDisplayRequired = 2,
 }
 
-export interface NavigationDisplay {
-  range: number;
+export interface EfisData {
+  ndRange: number;
   arcMode: boolean;
-  active: boolean;
+  terrSelected: boolean;
   efisMode: number;
+  vdRangeLower: number;
+  vdRangeUpper: number;
   mapOffsetX?: number;
   mapWidth?: number;
   mapHeight?: number;
@@ -23,6 +25,7 @@ export interface VerticalDisplay {
 
 export interface AircraftStatus {
   adiruDataValid: boolean;
+  tawsInop: boolean;
   latitude: number;
   longitude: number;
   altitude: number;
@@ -32,9 +35,23 @@ export interface AircraftStatus {
   runwayDataValid: boolean;
   runwayLatitude: number;
   runwayLongitude: number;
-  navigationDisplayCapt: NavigationDisplay;
-  navigationDisplayFO: NavigationDisplay;
+  efisDataCapt: EfisData;
+  efisDataFO: EfisData;
   navigationDisplayRenderingMode: TerrainRenderingMode;
+  manualAzimEnabled: boolean;
+  manualAzimDegrees: number;
+  groundTruthLatitude: number;
+  groundTruthLongitude: number;
+}
+
+interface VerticalPathWaypoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface VerticalPathData {
+  pathWidth: number;
+  waypoints: VerticalPathWaypoint[];
 }
 
 export enum TerrainLevelMode {

@@ -41,7 +41,7 @@ import { MapHandler } from './maphandler';
 import {
   AircraftStatus,
   DisplaySide,
-  NavigationDisplay,
+  EfisData,
   NavigationDisplayData,
   TerrainLevelMode,
   TerrainRenderingMode,
@@ -75,7 +75,7 @@ const RenderingMapTransitionAngularStep = Math.round(
 );
 
 export class NavigationDisplayRenderer {
-  private configuration: NavigationDisplay = null;
+  private configuration: EfisData = null;
 
   private patternUpload: IKernelRunShortcut = null;
 
@@ -205,12 +205,12 @@ export class NavigationDisplayRenderer {
     return true;
   }
 
-  private configureNavigationDisplay(config: NavigationDisplay): void {
+  private configureNavigationDisplay(config: EfisData): void {
     const lastConfig = this.configuration;
-    const stopRendering = !config.active && lastConfig !== null && lastConfig.active;
-    let startRendering = config.active && (lastConfig === null || !lastConfig.active);
+    const stopRendering = !config.terrSelected && lastConfig !== null && lastConfig.terrSelected;
+    let startRendering = config.terrSelected && (lastConfig === null || !lastConfig.terrSelected);
     startRendering ||=
-      lastConfig !== null && (lastConfig.range !== config.range || lastConfig.arcMode !== config.arcMode);
+      lastConfig !== null && (lastConfig.ndRange !== config.ndRange || lastConfig.arcMode !== config.arcMode);
     startRendering ||= lastConfig !== null && lastConfig.efisMode !== config.efisMode;
 
     this.configuration = config;
@@ -266,9 +266,9 @@ export class NavigationDisplayRenderer {
 
     this.aircraftStatus = status;
     if (side === DisplaySide.Left) {
-      this.configureNavigationDisplay(this.aircraftStatus.navigationDisplayCapt);
+      this.configureNavigationDisplay(this.aircraftStatus.efisDataCapt);
     } else {
-      this.configureNavigationDisplay(this.aircraftStatus.navigationDisplayFO);
+      this.configureNavigationDisplay(this.aircraftStatus.efisDataFO);
     }
   }
 
@@ -478,7 +478,7 @@ export class NavigationDisplayRenderer {
     // nothing to do here
     if (this.renderingData.finalFrame === null) return true;
 
-    this.renderingData.thresholdData.DisplayRange = this.configuration.range;
+    this.renderingData.thresholdData.DisplayRange = this.configuration.ndRange;
     this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
     this.renderingData.currentTransitionBorder += RenderingMapTransitionAngularStep;
@@ -548,7 +548,7 @@ export class NavigationDisplayRenderer {
       (this.configuration.mapHeight / RenderingMapTransitionDurationScanlineMode) * RenderingMapTransitionDeltaTime,
     );
 
-    this.renderingData.thresholdData.DisplayRange = this.configuration.range;
+    this.renderingData.thresholdData.DisplayRange = this.configuration.ndRange;
     this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
     this.renderingData.currentTransitionBorder -= verticalStep;
 
@@ -618,7 +618,7 @@ export class NavigationDisplayRenderer {
     }
     this.configuration.mapOffsetX = Math.ceil((NavigationDisplayMaxPixelWidth - this.configuration.mapWidth) * 0.5);
 
-    if (this.configuration.range === 0) {
+    if (this.configuration.ndRange === 0) {
       this.reset();
       return;
     }
@@ -637,7 +637,7 @@ export class NavigationDisplayRenderer {
     this.renderingData.finalFrame = new Uint8ClampedArray(fastFlatten(frame));
     this.renderingData.thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
 
-    this.renderingData.thresholdData.DisplayRange = this.configuration.range;
+    this.renderingData.thresholdData.DisplayRange = this.configuration.ndRange;
     this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
     if (this.renderingData.lastFrame === null) {
@@ -684,7 +684,7 @@ export class NavigationDisplayRenderer {
     return renderingDone;
   }
 
-  public displayConfiguration(): NavigationDisplay {
+  public displayConfiguration(): EfisData {
     return this.configuration;
   }
 

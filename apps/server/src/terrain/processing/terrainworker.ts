@@ -1,4 +1,4 @@
-import { GPU } from 'gpu.js';
+﻿import { GPU } from 'gpu.js';
 import { parentPort } from 'worker_threads';
 import * as sharp from 'sharp';
 import {
@@ -6,10 +6,11 @@ import {
   DisplaySide,
   MainToWorkerThreadMessage,
   MainToWorkerThreadMessageTypes,
-  NavigationDisplay,
+  EfisData,
   PositionData,
   TerrainLevelMode,
   TerrainRenderingMode,
+  VerticalPathData,
   WorkerToMainThreadMessageTypes,
 } from '../types';
 import { SimConnect } from '../communication/simconnect';
@@ -32,7 +33,7 @@ import { ThreadLogger } from './logging/threadlogger';
 import { MapHandler } from './maphandler';
 import { NavigationDisplayRenderer } from './navigationdisplayrenderer';
 import { VerticalDisplayRenderer } from './verticaldisplayrenderer';
-import { projectWgs84 } from './gpu/helper';
+import { projectWgs84 } from 'apps/server/src/terrain/processing/gpu/helper';
 
 const DisplayScreenPixelHeightWithoutVerticalDisplay = 768;
 const DisplayScreenPixelHeightWithVerticalDisplay = 1024;
@@ -45,6 +46,10 @@ class TerrainWorker {
   private simPaused: boolean = true;
 
   private renderingMode: TerrainRenderingMode = TerrainRenderingMode.ArcMode;
+
+  private manualAzimEnabled: boolean = false;
+  private manualAzimDegrees: number = 0;
+  private manualAzimEndPoint: [number, number] | null = null;
 
   private gpu: GPU = null;
 
@@ -104,13 +109,14 @@ class TerrainWorker {
   private updateRendering(side: DisplaySide, status: AircraftStatus) {
     if (this.displayRendering[side].navigationDisplay === null) return;
 
-    const configuration = side === DisplaySide.Left ? status.navigationDisplayCapt : status.navigationDisplayFO;
+    const configuration = side === DisplaySide.Left ? status.efisDataCapt : status.efisDataFO;
     const lastConfig = this.displayRendering[side].navigationDisplay.displayConfiguration();
-    const stopRendering = !configuration.active && lastConfig !== null && lastConfig.active;
-    let startRendering = configuration.active && (lastConfig === null || !lastConfig.active);
+    const stopRendering = !configuration.terrSelected && lastConfig !== null && lastConfig.terrSelected;
+    let startRendering = configuration.terrSelected && (lastConfig === null || !lastConfig.terrSelected);
 
     startRendering ||=
-      lastConfig !== null && (lastConfig.range !== configuration.range || lastConfig.arcMode !== configuration.arcMode);
+      lastConfig !== null &&
+      (lastConfig.ndRange !== configuration.ndRange || lastConfig.arcMode !== configuration.arcMode);
     startRendering ||= lastConfig !== null && lastConfig.efisMode !== configuration.efisMode;
 
     if (stopRendering || startRendering) {
@@ -136,16 +142,23 @@ class TerrainWorker {
     this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
     this.displayRendering[side].verticalDisplay.aircraftStatusUpdate(status, side);
 
-    // TODO replace by in aircraft code and endpoints
-    const endpoint = projectWgs84(status.latitude, status.longitude, status.heading, 360 * NauticalMilesToMetres);
-    this.displayRendering[side].verticalDisplay.pathDataUpdate([endpoint[0]], [endpoint[1]]);
-
     if (startRendering) {
       this.startNavigationDisplayRenderingCycle(side);
     }
   }
 
-  private onAircraftStatusUpdate(data: AircraftStatus): void {
+  private updatePathData(side: DisplaySide, path: VerticalPathData) {
+    if (this.manualAzimEnabled) {
+      this.displayRendering[side].verticalDisplay.pathDataUpdate({
+        pathWidth: 1.0,
+        waypoints: [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }],
+      });
+    } else {
+      this.displayRendering[side].verticalDisplay.pathDataUpdate(path);
+    }
+  }
+
+  public onAircraftStatusUpdate(data: AircraftStatus): void {
     if (this.initialized === false) return;
 
     // eslint-disable-next-line no-bitwise
@@ -155,6 +168,12 @@ class TerrainWorker {
     // eslint-disable-next-line no-bitwise
     this.renderingMode =
       data.navigationDisplayRenderingMode & (TerrainRenderingMode.ArcMode | TerrainRenderingMode.ScanlineMode);
+
+    this.manualAzimEnabled = data.manualAzimEnabled;
+    this.manualAzimDegrees = data.manualAzimDegrees;
+    this.manualAzimEndPoint = data.manualAzimEnabled
+      ? projectWgs84(data.latitude, data.longitude, this.manualAzimDegrees, 160 * NauticalMilesToMetres)
+      : null;
 
     if (this.verticalDisplayRequired === true) {
       this.displayDimension.height = DisplayScreenPixelHeightWithVerticalDisplay;
@@ -168,15 +187,23 @@ class TerrainWorker {
     this.updateRendering(DisplaySide.Right, data);
   }
 
+  public onVerticalPathDataUpdate(data: VerticalPathData): void {
+    if (this.initialized === false) return;
+
+    this.updatePathData(DisplaySide.Left, data);
+    this.updatePathData(DisplaySide.Right, data);
+  }
+
   constructor(private logging: Logger) {
     this.simconnect = new SimConnect(this.logging);
     this.simconnect.addUpdateCallback('reset', () => this.onReset());
     this.simconnect.addUpdateCallback('paused', () => this.onPaused());
     this.simconnect.addUpdateCallback('unpaused', () => this.onUnpaused());
     this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
-    this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) =>
+    // FIXME activate after testing to preserve legacy WASM communication
+    /* this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) =>
       this.onAircraftStatusUpdate(data),
-    );
+    );*/
 
     this.gpu = new GPU({ mode: GpuProcessingActive === true ? 'gpu' : 'cpu' });
 
@@ -220,21 +247,25 @@ class TerrainWorker {
       if (initialized === true) {
         this.logging.info('Initialized the map handler');
 
-        const startupNdConfigL: NavigationDisplay = {
-          range: 20,
+        const startupNdConfigL: EfisData = {
+          ndRange: 20,
           arcMode: true,
-          active: true,
+          terrSelected: true,
           efisMode: 0,
+          vdRangeLower: -500,
+          vdRangeUpper: 24000,
           mapOffsetX: 0,
           mapWidth: NavigationDisplayMaxPixelWidth,
           mapHeight: NavigationDisplayMaxPixelHeight,
           centerOffsetY: 0,
         };
-        const startupNdConfigR: NavigationDisplay = {
-          range: 10,
+        const startupNdConfigR: EfisData = {
+          ndRange: 10,
           arcMode: true,
-          active: false,
+          terrSelected: false,
           efisMode: 0,
+          vdRangeLower: -500,
+          vdRangeUpper: 24000,
           mapOffsetX: 0,
           mapWidth: NavigationDisplayMaxPixelWidth,
           mapHeight: NavigationDisplayMaxPixelHeight,
@@ -242,6 +273,7 @@ class TerrainWorker {
         };
         const startupStatus: AircraftStatus = {
           adiruDataValid: true,
+          tawsInop: false,
           latitude: 47.26081085205078,
           longitude: 11.349658966064453,
           altitude: 1904,
@@ -251,9 +283,13 @@ class TerrainWorker {
           runwayDataValid: false,
           runwayLatitude: 0.0,
           runwayLongitude: 0.0,
-          navigationDisplayCapt: startupNdConfigL,
-          navigationDisplayFO: startupNdConfigR,
+          efisDataCapt: startupNdConfigL,
+          efisDataFO: startupNdConfigR,
           navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
+          manualAzimEnabled: false,
+          manualAzimDegrees: 0,
+          groundTruthLatitude: 47.26081085205078,
+          groundTruthLongitude: 11.349658966064453,
         };
 
         this.displayRendering.L.navigationDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Left, true);
@@ -472,7 +508,7 @@ class TerrainWorker {
           this.displayRendering[side].timeout = null;
         }
 
-        if (this.displayRendering[side].navigationDisplay.displayConfiguration().active === true) {
+        if (this.displayRendering[side].navigationDisplay.displayConfiguration().terrSelected === true) {
           const timeout =
             this.renderingMode === TerrainRenderingMode.ArcMode
               ? RenderingMapUpdateTimeoutArcMode
@@ -515,5 +551,9 @@ parentPort.on('message', (data: MainToWorkerThreadMessage) => {
     });
   } else if (data.type === MainToWorkerThreadMessageTypes.Shutdown) {
     terrainWorker.shutdown();
+  } else if (data.type === MainToWorkerThreadMessageTypes.AircraftStatusData) {
+    terrainWorker.onAircraftStatusUpdate(data.content);
+  } else if (data.type === MainToWorkerThreadMessageTypes.VerticalDisplayPath) {
+    terrainWorker.onVerticalPathDataUpdate(data.content);
   }
 });
