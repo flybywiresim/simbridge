@@ -47,9 +47,11 @@ class TerrainWorker {
 
   private renderingMode: TerrainRenderingMode = TerrainRenderingMode.ArcMode;
 
-  private manualAzimEnabled: boolean = false;
+  private manualAzimEnabled: boolean = true;
   private manualAzimDegrees: number = 0;
   private manualAzimEndPoint: [number, number] | null = null;
+
+  private simBridgeClientUsed = false;
 
   private gpu: GPU = null;
 
@@ -100,6 +102,13 @@ class TerrainWorker {
     this.simPaused = false;
   }
 
+  public enableSimBridgeClientData(): void {
+    if (!this.simBridgeClientUsed) {
+      this.logging.info('SimBridge client data received, ignoring SimConnect aircraftStatusUpdate from now on.');
+    }
+    this.simBridgeClientUsed = true;
+  }
+
   private onPositionUpdate(data: PositionData): void {
     if (this.initialized === false) return;
 
@@ -148,10 +157,16 @@ class TerrainWorker {
   }
 
   private updatePathData(side: DisplaySide, path: VerticalPathData) {
-    if (this.manualAzimEnabled) {
+    if (this.manualAzimEnabled || path.waypoints.length === 0) {
+      const waypoints =
+        this.manualAzimEndPoint === null
+          ? []
+          : [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }];
       this.displayRendering[side].verticalDisplay.pathDataUpdate({
+        side: side,
         pathWidth: 1.0,
-        waypoints: [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }],
+        trackChangesSignificantlyAtDistance: 0,
+        waypoints: waypoints,
       });
     } else {
       this.displayRendering[side].verticalDisplay.pathDataUpdate(path);
@@ -165,6 +180,7 @@ class TerrainWorker {
     this.verticalDisplayRequired =
       (data.navigationDisplayRenderingMode & TerrainRenderingMode.VerticalDisplayRequired) ===
       TerrainRenderingMode.VerticalDisplayRequired;
+
     // eslint-disable-next-line no-bitwise
     this.renderingMode =
       data.navigationDisplayRenderingMode & (TerrainRenderingMode.ArcMode | TerrainRenderingMode.ScanlineMode);
@@ -190,20 +206,21 @@ class TerrainWorker {
   public onVerticalPathDataUpdate(data: VerticalPathData): void {
     if (this.initialized === false) return;
 
-    this.updatePathData(DisplaySide.Left, data);
-    this.updatePathData(DisplaySide.Right, data);
+    this.updatePathData(data.side, data);
   }
 
-  constructor(private logging: Logger) {
+  constructor(public logging: Logger) {
     this.simconnect = new SimConnect(this.logging);
     this.simconnect.addUpdateCallback('reset', () => this.onReset());
     this.simconnect.addUpdateCallback('paused', () => this.onPaused());
     this.simconnect.addUpdateCallback('unpaused', () => this.onUnpaused());
     this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
-    // FIXME activate after testing to preserve legacy WASM communication
-    /* this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) =>
-      this.onAircraftStatusUpdate(data),
-    );*/
+    this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => {
+      if (!this.simBridgeClientUsed) {
+        // Only react to SimConnect updates for AircraftStatus if no SimBridge-Client data has been received
+        this.onAircraftStatusUpdate(data);
+      }
+    });
 
     this.gpu = new GPU({ mode: GpuProcessingActive === true ? 'gpu' : 'cpu' });
 
@@ -552,6 +569,7 @@ parentPort.on('message', (data: MainToWorkerThreadMessage) => {
   } else if (data.type === MainToWorkerThreadMessageTypes.Shutdown) {
     terrainWorker.shutdown();
   } else if (data.type === MainToWorkerThreadMessageTypes.AircraftStatusData) {
+    terrainWorker.enableSimBridgeClientData();
     terrainWorker.onAircraftStatusUpdate(data.content);
   } else if (data.type === MainToWorkerThreadMessageTypes.VerticalDisplayPath) {
     terrainWorker.onVerticalPathDataUpdate(data.content);

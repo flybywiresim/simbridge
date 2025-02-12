@@ -289,11 +289,13 @@ export class SimConnect {
       }
 
       if (this.callbacks.aircraftStatusUpdate !== null) {
+        const lat = buffer.readFloatLE(1);
+        const lon = buffer.readFloatLE(5);
         const status: AircraftStatus = {
           adiruDataValid: buffer.readUInt8(0) !== 0,
           tawsInop: false,
-          latitude: buffer.readFloatLE(1),
-          longitude: buffer.readFloatLE(5),
+          latitude: lat,
+          longitude: lon,
           altitude: buffer.readInt32LE(9),
           heading: buffer.readInt16LE(13),
           verticalSpeed: buffer.readInt16LE(15),
@@ -320,8 +322,8 @@ export class SimConnect {
           navigationDisplayRenderingMode: buffer.readUInt8(37) as TerrainRenderingMode,
           manualAzimEnabled: false,
           manualAzimDegrees: 0,
-          groundTruthLatitude: buffer.readFloatLE(1),
-          groundTruthLongitude: buffer.readFloatLE(5),
+          groundTruthLatitude: lat,
+          groundTruthLongitude: lon,
         };
 
         this.callbacks.aircraftStatusUpdate(status);

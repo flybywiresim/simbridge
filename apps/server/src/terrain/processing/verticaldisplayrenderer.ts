@@ -29,7 +29,7 @@ export class VerticalDisplayRenderer {
     range: 0.0,
   };
 
-  private displayConfig: VerticalDisplay = { range: 0.0 };
+  private displayConfig: VerticalDisplay = { range: 0.0, minimumAltitude: -500, maximumAltitude: 24000 };
 
   private renderingData: {
     startTransitionBorder: number;
@@ -89,11 +89,21 @@ export class VerticalDisplayRenderer {
 
   public aircraftStatusUpdate(status: AircraftStatus, side: DisplaySide): void {
     if (side === DisplaySide.Left) {
-      this.elevationConfig.range = status.efisDataCapt.ndRange;
+      const vdRange = status.efisDataCapt.arcMode
+        ? Math.max(10, Math.min(status.efisDataCapt.ndRange, 160))
+        : Math.max(5, Math.min(status.efisDataCapt.ndRange / 2, 160));
+      this.elevationConfig.range = vdRange;
       this.displayConfig.range = status.efisDataCapt.ndRange;
+      this.displayConfig.minimumAltitude = status.efisDataCapt.vdRangeLower;
+      this.displayConfig.maximumAltitude = status.efisDataCapt.vdRangeUpper;
     } else {
-      this.elevationConfig.range = status.efisDataFO.ndRange;
+      const vdRange = status.efisDataFO.arcMode
+        ? Math.max(10, Math.min(status.efisDataFO.ndRange, 160))
+        : Math.max(5, Math.min(status.efisDataFO.ndRange / 2, 160));
+      this.elevationConfig.range = vdRange;
       this.displayConfig.range = status.efisDataFO.ndRange;
+      this.displayConfig.minimumAltitude = status.efisDataFO.vdRangeLower;
+      this.displayConfig.maximumAltitude = status.efisDataFO.vdRangeUpper;
     }
   }
 
@@ -120,7 +130,7 @@ export class VerticalDisplayRenderer {
       range: 0.0,
     };
 
-    this.displayConfig = { range: 0.0 };
+    this.displayConfig = { range: 0.0, minimumAltitude: -500, maximumAltitude: 24000 };
   }
 
   public startNewMapCycle(currentTime: number): void {
@@ -132,11 +142,16 @@ export class VerticalDisplayRenderer {
     this.displayConfig.mapWidth = RenderingElevationProfileWidth;
     this.displayConfig.mapHeight = RenderingElevationProfileHeight;
 
+    // this.logging.info(`max ${this.displayConfig.maximumAltitude}, rng ${this.displayConfig.range}`);
+
     const profile = this.maphandler.createElevationProfile(this.elevationConfig, RenderingElevationProfileWidth);
     if (profile === null) return;
 
-    // TODO fix min and max
-    const verticaldisplay = this.renderer(profile, -500, 24000) as number[][];
+    const verticaldisplay = this.renderer(
+      profile,
+      this.displayConfig.minimumAltitude,
+      this.displayConfig.maximumAltitude,
+    ) as number[][];
 
     // some GPU drivers require the flush call to release internal memory
     if (GpuProcessingActive) this.renderer.context.flush();

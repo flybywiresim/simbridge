@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TawsEfisDataDto } from 'apps/server/src/terrain/dto/tawsefisdata';
+import { Type } from 'class-transformer';
 import { IsBoolean, IsDefined, IsNumber, Max, Min, ValidateNested } from 'class-validator';
 
 export class TawsAircraftStatusDataDto {
@@ -49,15 +50,17 @@ export class TawsAircraftStatusDataDto {
 
   @ApiProperty({ description: 'EFIS CP settings for CAPT', type: TawsEfisDataDto })
   @ValidateNested()
+  @Type(() => TawsEfisDataDto)
   @IsDefined()
   efisDataCapt: TawsEfisDataDto;
 
   @ApiProperty({ description: 'EFIS CP settings for FO', type: TawsEfisDataDto })
   @ValidateNested()
+  @Type(() => TawsEfisDataDto)
   @IsDefined()
   efisDataFO: TawsEfisDataDto;
 
-  @ApiProperty({ description: 'ND ON TERR rendering mode (a/c specific)', example: '11.0' })
+  @ApiProperty({ description: 'ND ON TERR rendering mode (a/c specific)', example: '3' })
   @IsNumber()
   navigationDisplayRenderingMode: number;
 

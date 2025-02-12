@@ -5,6 +5,7 @@ import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythreshold
 import {
   DisplaySide,
   MainToWorkerThreadMessageTypes,
+  VerticalPathData,
   WorkerToMainThreadMessage,
   WorkerToMainThreadMessageTypes,
 } from './types';
@@ -86,11 +87,17 @@ export class TerrainService implements OnApplicationShutdown {
     }
   }
 
-  public updateFlightPath(path: ElevationSamplePathDto): void {
+  public updateFlightPath(side: DisplaySide, path: ElevationSamplePathDto): void {
     if (this.terrainWorker) {
+      const content: VerticalPathData = {
+        side: side,
+        pathWidth: path.pathWidth,
+        trackChangesSignificantlyAtDistance: path.trackChangesSignificantlyAtDistance,
+        waypoints: path.waypoints,
+      };
       this.terrainWorker.postMessage({
         type: MainToWorkerThreadMessageTypes.VerticalDisplayPath,
-        content: path,
+        content: content,
       });
     }
   }

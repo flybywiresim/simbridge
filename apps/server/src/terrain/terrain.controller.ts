@@ -77,7 +77,7 @@ export class TerrainController {
     status: 200,
     description: 'Update of the path was successful',
   })
-  verticalDisplayPath(@Body() path: ElevationSamplePathDto) {
-    this.terrainService.updateFlightPath(path);
+  verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
+    this.terrainService.updateFlightPath(side, path);
   }
 }

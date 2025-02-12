@@ -1,3 +1,5 @@
+import { DisplaySide } from 'apps/server/src/terrain/types/display';
+
 export enum TerrainRenderingMode {
   ArcMode = 0,
   ScanlineMode = 1,
@@ -19,6 +21,8 @@ export interface EfisData {
 
 export interface VerticalDisplay {
   range: number;
+  minimumAltitude: number;
+  maximumAltitude: number;
   mapWidth?: number;
   mapHeight?: number;
 }
@@ -37,7 +41,7 @@ export interface AircraftStatus {
   runwayLongitude: number;
   efisDataCapt: EfisData;
   efisDataFO: EfisData;
-  navigationDisplayRenderingMode: TerrainRenderingMode;
+  navigationDisplayRenderingMode: number;
   manualAzimEnabled: boolean;
   manualAzimDegrees: number;
   groundTruthLatitude: number;
@@ -50,7 +54,9 @@ interface VerticalPathWaypoint {
 }
 
 export interface VerticalPathData {
+  side: DisplaySide;
   pathWidth: number;
+  trackChangesSignificantlyAtDistance: number;
   waypoints: VerticalPathWaypoint[];
 }
 
