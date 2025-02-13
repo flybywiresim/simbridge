@@ -182,7 +182,8 @@ export class MapHandler {
       const startupConfig: EfisData = {
         ndRange: 10,
         arcMode: true,
-        terrSelected: true,
+        terrOnNd: true,
+        terrOnVd: true,
         efisMode: 0,
         vdRangeLower: -500,
         vdRangeUpper: 24000,

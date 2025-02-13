@@ -9,7 +9,8 @@ export enum TerrainRenderingMode {
 export interface EfisData {
   ndRange: number;
   arcMode: boolean;
-  terrSelected: boolean;
+  terrOnNd: boolean;
+  terrOnVd: boolean;
   efisMode: number;
   vdRangeLower: number;
   vdRangeUpper: number;
@@ -25,6 +26,7 @@ export interface VerticalDisplay {
   maximumAltitude: number;
   mapWidth?: number;
   mapHeight?: number;
+  fmsPathUsed?: boolean;
 }
 
 export interface AircraftStatus {

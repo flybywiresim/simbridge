@@ -12,7 +12,14 @@ export class TawsEfisDataDto {
 
   @ApiProperty({ description: 'TERR (ON ND) is selected', example: 'true' })
   @IsBoolean()
-  terrSelected: boolean;
+  terrOnNd: boolean;
+
+  @ApiProperty({
+    description: 'TERR (ON VD) is selected. Always true for A380X, always false for A32NX.',
+    example: 'false',
+  })
+  @IsBoolean()
+  terrOnVd: boolean;
 
   @ApiProperty({ description: 'EFIS mode enum', example: '1' })
   @IsNumber()

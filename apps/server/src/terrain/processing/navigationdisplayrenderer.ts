@@ -207,11 +207,17 @@ export class NavigationDisplayRenderer {
 
   private configureNavigationDisplay(config: EfisData): void {
     const lastConfig = this.configuration;
-    const stopRendering = !config.terrSelected && lastConfig !== null && lastConfig.terrSelected;
-    let startRendering = config.terrSelected && (lastConfig === null || !lastConfig.terrSelected);
-    startRendering ||=
-      lastConfig !== null && (lastConfig.ndRange !== config.ndRange || lastConfig.arcMode !== config.arcMode);
-    startRendering ||= lastConfig !== null && lastConfig.efisMode !== config.efisMode;
+    const configChanged =
+      lastConfig !== null &&
+      (lastConfig.efisMode !== config.efisMode ||
+        lastConfig.ndRange !== config.ndRange ||
+        lastConfig.arcMode !== config.arcMode ||
+        lastConfig.terrOnNd !== config.terrOnNd ||
+        lastConfig.terrOnVd !== config.terrOnVd);
+    const terrIsActive = config.terrOnNd || config.terrOnVd;
+    const terrWasActive = lastConfig !== null && (lastConfig.terrOnNd || lastConfig.terrOnVd);
+    const stopRendering = !terrIsActive && lastConfig !== null && terrWasActive;
+    const startRendering = configChanged || (lastConfig === null && config !== null);
 
     this.configuration = config;
     if (lastConfig !== null) {

@@ -15,6 +15,7 @@ import { VerticalDisplayConstants } from './gpu/interfaces';
 import { Logger } from './logging/logger';
 import { MapHandler } from './maphandler';
 import { AircraftStatus, DisplaySide, ElevationProfile, VerticalDisplay, VerticalPathData } from '../types';
+import { verticalDisplayDistanceToPixelX } from 'apps/server/src/terrain/processing/gpu/helper';
 
 const RenderingElevationProfileWidth = 540;
 const RenderingElevationProfileHeight = 200;
@@ -27,9 +28,14 @@ export class VerticalDisplayRenderer {
     waypointsLatitudes: [],
     waypointsLongitudes: [],
     range: 0.0,
+    trackChangesSignificantlyAtDistance: -1,
   };
 
-  private displayConfig: VerticalDisplay = { range: 0.0, minimumAltitude: -500, maximumAltitude: 24000 };
+  private displayConfig: VerticalDisplay = {
+    range: 0.0,
+    minimumAltitude: -500,
+    maximumAltitude: 24000,
+  };
 
   private renderingData: {
     startTransitionBorder: number;
@@ -80,6 +86,7 @@ export class VerticalDisplayRenderer {
       waypointsLatitudes: [47.26081085205078],
       waypointsLongitudes: [11.349658966064453],
       range: 20.0,
+      trackChangesSignificantlyAtDistance: -1,
     };
 
     this.startNewMapCycle(this.startupTime);
@@ -105,12 +112,18 @@ export class VerticalDisplayRenderer {
       this.displayConfig.minimumAltitude = status.efisDataFO.vdRangeLower;
       this.displayConfig.maximumAltitude = status.efisDataFO.vdRangeUpper;
     }
+    this.displayConfig.fmsPathUsed = !status.manualAzimEnabled;
   }
 
   public pathDataUpdate(data: VerticalPathData): void {
     this.elevationConfig.pathWidth = data.pathWidth;
     this.elevationConfig.waypointsLatitudes = data.waypoints.map((wpts) => wpts.latitude);
     this.elevationConfig.waypointsLongitudes = data.waypoints.map((wpts) => wpts.longitude);
+    this.elevationConfig.trackChangesSignificantlyAtDistance = data.trackChangesSignificantlyAtDistance;
+  }
+
+  public hasPath(): boolean {
+    return this.elevationConfig.waypointsLatitudes.length > 0;
   }
 
   public reset(): void {
@@ -128,9 +141,14 @@ export class VerticalDisplayRenderer {
       waypointsLatitudes: [],
       waypointsLongitudes: [],
       range: 0.0,
+      trackChangesSignificantlyAtDistance: -1,
     };
 
-    this.displayConfig = { range: 0.0, minimumAltitude: -500, maximumAltitude: 24000 };
+    this.displayConfig = {
+      range: 0.0,
+      minimumAltitude: -500,
+      maximumAltitude: 24000,
+    };
   }
 
   public startNewMapCycle(currentTime: number): void {
@@ -142,15 +160,22 @@ export class VerticalDisplayRenderer {
     this.displayConfig.mapWidth = RenderingElevationProfileWidth;
     this.displayConfig.mapHeight = RenderingElevationProfileHeight;
 
-    // this.logging.info(`max ${this.displayConfig.maximumAltitude}, rng ${this.displayConfig.range}`);
-
     const profile = this.maphandler.createElevationProfile(this.elevationConfig, RenderingElevationProfileWidth);
     if (profile === null) return;
+
+    const greyAreaStartsAtX: number | null =
+      this.elevationConfig.trackChangesSignificantlyAtDistance >= 0 && this.displayConfig.fmsPathUsed
+        ? verticalDisplayDistanceToPixelX(
+            this.elevationConfig.trackChangesSignificantlyAtDistance,
+            this.elevationConfig.range,
+          )
+        : -1;
 
     const verticaldisplay = this.renderer(
       profile,
       this.displayConfig.minimumAltitude,
       this.displayConfig.maximumAltitude,
+      greyAreaStartsAtX,
     ) as number[][];
 
     // some GPU drivers require the flush call to release internal memory
