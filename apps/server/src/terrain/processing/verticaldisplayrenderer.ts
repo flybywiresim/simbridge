@@ -112,7 +112,7 @@ export class VerticalDisplayRenderer {
       this.displayConfig.minimumAltitude = status.efisDataFO.vdRangeLower;
       this.displayConfig.maximumAltitude = status.efisDataFO.vdRangeUpper;
     }
-    this.displayConfig.fmsPathUsed = !status.manualAzimEnabled;
+    this.displayConfig.fmsPathUsed = !status.manualAzimEnabled && this.elevationConfig.waypointsLatitudes.length > 0;
   }
 
   public pathDataUpdate(data: VerticalPathData): void {
@@ -163,7 +163,7 @@ export class VerticalDisplayRenderer {
     const profile = this.maphandler.createElevationProfile(this.elevationConfig, RenderingElevationProfileWidth);
     if (profile === null) return;
 
-    const greyAreaStartsAtX: number | null =
+    const greyAreaStartsAtX =
       this.elevationConfig.trackChangesSignificantlyAtDistance >= 0 && this.displayConfig.fmsPathUsed
         ? verticalDisplayDistanceToPixelX(
             this.elevationConfig.trackChangesSignificantlyAtDistance,

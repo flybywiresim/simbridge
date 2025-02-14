@@ -379,7 +379,7 @@ export class MapHandler {
   }
 
   public createLocalElevationMap(config: EfisData): Texture {
-    if (this.cachedElevationData.gpuData === null) return null;
+    if (this.cachedElevationData.gpuData === null || this.aircraftStatus === null) return null;
 
     if (
       this.extractLocalElevationMap.output === null ||

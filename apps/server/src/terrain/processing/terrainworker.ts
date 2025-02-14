@@ -128,9 +128,9 @@ class TerrainWorker {
         lastConfig.arcMode !== configuration.arcMode ||
         lastConfig.terrOnNd !== configuration.terrOnNd ||
         lastConfig.terrOnVd !== configuration.terrOnVd);
-    const terrIsActive = configuration.terrOnNd || configuration.terrOnVd;
-    const terrWasActive = lastConfig !== null && (lastConfig.terrOnNd || lastConfig.terrOnVd);
-    const stopRendering = !terrIsActive && lastConfig !== null && terrWasActive;
+    const stopRendering =
+      lastConfig !== null &&
+      ((lastConfig.terrOnNd && !configuration.terrOnNd) || (lastConfig.terrOnVd && !configuration.terrOnVd));
     const startRendering = configChanged || (lastConfig === null && configuration !== null);
 
     if (stopRendering || startRendering) {
@@ -492,7 +492,6 @@ class TerrainWorker {
         }
         vdMap = this.displayRendering[side].verticalDisplay.currentFrame();
       } else {
-        // this.logging.info('src5');
         this.displayRendering[side].renderedLastFrameVerticalDisplay = true;
       }
 

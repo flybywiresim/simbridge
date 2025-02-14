@@ -5,7 +5,7 @@ export function renderVerticalDisplay(
   elevationProfile: number[],
   minimumAltitude: number,
   maximumAltitude: number,
-  greyBackgroundFromX: number | null,
+  greyBackgroundFromX: number,
 ): number {
   const pixelX = Math.floor(this.thread.x / 4);
   const colorChannel = this.thread.x % 4;

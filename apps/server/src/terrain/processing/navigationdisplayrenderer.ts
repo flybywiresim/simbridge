@@ -214,9 +214,8 @@ export class NavigationDisplayRenderer {
         lastConfig.arcMode !== config.arcMode ||
         lastConfig.terrOnNd !== config.terrOnNd ||
         lastConfig.terrOnVd !== config.terrOnVd);
-    const terrIsActive = config.terrOnNd || config.terrOnVd;
-    const terrWasActive = lastConfig !== null && (lastConfig.terrOnNd || lastConfig.terrOnVd);
-    const stopRendering = !terrIsActive && lastConfig !== null && terrWasActive;
+    const stopRendering =
+      lastConfig !== null && ((lastConfig.terrOnNd && !config.terrOnNd) || (lastConfig.terrOnVd && !config.terrOnVd));
     const startRendering = configChanged || (lastConfig === null && config !== null);
 
     this.configuration = config;
