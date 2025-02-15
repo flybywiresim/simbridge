@@ -126,6 +126,10 @@ export class VerticalDisplayRenderer {
     return this.elevationConfig.waypointsLatitudes.length > 0;
   }
 
+  public numPathElements(): number {
+    return this.elevationConfig.waypointsLatitudes.length;
+  }
+
   public reset(): void {
     this.renderingData = {
       startTransitionBorder: 0,

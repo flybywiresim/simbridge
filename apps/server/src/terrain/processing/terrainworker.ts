@@ -47,6 +47,8 @@ class TerrainWorker {
 
   private renderingMode: TerrainRenderingMode = TerrainRenderingMode.ArcMode;
 
+  private forceRedraw: boolean = false;
+
   private manualAzimEnabled: boolean = true;
   private manualAzimDegrees: number = 0;
   private manualAzimEndPoint: [number, number] | null = null;
@@ -121,6 +123,8 @@ class TerrainWorker {
     const configuration = side === DisplaySide.Left ? status.efisDataCapt : status.efisDataFO;
     const lastConfig = this.displayRendering[side].navigationDisplay.displayConfiguration();
 
+    this.forceRedraw ||= this.manualAzimEnabled !== status.manualAzimEnabled;
+
     const configChanged =
       lastConfig !== null &&
       (lastConfig.efisMode !== configuration.efisMode ||
@@ -131,7 +135,7 @@ class TerrainWorker {
     const stopRendering =
       lastConfig !== null &&
       ((lastConfig.terrOnNd && !configuration.terrOnNd) || (lastConfig.terrOnVd && !configuration.terrOnVd));
-    const startRendering = configChanged || (lastConfig === null && configuration !== null);
+    const startRendering = configChanged || this.forceRedraw || (lastConfig === null && configuration !== null);
 
     if (stopRendering || startRendering) {
       if (this.displayRendering[side].durationInterval !== null) {
@@ -174,9 +178,11 @@ class TerrainWorker {
     if (startRendering) {
       this.startNavigationDisplayRenderingCycle(side);
     }
+    this.forceRedraw = false;
   }
 
   private updatePathData(side: DisplaySide, path: VerticalPathData) {
+    this.forceRedraw ||= this.displayRendering[side].verticalDisplay.numPathElements() !== path.waypoints.length;
     if (this.manualAzimEnabled || path.waypoints.length === 0) {
       const waypoints =
         this.manualAzimEndPoint === null
