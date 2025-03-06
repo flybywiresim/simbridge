@@ -1,5 +1,3 @@
-import { DisplaySide } from 'apps/server/src/terrain/types/display';
-
 export enum TerrainRenderingMode {
   ArcMode = 0,
   ScanlineMode = 1,
@@ -26,7 +24,6 @@ export interface VerticalDisplay {
   maximumAltitude: number;
   mapWidth?: number;
   mapHeight?: number;
-  fmsPathUsed?: boolean;
 }
 
 export interface AircraftStatus {
@@ -56,7 +53,6 @@ interface VerticalPathWaypoint {
 }
 
 export interface VerticalPathData {
-  side: DisplaySide;
   pathWidth: number;
   trackChangesSignificantlyAtDistance: number;
   waypoints: VerticalPathWaypoint[];

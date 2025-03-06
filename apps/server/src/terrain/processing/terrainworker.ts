@@ -91,9 +91,9 @@ class TerrainWorker {
 
     if (this.mapHandler !== null) this.mapHandler.reset();
     if (this.displayRendering.L.navigationDisplay !== null) this.displayRendering.L.navigationDisplay.reset();
-    if (this.displayRendering.L.verticalDisplay !== null) this.displayRendering.L.verticalDisplay.reset();
+    if (this.displayRendering.L.verticalDisplay !== null) this.displayRendering.L.verticalDisplay.reset(true);
     if (this.displayRendering.R.navigationDisplay !== null) this.displayRendering.R.navigationDisplay.reset();
-    if (this.displayRendering.R.verticalDisplay !== null) this.displayRendering.R.verticalDisplay.reset();
+    if (this.displayRendering.R.verticalDisplay !== null) this.displayRendering.R.verticalDisplay.reset(true);
   }
 
   private onPaused(): void {
@@ -160,7 +160,7 @@ class TerrainWorker {
     this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
     this.displayRendering[side].verticalDisplay.aircraftStatusUpdate(status, side);
 
-    if (!this.displayRendering[side].verticalDisplay.hasPath()) {
+    if (this.manualAzimEnabled) {
       this.manualAzimEndPoint = projectWgs84(
         status.latitude,
         status.longitude,
@@ -168,9 +168,8 @@ class TerrainWorker {
         160 * NauticalMilesToMetres,
       );
       this.displayRendering[side].verticalDisplay.pathDataUpdate({
-        side: side,
         pathWidth: 1.0,
-        trackChangesSignificantlyAtDistance: 0,
+        trackChangesSignificantlyAtDistance: -1,
         waypoints: [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }],
       });
     }
@@ -181,21 +180,23 @@ class TerrainWorker {
     this.forceRedraw = false;
   }
 
-  private updatePathData(side: DisplaySide, path: VerticalPathData) {
-    this.forceRedraw ||= this.displayRendering[side].verticalDisplay.numPathElements() !== path.waypoints.length;
+  private updatePathData(path: VerticalPathData) {
+    this.forceRedraw ||= this.displayRendering['L'].verticalDisplay.numPathElements() !== path.waypoints.length;
     if (this.manualAzimEnabled || path.waypoints.length === 0) {
       const waypoints =
         this.manualAzimEndPoint === null
           ? []
           : [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }];
-      this.displayRendering[side].verticalDisplay.pathDataUpdate({
-        side: side,
+      const pathData = {
         pathWidth: 1.0,
-        trackChangesSignificantlyAtDistance: 0,
+        trackChangesSignificantlyAtDistance: -1,
         waypoints: waypoints,
-      });
+      };
+      this.displayRendering['L'].verticalDisplay.pathDataUpdate(pathData);
+      this.displayRendering['R'].verticalDisplay.pathDataUpdate(pathData);
     } else {
-      this.displayRendering[side].verticalDisplay.pathDataUpdate(path);
+      this.displayRendering['L'].verticalDisplay.pathDataUpdate(path);
+      this.displayRendering['R'].verticalDisplay.pathDataUpdate(path);
     }
   }
 
@@ -232,7 +233,7 @@ class TerrainWorker {
   public onVerticalPathDataUpdate(data: VerticalPathData): void {
     if (this.initialized === false) return;
 
-    this.updatePathData(data.side, data);
+    this.updatePathData(data);
   }
 
   constructor(public logging: Logger) {
@@ -357,8 +358,8 @@ class TerrainWorker {
           this.mapHandler.reset();
           this.displayRendering.L.navigationDisplay.reset();
           this.displayRendering.R.navigationDisplay.reset();
-          this.displayRendering.L.verticalDisplay.reset();
-          this.displayRendering.R.verticalDisplay.reset();
+          this.displayRendering.L.verticalDisplay.reset(true);
+          this.displayRendering.R.verticalDisplay.reset(true);
 
           this.initialized = true;
           this.logging.info('Terrainmap worker initialized');
@@ -380,7 +381,7 @@ class TerrainWorker {
     }
     if (this.displayRendering[side].navigationDisplay !== null) {
       this.displayRendering[side].navigationDisplay.reset();
-      this.displayRendering[side].verticalDisplay.reset();
+      this.displayRendering[side].verticalDisplay.reset(true);
 
       this.simconnect.sendNavigationDisplayTerrainMapMetadata(
         side,
@@ -499,6 +500,7 @@ class TerrainWorker {
         vdMap = this.displayRendering[side].verticalDisplay.currentFrame();
       } else {
         this.displayRendering[side].renderedLastFrameVerticalDisplay = true;
+        vdMap = null;
       }
 
       const frame = this.createScreenResolutionFrame(side, navigationDisplayRenderedOnSide ? ndMap : null, vdMap);

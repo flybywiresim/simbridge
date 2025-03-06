@@ -95,6 +95,7 @@ export class VerticalDisplayRenderer {
   }
 
   public aircraftStatusUpdate(status: AircraftStatus, side: DisplaySide): void {
+    this.elevationConfig.fmsPathUsed = !status.manualAzimEnabled && this.elevationConfig.waypointsLatitudes.length > 0;
     if (side === DisplaySide.Left) {
       const vdRange = status.efisDataCapt.arcMode
         ? Math.max(10, Math.min(status.efisDataCapt.ndRange, 160))
@@ -112,7 +113,6 @@ export class VerticalDisplayRenderer {
       this.displayConfig.minimumAltitude = status.efisDataFO.vdRangeLower;
       this.displayConfig.maximumAltitude = status.efisDataFO.vdRangeUpper;
     }
-    this.displayConfig.fmsPathUsed = !status.manualAzimEnabled && this.elevationConfig.waypointsLatitudes.length > 0;
   }
 
   public pathDataUpdate(data: VerticalPathData): void {
@@ -122,15 +122,11 @@ export class VerticalDisplayRenderer {
     this.elevationConfig.trackChangesSignificantlyAtDistance = data.trackChangesSignificantlyAtDistance;
   }
 
-  public hasPath(): boolean {
-    return this.elevationConfig.waypointsLatitudes.length > 0;
-  }
-
   public numPathElements(): number {
     return this.elevationConfig.waypointsLatitudes.length;
   }
 
-  public reset(): void {
+  public reset(resetPath: boolean = false): void {
     this.renderingData = {
       startTransitionBorder: 0,
       currentTransitionBorder: 0,
@@ -140,13 +136,15 @@ export class VerticalDisplayRenderer {
       currentFrame: null,
     };
 
-    this.elevationConfig = {
-      pathWidth: 1.0,
-      waypointsLatitudes: [],
-      waypointsLongitudes: [],
-      range: 0.0,
-      trackChangesSignificantlyAtDistance: -1,
-    };
+    if (resetPath) {
+      this.elevationConfig = {
+        pathWidth: 1.0,
+        waypointsLatitudes: [],
+        waypointsLongitudes: [],
+        range: 0.0,
+        trackChangesSignificantlyAtDistance: -1,
+      };
+    }
 
     this.displayConfig = {
       range: 0.0,
@@ -157,7 +155,7 @@ export class VerticalDisplayRenderer {
 
   public startNewMapCycle(currentTime: number): void {
     if (this.elevationConfig === null || this.elevationConfig.range === 0) {
-      this.reset();
+      this.reset(true);
       return;
     }
 
@@ -168,7 +166,7 @@ export class VerticalDisplayRenderer {
     if (profile === null) return;
 
     const greyAreaStartsAtX =
-      this.elevationConfig.trackChangesSignificantlyAtDistance >= 0 && this.displayConfig.fmsPathUsed
+      this.elevationConfig.trackChangesSignificantlyAtDistance >= 0 && this.elevationConfig.fmsPathUsed
         ? verticalDisplayDistanceToPixelX(
             this.elevationConfig.trackChangesSignificantlyAtDistance,
             this.elevationConfig.range,

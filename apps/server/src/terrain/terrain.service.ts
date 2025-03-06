@@ -87,10 +87,9 @@ export class TerrainService implements OnApplicationShutdown {
     }
   }
 
-  public updateFlightPath(side: DisplaySide, path: ElevationSamplePathDto): void {
+  public updateFlightPath(path: ElevationSamplePathDto): void {
     if (this.terrainWorker) {
       const content: VerticalPathData = {
-        side: side,
         pathWidth: path.pathWidth,
         trackChangesSignificantlyAtDistance: path.trackChangesSignificantlyAtDistance,
         waypoints: path.waypoints,

@@ -4,4 +4,5 @@ export interface ElevationProfile {
   waypointsLongitudes: number[];
   range: number;
   trackChangesSignificantlyAtDistance: number;
+  fmsPathUsed?: boolean;
 }

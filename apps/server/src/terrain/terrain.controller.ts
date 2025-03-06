@@ -71,13 +71,12 @@ export class TerrainController {
   }
 
   @Post('verticalDisplayPath')
-  @ApiQuery({ name: 'side', required: true, enum: DisplaySide })
   @ApiBody({ required: true, type: ElevationSamplePathDto })
   @ApiResponse({
     status: 200,
     description: 'Update of the path was successful',
   })
-  verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
-    this.terrainService.updateFlightPath(side, path);
+  verticalDisplayPath(@Body() path: ElevationSamplePathDto) {
+    this.terrainService.updateFlightPath(path);
   }
 }
