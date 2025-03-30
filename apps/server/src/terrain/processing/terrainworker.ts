@@ -47,13 +47,11 @@ class TerrainWorker {
 
   private renderingMode: TerrainRenderingMode = TerrainRenderingMode.ArcMode;
 
-  private forceRedraw: boolean = false;
-
   private manualAzimEnabled: boolean = true;
   private manualAzimDegrees: number = 0;
   private manualAzimEndPoint: [number, number] | null = null;
 
-  private currentTrackChangesSignificantlyAtDistance = -1;
+  private currentTrackChangesSignificantlyAtDistance: { [side: string]: number } = { L: -1, R: -1 };
 
   private simBridgeClientUsed = false;
 
@@ -125,8 +123,6 @@ class TerrainWorker {
     const configuration = side === DisplaySide.Left ? status.efisDataCapt : status.efisDataFO;
     const lastConfig = this.displayRendering[side].navigationDisplay.displayConfiguration();
 
-    this.forceRedraw ||= this.manualAzimEnabled !== status.manualAzimEnabled;
-
     const configChanged =
       lastConfig !== null &&
       (lastConfig.efisMode !== configuration.efisMode ||
@@ -137,26 +133,13 @@ class TerrainWorker {
     const stopRendering =
       lastConfig !== null &&
       ((lastConfig.terrOnNd && !configuration.terrOnNd) || (lastConfig.terrOnVd && !configuration.terrOnVd));
-    const startRendering = configChanged || this.forceRedraw || (lastConfig === null && configuration !== null);
+    const startRendering =
+      configChanged ||
+      this.manualAzimEnabled !== status.manualAzimEnabled ||
+      (lastConfig === null && configuration !== null);
 
     if (stopRendering || startRendering) {
-      if (this.displayRendering[side].durationInterval !== null) {
-        clearInterval(this.displayRendering[side].durationInterval);
-        this.displayRendering[side].durationInterval = null;
-      }
-      if (this.displayRendering[side].timeout !== null) {
-        clearTimeout(this.displayRendering[side].timeout);
-        this.displayRendering[side].timeout = null;
-      }
-
-      this.displayRendering[side].navigationDisplay.reset();
-      this.displayRendering[side].verticalDisplay.reset();
-
-      // reset also the aircraft data
-      this.simconnect.sendNavigationDisplayTerrainMapMetadata(
-        side,
-        this.displayRendering[side].navigationDisplay.displayData(),
-      );
+      this.resetRenderingCycle(side);
     }
 
     this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
@@ -179,13 +162,22 @@ class TerrainWorker {
     if (startRendering) {
       this.startNavigationDisplayRenderingCycle(side);
     }
-    this.forceRedraw = false;
   }
 
-  private updatePathData(path: VerticalPathData) {
-    this.forceRedraw ||= this.displayRendering['L'].verticalDisplay.numPathElements() !== path.waypoints.length;
-    this.forceRedraw ||=
-      Math.abs(path.trackChangesSignificantlyAtDistance - this.currentTrackChangesSignificantlyAtDistance) > 0.1;
+  private updatePathData(side: DisplaySide, path: VerticalPathData) {
+    let forceRedraw = false;
+    forceRedraw ||= this.displayRendering[side].navigationDisplay.displayConfiguration() === null;
+    forceRedraw ||= this.displayRendering[side].verticalDisplay.numPathElements() !== path.waypoints.length;
+    forceRedraw ||=
+      Math.abs(path.trackChangesSignificantlyAtDistance - this.currentTrackChangesSignificantlyAtDistance[side]) >
+        0.1 ||
+      Math.sign(path.trackChangesSignificantlyAtDistance) !==
+        Math.sign(this.currentTrackChangesSignificantlyAtDistance[side]);
+
+    if (forceRedraw) {
+      this.resetRenderingCycle(side);
+    }
+
     if (this.manualAzimEnabled || path.waypoints.length === 0) {
       const waypoints =
         this.manualAzimEndPoint === null
@@ -196,11 +188,14 @@ class TerrainWorker {
         trackChangesSignificantlyAtDistance: -1,
         waypoints: waypoints,
       };
-      this.displayRendering['L'].verticalDisplay.pathDataUpdate(pathData);
-      this.displayRendering['R'].verticalDisplay.pathDataUpdate(pathData);
+      this.displayRendering[side].verticalDisplay.pathDataUpdate(pathData);
     } else {
-      this.displayRendering['L'].verticalDisplay.pathDataUpdate(path);
-      this.displayRendering['R'].verticalDisplay.pathDataUpdate(path);
+      this.displayRendering[side].verticalDisplay.pathDataUpdate(path);
+    }
+    this.currentTrackChangesSignificantlyAtDistance[side] = path.trackChangesSignificantlyAtDistance;
+
+    if (forceRedraw) {
+      this.startNavigationDisplayRenderingCycle(side);
     }
   }
 
@@ -237,7 +232,8 @@ class TerrainWorker {
   public onVerticalPathDataUpdate(data: VerticalPathData): void {
     if (this.initialized === false) return;
 
-    this.updatePathData(data);
+    this.updatePathData(DisplaySide.Left, data);
+    this.updatePathData(DisplaySide.Right, data);
   }
 
   constructor(public logging: Logger) {
@@ -459,6 +455,26 @@ class TerrainWorker {
     }
 
     return result;
+  }
+
+  public resetRenderingCycle(side: DisplaySide) {
+    if (this.displayRendering[side].durationInterval !== null) {
+      clearInterval(this.displayRendering[side].durationInterval);
+      this.displayRendering[side].durationInterval = null;
+    }
+    if (this.displayRendering[side].timeout !== null) {
+      clearTimeout(this.displayRendering[side].timeout);
+      this.displayRendering[side].timeout = null;
+    }
+
+    this.displayRendering[side].navigationDisplay.reset();
+    this.displayRendering[side].verticalDisplay.reset();
+
+    // reset also the aircraft data
+    this.simconnect.sendNavigationDisplayTerrainMapMetadata(
+      side,
+      this.displayRendering[side].navigationDisplay.displayData(),
+    );
   }
 
   public startNavigationDisplayRenderingCycle(side: DisplaySide): void {
