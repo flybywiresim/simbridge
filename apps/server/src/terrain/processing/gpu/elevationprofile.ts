@@ -68,7 +68,7 @@ export function createElevationProfile(
   if (bearingStart < 0.0) bearingStart += 360.0;
   let bearingEnd = bearing + 90.0;
   if (bearingEnd >= 360.0) bearingEnd -= 360.0;
-  const offsetMeters = pathOffset * 1852.0;
+  const offsetMeters = (pathOffset * 1852.0) / 2; // pathOffset is passed as full width of corridor
 
   const startProjected = projectWgs84(centerPosition[0], centerPosition[1], bearingStart, offsetMeters);
   const startPixel = wgs84toPixelCoordinate(

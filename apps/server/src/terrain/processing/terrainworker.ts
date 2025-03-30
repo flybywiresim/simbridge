@@ -53,6 +53,8 @@ class TerrainWorker {
   private manualAzimDegrees: number = 0;
   private manualAzimEndPoint: [number, number] | null = null;
 
+  private currentTrackChangesSignificantlyAtDistance = -1;
+
   private simBridgeClientUsed = false;
 
   private gpu: GPU = null;
@@ -182,6 +184,8 @@ class TerrainWorker {
 
   private updatePathData(path: VerticalPathData) {
     this.forceRedraw ||= this.displayRendering['L'].verticalDisplay.numPathElements() !== path.waypoints.length;
+    this.forceRedraw ||=
+      Math.abs(path.trackChangesSignificantlyAtDistance - this.currentTrackChangesSignificantlyAtDistance) > 0.1;
     if (this.manualAzimEnabled || path.waypoints.length === 0) {
       const waypoints =
         this.manualAzimEndPoint === null
