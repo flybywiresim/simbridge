@@ -642,6 +642,13 @@ export class NavigationDisplayRenderer {
     this.renderingData.finalFrame = new Uint8ClampedArray(fastFlatten(frame));
     this.renderingData.thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
 
+    if (!this.configuration.terrOnNd) {
+      // metadata is used in the TERRONND WASM module to detect frame changes, so we still have to send it even though ND TERR would be disabled on the A380X
+      // Send negative values for the thresholds in order to hide them instead
+      this.renderingData.thresholdData.MinimumElevation = -1;
+      this.renderingData.thresholdData.MaximumElevation = -1;
+    }
+
     this.renderingData.thresholdData.DisplayRange = this.configuration.ndRange;
     this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 

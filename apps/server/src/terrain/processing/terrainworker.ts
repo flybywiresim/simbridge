@@ -175,7 +175,7 @@ class TerrainWorker {
         Math.sign(this.currentTrackChangesSignificantlyAtDistance[side]);
 
     if (forceRedraw) {
-      this.resetRenderingCycle(side);
+      this.resetRenderingCycle(side, true);
     }
 
     if (this.manualAzimEnabled || path.waypoints.length === 0) {
@@ -457,7 +457,7 @@ class TerrainWorker {
     return result;
   }
 
-  public resetRenderingCycle(side: DisplaySide) {
+  public resetRenderingCycle(side: DisplaySide, onlyRedraw = false) {
     if (this.displayRendering[side].durationInterval !== null) {
       clearInterval(this.displayRendering[side].durationInterval);
       this.displayRendering[side].durationInterval = null;
@@ -467,8 +467,10 @@ class TerrainWorker {
       this.displayRendering[side].timeout = null;
     }
 
-    this.displayRendering[side].navigationDisplay.reset();
-    this.displayRendering[side].verticalDisplay.reset();
+    if (!onlyRedraw) {
+      this.displayRendering[side].navigationDisplay.reset();
+      this.displayRendering[side].verticalDisplay.reset();
+    }
 
     // reset also the aircraft data
     this.simconnect.sendNavigationDisplayTerrainMapMetadata(
@@ -539,13 +541,6 @@ class TerrainWorker {
             const displayData = this.displayRendering[side].navigationDisplay.displayData();
             displayData.FrameByteCount = buffer.byteLength;
             displayData.FirstFrame = this.displayRendering[side].cycleData.frames.length === 0;
-
-            if (!navigationDisplayRenderedOnSide) {
-              // metadata is used in the TERRONND WASM module to detect frame changes, so we still have to send it even though ND TERR would be disabled on the A380X
-              // Send negative values for the thresholds in order to hide them instead
-              displayData.MinimumElevation = -1;
-              displayData.MaximumElevation = -1;
-            }
 
             this.simconnect.sendNavigationDisplayTerrainMapMetadata(side, displayData);
             this.simconnect.sendNavigationDisplayTerrainMapFrame(side, buffer);
