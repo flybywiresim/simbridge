@@ -294,8 +294,8 @@ class TerrainWorker {
         const startupNdConfigL: EfisData = {
           ndRange: 20,
           arcMode: true,
-          terrOnNd: true,
-          terrOnVd: true,
+          terrOnNd: false,
+          terrOnVd: false,
           efisMode: 0,
           vdRangeLower: -500,
           vdRangeUpper: 24000,
