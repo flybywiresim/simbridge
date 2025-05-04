@@ -5,6 +5,7 @@ import { ElevationSamplePathDto } from './dto/elevationsamplepath.dto';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
 import { TerrainService } from './terrain.service';
 import { ShutDownService } from '../utilities/shutdown.service';
+import { TawsAircraftStatusDataDto } from 'apps/server/src/terrain/dto/tawsaircraftstatusdata.dto';
 
 @ApiTags('TERRAIN')
 @Controller('api/v1/terrain')
@@ -59,14 +60,23 @@ export class TerrainController {
     });
   }
 
+  @Post('aircraftStatusData')
+  @ApiBody({ required: true, type: TawsAircraftStatusDataDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Update of aircraft status data was successful',
+  })
+  aircraftStatusData(@Body() data: TawsAircraftStatusDataDto) {
+    this.terrainService.updateAircraftStatusData(data);
+  }
+
   @Post('verticalDisplayPath')
-  @ApiQuery({ name: 'side', required: true, enum: DisplaySide })
   @ApiBody({ required: true, type: ElevationSamplePathDto })
   @ApiResponse({
     status: 200,
     description: 'Update of the path was successful',
   })
-  verticalDisplayPath(@Query('side') side: DisplaySide, @Body() path: ElevationSamplePathDto) {
-    this.terrainService.updateFlightPath(side, path);
+  verticalDisplayPath(@Body() path: ElevationSamplePathDto) {
+    this.terrainService.updateFlightPath(path);
   }
 }

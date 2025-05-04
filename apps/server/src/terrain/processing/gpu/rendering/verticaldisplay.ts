@@ -5,6 +5,7 @@ export function renderVerticalDisplay(
   elevationProfile: number[],
   minimumAltitude: number,
   maximumAltitude: number,
+  greyBackgroundFromX: number,
 ): number {
   const pixelX = Math.floor(this.thread.x / 4);
   const colorChannel = this.thread.x % 4;
@@ -23,7 +24,11 @@ export function renderVerticalDisplay(
 
   // altitude is above the elevation -> draw the background
   if (altitude > elevation) {
-    return [0, 0, 0, 0][colorChannel];
+    if (greyBackgroundFromX >= 0 && pixelX >= greyBackgroundFromX) {
+      return [78, 78, 97, 255][colorChannel];
+    } else {
+      return [0, 0, 0, 0][colorChannel];
+    }
   }
 
   // elevation is water -> check if we draw the water until 0
@@ -35,5 +40,5 @@ export function renderVerticalDisplay(
   }
 
   // draw the obstacle
-  return [160, 83, 34, 255][colorChannel];
+  return [110, 51, 14, 255][colorChannel];
 }

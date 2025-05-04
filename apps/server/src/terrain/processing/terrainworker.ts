@@ -1,4 +1,4 @@
-import { GPU } from 'gpu.js';
+﻿import { GPU } from 'gpu.js';
 import { parentPort } from 'worker_threads';
 import * as sharp from 'sharp';
 import {
@@ -6,10 +6,11 @@ import {
   DisplaySide,
   MainToWorkerThreadMessage,
   MainToWorkerThreadMessageTypes,
-  NavigationDisplay,
+  EfisData,
   PositionData,
   TerrainLevelMode,
   TerrainRenderingMode,
+  VerticalPathData,
   WorkerToMainThreadMessageTypes,
 } from '../types';
 import { SimConnect } from '../communication/simconnect';
@@ -32,7 +33,7 @@ import { ThreadLogger } from './logging/threadlogger';
 import { MapHandler } from './maphandler';
 import { NavigationDisplayRenderer } from './navigationdisplayrenderer';
 import { VerticalDisplayRenderer } from './verticaldisplayrenderer';
-import { projectWgs84 } from './gpu/helper';
+import { projectWgs84 } from 'apps/server/src/terrain/processing/gpu/helper';
 
 const DisplayScreenPixelHeightWithoutVerticalDisplay = 768;
 const DisplayScreenPixelHeightWithVerticalDisplay = 1024;
@@ -45,6 +46,14 @@ class TerrainWorker {
   private simPaused: boolean = true;
 
   private renderingMode: TerrainRenderingMode = TerrainRenderingMode.ArcMode;
+
+  private manualAzimEnabled: boolean = true;
+  private manualAzimDegrees: number = 0;
+  private manualAzimEndPoint: [number, number] | null = null;
+
+  private currentTrackChangesSignificantlyAtDistance: { [side: string]: number } = { L: -1, R: -1 };
+
+  private simBridgeClientUsed = false;
 
   private gpu: GPU = null;
 
@@ -82,9 +91,9 @@ class TerrainWorker {
 
     if (this.mapHandler !== null) this.mapHandler.reset();
     if (this.displayRendering.L.navigationDisplay !== null) this.displayRendering.L.navigationDisplay.reset();
-    if (this.displayRendering.L.verticalDisplay !== null) this.displayRendering.L.verticalDisplay.reset();
+    if (this.displayRendering.L.verticalDisplay !== null) this.displayRendering.L.verticalDisplay.reset(true);
     if (this.displayRendering.R.navigationDisplay !== null) this.displayRendering.R.navigationDisplay.reset();
-    if (this.displayRendering.R.verticalDisplay !== null) this.displayRendering.R.verticalDisplay.reset();
+    if (this.displayRendering.R.verticalDisplay !== null) this.displayRendering.R.verticalDisplay.reset(true);
   }
 
   private onPaused(): void {
@@ -93,6 +102,13 @@ class TerrainWorker {
 
   private onUnpaused(): void {
     this.simPaused = false;
+  }
+
+  public enableSimBridgeClientData(): void {
+    if (!this.simBridgeClientUsed) {
+      this.logging.info('SimBridge client data received, ignoring SimConnect aircraftStatusUpdate from now on.');
+    }
+    this.simBridgeClientUsed = true;
   }
 
   private onPositionUpdate(data: PositionData): void {
@@ -104,57 +120,102 @@ class TerrainWorker {
   private updateRendering(side: DisplaySide, status: AircraftStatus) {
     if (this.displayRendering[side].navigationDisplay === null) return;
 
-    const configuration = side === DisplaySide.Left ? status.navigationDisplayCapt : status.navigationDisplayFO;
+    const configuration = side === DisplaySide.Left ? status.efisDataCapt : status.efisDataFO;
     const lastConfig = this.displayRendering[side].navigationDisplay.displayConfiguration();
-    const stopRendering = !configuration.active && lastConfig !== null && lastConfig.active;
-    let startRendering = configuration.active && (lastConfig === null || !lastConfig.active);
 
-    startRendering ||=
-      lastConfig !== null && (lastConfig.range !== configuration.range || lastConfig.arcMode !== configuration.arcMode);
-    startRendering ||= lastConfig !== null && lastConfig.efisMode !== configuration.efisMode;
+    const configChanged =
+      lastConfig !== null &&
+      (lastConfig.efisMode !== configuration.efisMode ||
+        lastConfig.ndRange !== configuration.ndRange ||
+        lastConfig.arcMode !== configuration.arcMode ||
+        lastConfig.terrOnNd !== configuration.terrOnNd ||
+        lastConfig.terrOnVd !== configuration.terrOnVd);
+    const stopRendering =
+      lastConfig !== null &&
+      ((lastConfig.terrOnNd && !configuration.terrOnNd) || (lastConfig.terrOnVd && !configuration.terrOnVd));
+    const startRendering =
+      configChanged ||
+      this.manualAzimEnabled !== status.manualAzimEnabled ||
+      (lastConfig === null && configuration !== null);
 
     if (stopRendering || startRendering) {
-      if (this.displayRendering[side].durationInterval !== null) {
-        clearInterval(this.displayRendering[side].durationInterval);
-        this.displayRendering[side].durationInterval = null;
-      }
-      if (this.displayRendering[side].timeout !== null) {
-        clearTimeout(this.displayRendering[side].timeout);
-        this.displayRendering[side].timeout = null;
-      }
-
-      this.displayRendering[side].navigationDisplay.reset();
-      this.displayRendering[side].verticalDisplay.reset();
-
-      // reset also the aircraft data
-      this.simconnect.sendNavigationDisplayTerrainMapMetadata(
-        side,
-        this.displayRendering[side].navigationDisplay.displayData(),
-      );
+      this.resetRenderingCycle(side);
     }
 
     this.displayRendering[side].navigationDisplay.aircraftStatusUpdate(status, side, false);
     this.displayRendering[side].verticalDisplay.aircraftStatusUpdate(status, side);
 
-    // TODO replace by in aircraft code and endpoints
-    const endpoint = projectWgs84(status.latitude, status.longitude, status.heading, 360 * NauticalMilesToMetres);
-    this.displayRendering[side].verticalDisplay.pathDataUpdate([endpoint[0]], [endpoint[1]]);
+    if (this.manualAzimEnabled) {
+      this.manualAzimEndPoint = projectWgs84(
+        status.latitude,
+        status.longitude,
+        status.heading,
+        160 * NauticalMilesToMetres,
+      );
+      this.displayRendering[side].verticalDisplay.pathDataUpdate({
+        pathWidth: 1.0,
+        trackChangesSignificantlyAtDistance: -1,
+        waypoints: [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }],
+      });
+    }
 
     if (startRendering) {
       this.startNavigationDisplayRenderingCycle(side);
     }
   }
 
-  private onAircraftStatusUpdate(data: AircraftStatus): void {
-    if (this.initialized === false) return;
+  private updatePathData(side: DisplaySide, path: VerticalPathData) {
+    let forceRedraw = false;
+    forceRedraw ||= this.displayRendering[side].navigationDisplay.displayConfiguration() === null;
+    forceRedraw ||= this.displayRendering[side].verticalDisplay.numPathElements() !== path.waypoints.length;
+    forceRedraw ||=
+      Math.abs(path.trackChangesSignificantlyAtDistance - this.currentTrackChangesSignificantlyAtDistance[side]) >
+        0.1 ||
+      Math.sign(path.trackChangesSignificantlyAtDistance) !==
+        Math.sign(this.currentTrackChangesSignificantlyAtDistance[side]);
+
+    if (forceRedraw) {
+      this.resetRenderingCycle(side, true);
+    }
+
+    if (this.manualAzimEnabled || path.waypoints.length === 0) {
+      const waypoints =
+        this.manualAzimEndPoint === null
+          ? []
+          : [{ latitude: this.manualAzimEndPoint[0], longitude: this.manualAzimEndPoint[1] }];
+      const pathData = {
+        pathWidth: 1.0,
+        trackChangesSignificantlyAtDistance: -1,
+        waypoints: waypoints,
+      };
+      this.displayRendering[side].verticalDisplay.pathDataUpdate(pathData);
+    } else {
+      this.displayRendering[side].verticalDisplay.pathDataUpdate(path);
+    }
+    this.currentTrackChangesSignificantlyAtDistance[side] = path.trackChangesSignificantlyAtDistance;
+
+    if (forceRedraw) {
+      this.startNavigationDisplayRenderingCycle(side);
+    }
+  }
+
+  public onAircraftStatusUpdate(data: AircraftStatus): void {
+    if (this.initialized === false || !data) return;
 
     // eslint-disable-next-line no-bitwise
     this.verticalDisplayRequired =
       (data.navigationDisplayRenderingMode & TerrainRenderingMode.VerticalDisplayRequired) ===
       TerrainRenderingMode.VerticalDisplayRequired;
+
     // eslint-disable-next-line no-bitwise
     this.renderingMode =
       data.navigationDisplayRenderingMode & (TerrainRenderingMode.ArcMode | TerrainRenderingMode.ScanlineMode);
+
+    this.manualAzimEnabled = data.manualAzimEnabled;
+    this.manualAzimDegrees = data.manualAzimDegrees;
+    this.manualAzimEndPoint = data.manualAzimEnabled
+      ? projectWgs84(data.latitude, data.longitude, this.manualAzimDegrees, 160 * NauticalMilesToMetres)
+      : null;
 
     if (this.verticalDisplayRequired === true) {
       this.displayDimension.height = DisplayScreenPixelHeightWithVerticalDisplay;
@@ -168,15 +229,25 @@ class TerrainWorker {
     this.updateRendering(DisplaySide.Right, data);
   }
 
-  constructor(private logging: Logger) {
+  public onVerticalPathDataUpdate(data: VerticalPathData): void {
+    if (this.initialized === false) return;
+
+    this.updatePathData(DisplaySide.Left, data);
+    this.updatePathData(DisplaySide.Right, data);
+  }
+
+  constructor(public logging: Logger) {
     this.simconnect = new SimConnect(this.logging);
     this.simconnect.addUpdateCallback('reset', () => this.onReset());
     this.simconnect.addUpdateCallback('paused', () => this.onPaused());
     this.simconnect.addUpdateCallback('unpaused', () => this.onUnpaused());
     this.simconnect.addUpdateCallback('positionUpdate', (data: PositionData) => this.onPositionUpdate(data));
-    this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) =>
-      this.onAircraftStatusUpdate(data),
-    );
+    this.simconnect.addUpdateCallback('aircraftStatusUpdate', (data: AircraftStatus) => {
+      if (!this.simBridgeClientUsed) {
+        // Only react to SimConnect updates for AircraftStatus if no SimBridge-Client data has been received
+        this.onAircraftStatusUpdate(data);
+      }
+    });
 
     this.gpu = new GPU({ mode: GpuProcessingActive === true ? 'gpu' : 'cpu' });
 
@@ -220,21 +291,27 @@ class TerrainWorker {
       if (initialized === true) {
         this.logging.info('Initialized the map handler');
 
-        const startupNdConfigL: NavigationDisplay = {
-          range: 20,
+        const startupNdConfigL: EfisData = {
+          ndRange: 20,
           arcMode: true,
-          active: true,
+          terrOnNd: false,
+          terrOnVd: false,
           efisMode: 0,
+          vdRangeLower: -500,
+          vdRangeUpper: 24000,
           mapOffsetX: 0,
           mapWidth: NavigationDisplayMaxPixelWidth,
           mapHeight: NavigationDisplayMaxPixelHeight,
           centerOffsetY: 0,
         };
-        const startupNdConfigR: NavigationDisplay = {
-          range: 10,
+        const startupNdConfigR: EfisData = {
+          ndRange: 10,
           arcMode: true,
-          active: false,
+          terrOnNd: false,
+          terrOnVd: false,
           efisMode: 0,
+          vdRangeLower: -500,
+          vdRangeUpper: 24000,
           mapOffsetX: 0,
           mapWidth: NavigationDisplayMaxPixelWidth,
           mapHeight: NavigationDisplayMaxPixelHeight,
@@ -242,6 +319,7 @@ class TerrainWorker {
         };
         const startupStatus: AircraftStatus = {
           adiruDataValid: true,
+          tawsInop: false,
           latitude: 47.26081085205078,
           longitude: 11.349658966064453,
           altitude: 1904,
@@ -251,9 +329,13 @@ class TerrainWorker {
           runwayDataValid: false,
           runwayLatitude: 0.0,
           runwayLongitude: 0.0,
-          navigationDisplayCapt: startupNdConfigL,
-          navigationDisplayFO: startupNdConfigR,
+          efisDataCapt: startupNdConfigL,
+          efisDataFO: startupNdConfigR,
           navigationDisplayRenderingMode: TerrainRenderingMode.ArcMode,
+          manualAzimEnabled: false,
+          manualAzimDegrees: 0,
+          groundTruthLatitude: 47.26081085205078,
+          groundTruthLongitude: 11.349658966064453,
         };
 
         this.displayRendering.L.navigationDisplay.aircraftStatusUpdate(startupStatus, DisplaySide.Left, true);
@@ -276,8 +358,8 @@ class TerrainWorker {
           this.mapHandler.reset();
           this.displayRendering.L.navigationDisplay.reset();
           this.displayRendering.R.navigationDisplay.reset();
-          this.displayRendering.L.verticalDisplay.reset();
-          this.displayRendering.R.verticalDisplay.reset();
+          this.displayRendering.L.verticalDisplay.reset(true);
+          this.displayRendering.R.verticalDisplay.reset(true);
 
           this.initialized = true;
           this.logging.info('Terrainmap worker initialized');
@@ -299,7 +381,7 @@ class TerrainWorker {
     }
     if (this.displayRendering[side].navigationDisplay !== null) {
       this.displayRendering[side].navigationDisplay.reset();
-      this.displayRendering[side].verticalDisplay.reset();
+      this.displayRendering[side].verticalDisplay.reset(true);
 
       this.simconnect.sendNavigationDisplayTerrainMapMetadata(
         side,
@@ -326,8 +408,8 @@ class TerrainWorker {
 
   private createScreenResolutionFrame(
     side: DisplaySide,
-    navigationDisplay: Uint8ClampedArray,
-    verticalDisplay: Uint8ClampedArray,
+    navigationDisplay: Uint8ClampedArray | null,
+    verticalDisplay: Uint8ClampedArray | null,
   ): Uint8ClampedArray {
     const result = new Uint8ClampedArray(
       this.displayDimension.width * RenderingColorChannelCount * this.displayDimension.height,
@@ -375,10 +457,36 @@ class TerrainWorker {
     return result;
   }
 
+  public resetRenderingCycle(side: DisplaySide, onlyRedraw = false) {
+    if (this.displayRendering[side].durationInterval !== null) {
+      clearInterval(this.displayRendering[side].durationInterval);
+      this.displayRendering[side].durationInterval = null;
+    }
+    if (this.displayRendering[side].timeout !== null) {
+      clearTimeout(this.displayRendering[side].timeout);
+      this.displayRendering[side].timeout = null;
+    }
+
+    if (!onlyRedraw) {
+      this.displayRendering[side].navigationDisplay.reset();
+      this.displayRendering[side].verticalDisplay.reset();
+    }
+
+    // reset also the aircraft data
+    this.simconnect.sendNavigationDisplayTerrainMapMetadata(
+      side,
+      this.displayRendering[side].navigationDisplay.displayData(),
+    );
+  }
+
   public startNavigationDisplayRenderingCycle(side: DisplaySide): void {
     const verticalDisplayRenderedOnSide =
       this.verticalDisplayRequired &&
+      this.displayRendering[side].navigationDisplay.displayConfiguration().terrOnVd &&
       [2, 3].includes(this.displayRendering[side].navigationDisplay.displayConfiguration().efisMode);
+
+    const navigationDisplayRenderedOnSide =
+      this.displayRendering[side].navigationDisplay.displayConfiguration().terrOnNd;
 
     if (this.displayRendering[side].timeout !== null) {
       clearTimeout(this.displayRendering[side].timeout);
@@ -393,7 +501,7 @@ class TerrainWorker {
     this.displayRendering[side].renderedLastFrameNavigationDisplay = false;
     this.displayRendering[side].renderedLastFrameVerticalDisplay = false;
     this.displayRendering[side].navigationDisplay.startNewMapCycle(currentTime);
-    if (verticalDisplayRenderedOnSide === true) {
+    if (verticalDisplayRenderedOnSide) {
       this.displayRendering[side].verticalDisplay.startNewMapCycle(currentTime);
     }
     this.displayRendering[side].cycleData.frames = [];
@@ -405,8 +513,8 @@ class TerrainWorker {
       }
       const ndMap = this.displayRendering[side].navigationDisplay.currentFrame();
 
-      let vdMap = null;
-      if (verticalDisplayRenderedOnSide === true) {
+      let vdMap: Uint8ClampedArray | null = null;
+      if (verticalDisplayRenderedOnSide) {
         if (this.displayRendering[side].renderedLastFrameVerticalDisplay === false) {
           this.displayRendering[side].renderedLastFrameVerticalDisplay =
             this.displayRendering[side].verticalDisplay.render();
@@ -414,9 +522,10 @@ class TerrainWorker {
         vdMap = this.displayRendering[side].verticalDisplay.currentFrame();
       } else {
         this.displayRendering[side].renderedLastFrameVerticalDisplay = true;
+        vdMap = null;
       }
 
-      const frame = this.createScreenResolutionFrame(side, ndMap, vdMap);
+      const frame = this.createScreenResolutionFrame(side, navigationDisplayRenderedOnSide ? ndMap : null, vdMap);
 
       if (frame !== null && this.simPaused === false) {
         sharp(frame, {
@@ -472,7 +581,10 @@ class TerrainWorker {
           this.displayRendering[side].timeout = null;
         }
 
-        if (this.displayRendering[side].navigationDisplay.displayConfiguration().active === true) {
+        if (
+          this.displayRendering[side].navigationDisplay.displayConfiguration().terrOnNd ||
+          this.displayRendering[side].navigationDisplay.displayConfiguration().terrOnVd
+        ) {
           const timeout =
             this.renderingMode === TerrainRenderingMode.ArcMode
               ? RenderingMapUpdateTimeoutArcMode
@@ -515,5 +627,10 @@ parentPort.on('message', (data: MainToWorkerThreadMessage) => {
     });
   } else if (data.type === MainToWorkerThreadMessageTypes.Shutdown) {
     terrainWorker.shutdown();
+  } else if (data.type === MainToWorkerThreadMessageTypes.AircraftStatusData) {
+    terrainWorker.enableSimBridgeClientData();
+    terrainWorker.onAircraftStatusUpdate(data.content);
+  } else if (data.type === MainToWorkerThreadMessageTypes.VerticalDisplayPath) {
+    terrainWorker.onVerticalPathDataUpdate(data.content);
   }
 });
