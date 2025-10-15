@@ -25,7 +25,7 @@ export function renderVerticalDisplay(
   // altitude is above the elevation -> draw the background
   if (altitude > elevation) {
     if (greyBackgroundFromX >= 0 && pixelX >= greyBackgroundFromX) {
-      return [78, 78, 97, 255][colorChannel];
+      return [50, 49, 53, 255][colorChannel];
     } else {
       return [0, 0, 0, 0][colorChannel];
     }
