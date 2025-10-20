@@ -16,7 +16,7 @@ export function renderVerticalDisplay(
 
   const elevation = elevationProfile[pixelX];
   if (elevation === this.constants.invalidElevation || elevation === this.constants.unknownElevation) {
-    return [255, 148, 255, 255][colorChannel];
+    return [200, 127, 218, 255][colorChannel];
   }
 
   const stepY = (maximumAltitude - minimumAltitude) / this.constants.maxImageHeight;
@@ -25,7 +25,7 @@ export function renderVerticalDisplay(
   // altitude is above the elevation -> draw the background
   if (altitude > elevation) {
     if (greyBackgroundFromX >= 0 && pixelX >= greyBackgroundFromX) {
-      return [78, 78, 97, 255][colorChannel];
+      return [50, 49, 53, 255][colorChannel];
     } else {
       return [0, 0, 0, 0][colorChannel];
     }
@@ -34,11 +34,11 @@ export function renderVerticalDisplay(
   // elevation is water -> check if we draw the water until 0
   if (elevation === this.constants.waterElevation) {
     if (altitude <= 0) {
-      return [0, 255, 255, 255][colorChannel];
+      return [68, 217, 225, 255][colorChannel];
     }
     return [0, 0, 0, 0][colorChannel];
   }
 
   // draw the obstacle
-  return [110, 51, 14, 255][colorChannel];
+  return [82, 43, 18, 255][colorChannel];
 }
