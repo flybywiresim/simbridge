@@ -38,6 +38,8 @@ import { projectWgs84 } from 'apps/server/src/terrain/processing/gpu/helper';
 const DisplayScreenPixelHeightWithoutVerticalDisplay = 768;
 const DisplayScreenPixelHeightWithVerticalDisplay = 1024;
 
+const SimBridgeClientDataTimeout = 2 * 60 * 1_000; // ms, equals two minutes
+
 class TerrainWorker {
   private initialized: boolean = false;
 
@@ -54,6 +56,7 @@ class TerrainWorker {
   private currentTrackChangesSignificantlyAtDistance: { [side: string]: number } = { L: -1, R: -1 };
 
   private simBridgeClientUsed = false;
+  public simBridgeClientTimeout: NodeJS.Timeout = null;
 
   private gpu: GPU = null;
 
@@ -109,6 +112,13 @@ class TerrainWorker {
       this.logging.info('SimBridge client data received, ignoring SimConnect aircraftStatusUpdate from now on.');
     }
     this.simBridgeClientUsed = true;
+  }
+
+  public disableSimBridgeClientData(): void {
+    if (this.simBridgeClientUsed) {
+      this.logging.info('SimBridge client data stopped (due to timeout), resuming SimConnect aircraftStatusUpdate.');
+    }
+    this.simBridgeClientUsed = false;
   }
 
   private onPositionUpdate(data: PositionData): void {
@@ -630,6 +640,17 @@ parentPort.on('message', (data: MainToWorkerThreadMessage) => {
   } else if (data.type === MainToWorkerThreadMessageTypes.AircraftStatusData) {
     terrainWorker.enableSimBridgeClientData();
     terrainWorker.onAircraftStatusUpdate(data.content);
+
+    // Re-start timeout for disabling the SimBridge client data after two minutes of inactivity
+    if (terrainWorker.simBridgeClientTimeout !== null) {
+      clearTimeout(terrainWorker.simBridgeClientTimeout);
+      terrainWorker.simBridgeClientTimeout = null;
+    }
+
+    terrainWorker.simBridgeClientTimeout = setTimeout(
+      () => terrainWorker.disableSimBridgeClientData(),
+      SimBridgeClientDataTimeout,
+    );
   } else if (data.type === MainToWorkerThreadMessageTypes.VerticalDisplayPath) {
     terrainWorker.onVerticalPathDataUpdate(data.content);
   }
