@@ -83,7 +83,7 @@ export function drawDensityPixel(
   if (Math.round(patternValue % patternIndex) === 0) {
     return color;
   }
-  return [4, 4, 5, 0];
+  return [0, 0, 0, 0];
 }
 
 export function renderNormalMode(
@@ -143,24 +143,24 @@ export function renderNormalMode(
     elevation >= absoluteCutOffAltitude
   ) {
     if (elevation >= warningThresholds[2]) {
-      return drawDensityPixel(patternMapValue, 5, [255, 0, 0, 255]);
+      return drawDensityPixel(patternMapValue, 5, [194, 29, 26, 255]);
     }
     if (elevation >= warningThresholds[1]) {
-      return drawDensityPixel(patternMapValue, 5, [255, 255, 50, 255]);
+      return drawDensityPixel(patternMapValue, 5, [245, 200, 79, 255]);
     }
     if (elevation >= greenThresholds[1] && elevation < warningThresholds[0]) {
-      return drawDensityPixel(patternMapValue, 5, [0, 255, 0, 255]);
+      return drawDensityPixel(patternMapValue, 5, [100, 218, 29, 255]);
     }
     if (elevation >= warningThresholds[0] && elevation < warningThresholds[1]) {
-      return drawDensityPixel(patternMapValue, 3, [255, 255, 50, 255]);
+      return drawDensityPixel(patternMapValue, 3, [245, 200, 79, 255]);
     }
     if (elevation >= greenThresholds[0] && elevation < greenThresholds[1]) {
-      return drawDensityPixel(patternMapValue, 3, [0, 255, 0, 255]);
+      return drawDensityPixel(patternMapValue, 3, [100, 218, 29, 255]);
     }
   } else if (elevation === this.constants.waterElevation) {
-    return drawDensityPixel(patternMapValue, 7, [0, 255, 255, 255]);
+    return drawDensityPixel(patternMapValue, 7, [68, 217, 225, 255]);
   } else if (elevation === this.constants.unknownElevation) {
-    return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
+    return drawDensityPixel(patternMapValue, 5, [200, 127, 218, 255]);
   }
 
   return [0, 0, 0, 255];
@@ -213,18 +213,18 @@ export function renderPeaksMode(
   ) {
     if (thresholds[2] <= elevation) {
       // solid threshold
-      return [0, 255, 0, 255];
+      return [100, 218, 29, 255];
     }
     if (thresholds[1] <= elevation) {
-      return drawDensityPixel(patternMapValue, 5, [0, 255, 0, 255]);
+      return drawDensityPixel(patternMapValue, 5, [100, 218, 29, 255]);
     }
     if (thresholds[0] <= elevation) {
-      return drawDensityPixel(patternMapValue, 3, [0, 255, 0, 255]);
+      return drawDensityPixel(patternMapValue, 3, [100, 218, 29, 255]);
     }
   } else if (elevation === this.constants.waterElevation) {
-    return drawDensityPixel(patternMapValue, 7, [0, 255, 255, 255]);
+    return drawDensityPixel(patternMapValue, 7, [68, 217, 225, 255]);
   } else if (elevation === this.constants.unknownElevation) {
-    return drawDensityPixel(patternMapValue, 5, [255, 148, 255, 255]);
+    return drawDensityPixel(patternMapValue, 5, [200, 127, 218, 255]);
   }
 
   return [0, 0, 0, 255];
@@ -332,7 +332,7 @@ export function renderNavigationDisplay(
 
   // the pixel is disabled at all or the areas are clipped. Be sure not to overdraw the metadata line though
   if (patternValue === 0 && this.thread.y !== height) {
-    return [4, 4, 5, 0][colorChannel];
+    return [0, 0, 0, 0][colorChannel];
   }
 
   if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {
