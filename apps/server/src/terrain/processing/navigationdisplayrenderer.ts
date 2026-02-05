@@ -126,10 +126,25 @@ export class NavigationDisplayRenderer {
       })
       .setOutput([NavigationDisplayMaxPixelWidth, NavigationDisplayMaxPixelHeight]);
 
-    this.localHistogram = this.gpu
+    this.localHistogram = this.createLocalHistogramKernel();
+
+    this.histogram = this.gpu
+      .createKernel(createElevationHistogram, {
+        dynamicArguments: true,
+        pipeline: true,
+        immutable: false,
+      })
+      .setLoopMaxIterations(500)
+      .setOutput([HistogramBinCount]);
+
+    this.renderer = this.createRendererKernel();
+  }
+
+  private createLocalHistogramKernel(): IKernelRunShortcut {
+    return this.gpu
       .createKernel(createLocalElevationHistogram, {
         dynamicArguments: true,
-        dynamicOutput: true,
+        dynamicOutput: false,
         pipeline: true,
         immutable: false,
       })
@@ -143,20 +158,13 @@ export class NavigationDisplayRenderer {
         binCount: HistogramBinCount,
         patchSize: HistogramPatchSize,
       });
+  }
 
-    this.histogram = this.gpu
-      .createKernel(createElevationHistogram, {
-        dynamicArguments: true,
-        pipeline: true,
-        immutable: false,
-      })
-      .setLoopMaxIterations(500)
-      .setOutput([HistogramBinCount]);
-
-    this.renderer = this.gpu
+  private createRendererKernel(): IKernelRunShortcut {
+    return this.gpu
       .createKernel(renderNavigationDisplay, {
         dynamicArguments: true,
-        dynamicOutput: true,
+        dynamicOutput: false,
         pipeline: false,
         immutable: false,
       })
@@ -286,7 +294,8 @@ export class NavigationDisplayRenderer {
     const patchCount = patchesInX * patchesInY;
 
     if (this.localHistogram.output === null || this.localHistogram.output[1] !== patchCount) {
-      this.localHistogram = this.localHistogram.setOutput([HistogramBinCount, patchCount]);
+      this.localHistogram.destroy();
+      this.localHistogram = this.createLocalHistogramKernel().setOutput([HistogramBinCount, patchCount]);
     }
 
     const localHistograms = this.localHistogram(
@@ -415,7 +424,8 @@ export class NavigationDisplayRenderer {
       this.renderer.output[0] !== this.configuration.mapWidth * RenderingColorChannelCount ||
       this.renderer.output[1] !== this.configuration.mapHeight + 1
     ) {
-      this.renderer = this.renderer.setOutput([
+      this.renderer.destroy();
+      this.renderer = this.createRendererKernel().setOutput([
         this.configuration.mapWidth * RenderingColorChannelCount,
         this.configuration.mapHeight + 1,
       ]);

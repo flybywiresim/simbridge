@@ -69,6 +69,49 @@ export class MapHandler {
 
   private aircraftStatus: AircraftStatus = null;
 
+  private createUploadWorldMapToGPUKernel(): IKernelRunShortcut {
+    return this.gpu.createKernel(uploadTextureData, {
+      argumentTypes: { texture: 'Array', width: 'Integer' },
+      dynamicArguments: true,
+      dynamicOutput: false,
+      pipeline: true,
+      immutable: false,
+      tactic: 'speed',
+    });
+  }
+
+  private createExtractLocalElevationMapKernel(): IKernelRunShortcut {
+    return this.gpu
+      .createKernel(createLocalElevationMap, {
+        dynamicArguments: true,
+        dynamicOutput: false,
+        pipeline: true,
+        immutable: false,
+        tactic: 'speed',
+      })
+      .setConstants<LocalElevationMapConstants>({
+        unknownElevation: UnknownElevation,
+        invalidElevation: InvalidElevation,
+      })
+      .setFunctions([deg2rad, degreesPerPixel, normalizeHeading, rad2deg, projectWgs84, wgs84toPixelCoordinate]);
+  }
+
+  private createExtractElevationProfileKernel(): IKernelRunShortcut {
+    return this.gpu
+      .createKernel(createElevationProfile, {
+        dynamicArguments: true,
+        dynamicOutput: false,
+        pipeline: true,
+        immutable: false,
+        tactic: 'speed',
+      })
+      .setConstants<ElevationProfileConstants>({
+        unknownElevation: UnknownElevation,
+        invalidElevation: InvalidElevation,
+      })
+      .setFunctions([deg2rad, rad2deg, bearingWgs84, distanceWgs84, projectWgs84, wgs84toPixelCoordinate]);
+  }
+
   private cleanupMemory(): void {
     this.worldmap.resetInternalData();
     if (this.cachedElevationData.gpuData !== null) {
@@ -105,43 +148,12 @@ export class MapHandler {
 
   private createKernels(): void {
     // register kernel to upload the map data
-    this.uploadWorldMapToGPU = this.gpu.createKernel(uploadTextureData, {
-      argumentTypes: { texture: 'Array', width: 'Integer' },
-      dynamicArguments: true,
-      dynamicOutput: true,
-      pipeline: true,
-      immutable: false,
-      tactic: 'speed',
-    });
+    this.uploadWorldMapToGPU = this.createUploadWorldMapToGPUKernel();
 
     // register kernel to create the local map
-    this.extractLocalElevationMap = this.gpu
-      .createKernel(createLocalElevationMap, {
-        dynamicArguments: true,
-        dynamicOutput: true,
-        pipeline: true,
-        immutable: false,
-        tactic: 'speed',
-      })
-      .setConstants<LocalElevationMapConstants>({
-        unknownElevation: UnknownElevation,
-        invalidElevation: InvalidElevation,
-      })
-      .setFunctions([deg2rad, degreesPerPixel, normalizeHeading, rad2deg, projectWgs84, wgs84toPixelCoordinate]);
+    this.extractLocalElevationMap = this.createExtractLocalElevationMapKernel();
 
-    this.extractElevationProfile = this.gpu
-      .createKernel(createElevationProfile, {
-        dynamicArguments: true,
-        dynamicOutput: true,
-        pipeline: true,
-        immutable: false,
-        tactic: 'speed',
-      })
-      .setConstants<ElevationProfileConstants>({
-        unknownElevation: UnknownElevation,
-        invalidElevation: InvalidElevation,
-      })
-      .setFunctions([deg2rad, rad2deg, bearingWgs84, distanceWgs84, projectWgs84, wgs84toPixelCoordinate]);
+    this.extractElevationProfile = this.createExtractElevationProfileKernel();
   }
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
@@ -297,7 +309,15 @@ export class MapHandler {
       this.worldMapMetadata.width = worldWidth;
       this.worldMapMetadata.height = worldHeight;
 
-      this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
+      if (
+        this.uploadWorldMapToGPU.output === null ||
+        this.uploadWorldMapToGPU.output[0] !== worldWidth ||
+        this.uploadWorldMapToGPU.output[1] !== worldHeight
+      ) {
+        if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
+        this.uploadWorldMapToGPU = this.createUploadWorldMapToGPUKernel().setOutput([worldWidth, worldHeight]);
+      }
+
       this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(
         this.cachedElevationData.cpuData,
         worldWidth,
@@ -386,7 +406,11 @@ export class MapHandler {
       this.extractLocalElevationMap.output[0] !== config.mapWidth ||
       this.extractLocalElevationMap.output[1] !== config.mapHeight
     ) {
-      this.extractLocalElevationMap = this.extractLocalElevationMap.setOutput([config.mapWidth, config.mapHeight]);
+      if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
+      this.extractLocalElevationMap = this.createExtractLocalElevationMapKernel().setOutput([
+        config.mapWidth,
+        config.mapHeight,
+      ]);
     }
 
     let metresPerPixel = Math.round(
@@ -433,7 +457,8 @@ export class MapHandler {
       return null;
 
     if (this.extractElevationProfile.output === null || this.extractElevationProfile.output[0] !== profileWidth) {
-      this.extractElevationProfile = this.extractElevationProfile.setOutput([profileWidth]);
+      if (this.extractElevationProfile !== null) this.extractElevationProfile.destroy();
+      this.extractElevationProfile = this.createExtractElevationProfileKernel().setOutput([profileWidth]);
     }
 
     // create the local elevation map
