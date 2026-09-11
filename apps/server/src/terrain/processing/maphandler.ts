@@ -104,6 +104,10 @@ export class MapHandler {
   }
 
   private createKernels(): void {
+    if (this.uploadWorldMapToGPU !== null) { this.uploadWorldMapToGPU.destroy(); this.uploadWorldMapToGPU = null; }
+    if (this.extractLocalElevationMap !== null) { this.extractLocalElevationMap.destroy(); this.extractLocalElevationMap = null; }
+    if (this.extractElevationProfile !== null) { this.extractElevationProfile.destroy(); this.extractElevationProfile = null; }
+
     // register kernel to upload the map data
     this.uploadWorldMapToGPU = this.gpu.createKernel(uploadTextureData, {
       argumentTypes: { texture: 'Array', width: 'Integer' },
@@ -298,6 +302,10 @@ export class MapHandler {
       this.worldMapMetadata.height = worldHeight;
 
       this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
+      if (this.cachedElevationData.gpuData !== null) {
+        if (typeof this.cachedElevationData.gpuData.delete === 'function') this.cachedElevationData.gpuData.delete();
+        this.cachedElevationData.gpuData = null;
+      }
       this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(
         this.cachedElevationData.cpuData,
         worldWidth,
