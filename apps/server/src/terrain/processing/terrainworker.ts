@@ -629,6 +629,10 @@ class TerrainWorker {
 
 const terrainWorker = new TerrainWorker(new ThreadLogger());
 
+process.on('uncaughtException', (err) => {
+  terrainWorker['logging'].error(`Worker uncaughtException: ${err.message}\n${err.stack}`);
+});
+
 parentPort.on('message', (data: MainToWorkerThreadMessage) => {
   if (data.type === MainToWorkerThreadMessageTypes.FrameData) {
     parentPort.postMessage({
