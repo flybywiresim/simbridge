@@ -24,7 +24,7 @@ import { uploadTextureData } from './gpu/upload';
 import { Logger } from './logging/logger';
 
 // defines the maximum dimension length of the world map
-const GpuMaxPixelSize = 16384;
+const GpuMaxPixelSize = 4096;
 
 export class MapHandler {
   private worldmap: Worldmap = null;
