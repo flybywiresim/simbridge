@@ -1,5 +1,4 @@
-import { fastFlatten } from '../processing/generic/helper';
-import { ElevationGrid } from '../types';
+﻿import { ElevationGrid } from '../types';
 import { Worldmap } from './worldmap';
 import { TerrainMap } from '../fileformat/terrainmap';
 
@@ -10,17 +9,30 @@ export class TileManager {
     elevationmap: undefined | ElevationGrid;
   }[][] = [];
 
-  constructor(private terrainData: TerrainMap) {
-    for (let lat = -90; lat < 90; lat += this.terrainData.AngularSteps.latitude) {
-      this.grid.push([]);
+  private tileIndexByCoord: Map<string, number> = new Map();
 
-      for (let lon = -180; lon < 180; lon += this.terrainData.AngularSteps.longitude) {
-        this.grid[this.grid.length - 1].push({
+  constructor(private terrainData: TerrainMap) {
+    for (let i = 0; i < this.terrainData.Tiles.length; i++) {
+      const t = this.terrainData.Tiles[i];
+      this.tileIndexByCoord.set(`${t.Southwest.latitude},${t.Southwest.longitude}`, i);
+    }
+
+    const latStep = this.terrainData.AngularSteps.latitude;
+    const lonStep = this.terrainData.AngularSteps.longitude;
+    for (let lat = -90; lat < 90; lat += latStep) {
+      const row: {
+        southwest: { latitude: number; longitude: number };
+        tileIndex: number;
+        elevationmap: undefined | ElevationGrid;
+      }[] = [];
+      for (let lon = -180; lon < 180; lon += lonStep) {
+        row.push({
           southwest: { latitude: lat, longitude: lon },
-          tileIndex: Worldmap.findTileIndex(this.terrainData.Tiles, lat, lon),
+          tileIndex: this.tileIndexByCoord.get(`${lat},${lon}`) ?? -1,
           elevationmap: undefined,
         });
       }
+      this.grid.push(row);
     }
   }
 
@@ -30,13 +42,25 @@ export class TileManager {
     }
   }
 
+  public clearAllElevationMaps(): void {
+    for (let row = 0; row < this.grid.length; ++row) {
+      for (let col = 0; col < this.grid[row].length; ++col) {
+        this.grid[row][col].elevationmap = undefined;
+      }
+    }
+  }
+
   public cleanupElevationCache(grid: { row: number; column: number }[][]): void {
-    const tiles = fastFlatten(grid);
+    const keepSet = new Set<string>();
+    for (const row of grid) {
+      for (const cell of row) {
+        keepSet.add(`${cell.row},${cell.column}`);
+      }
+    }
 
     for (let row = 0; row < this.grid.length; ++row) {
       for (let col = 0; col < this.grid[row].length; ++col) {
-        const idx = tiles.findIndex((element) => element.row === row && element.column === col);
-        if (idx === -1) {
+        if (!keepSet.has(`${row},${col}`)) {
           this.grid[row][col].elevationmap = undefined;
         }
       }

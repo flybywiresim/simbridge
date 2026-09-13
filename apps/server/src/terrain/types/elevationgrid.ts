@@ -14,12 +14,13 @@ export class ElevationGrid {
     northeast: { latitude: number; longitude: number },
     rows: number,
     columns: number,
+    existingData?: Int16Array,
   ) {
     this.southwest = southwest;
     this.northeast = northeast;
     this.Rows = rows;
     this.Columns = columns;
-    this.ElevationMap = new Int16Array(rows * columns);
+    this.ElevationMap = existingData ?? new Int16Array(rows * columns);
   }
 
   public static worldToGridIndices(

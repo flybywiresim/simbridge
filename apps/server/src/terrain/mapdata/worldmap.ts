@@ -1,9 +1,13 @@
-import { PositionData, GridDefinition, GridLookupData } from '../types';
+﻿import { PositionData, GridDefinition, GridLookupData } from '../types';
 import { ElevationGrid } from '../types/elevationgrid';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Tile } from '../fileformat/tile';
 import { projectWgs84 } from '../processing/gpu/helper';
 import { TileManager } from './tilemanager';
+import { TileWorkerPool } from '../processing/tileworkerpool';
+import { TileSource } from '../fileformat/tilesource';
+
+const tilePool = new TileWorkerPool();
 
 export class Worldmap {
   public GridData: GridDefinition = {
@@ -15,13 +19,13 @@ export class Worldmap {
 
   public TileManager: TileManager = null;
 
-  public VisibilityRange: number = 800;
+  // pilot terrain awareness only needs ~50-100nm ahead
+  public VisibilityRange: number = 100;
 
-  public static findTileIndex(tiles: Tile[], latitude: number, longitude: number): number {
-    return tiles.findIndex((t) => t.Southwest.latitude === latitude && t.Southwest.longitude === longitude);
-  }
-
-  constructor(private terrainData: TerrainMap) {
+  constructor(
+    private terrainData: TerrainMap,
+    private tileSource: TileSource | null = null,
+  ) {
     this.TileManager = new TileManager(terrainData);
 
     // create the grid-metadata
@@ -37,6 +41,12 @@ export class Worldmap {
         column.elevationmap = undefined;
       });
     });
+  }
+
+  // saves ~300MB (231MB terrain.map + ~70MB decompressed tiles)
+  public clearTerrainData(): void {
+    this.TileManager.clearAllElevationMaps();
+    this.terrainData = null;
   }
 
   public createGridLookupTable(
@@ -83,7 +93,7 @@ export class Worldmap {
 
     let columnCount = northeastGrid.column - southwestGrid.column;
     if (northeastLong < southwestLong) {
-      // wrap around at 180°
+      // wrap around at 180
       columnCount = this.TileManager.grid[0].length - southwestGrid.column + northeastGrid.column;
     }
     columnCount += 1;
@@ -163,25 +173,73 @@ export class Worldmap {
     };
   }
 
-  public updatePosition(relevantTiles: { row: number; column: number }[][]): boolean {
-    let loadedTiles = 0;
+  public async updatePosition(relevantTiles: { row: number; column: number }[][]): Promise<boolean> {
+    // collect all tiles that need loading
+    const tilesToLoad: { tile: Tile; row: number; column: number }[] = [];
     relevantTiles.forEach((row) => {
       row.forEach((cell) => {
+        const cellData = this.TileManager.grid[cell.row][cell.column];
         if (
-          this.TileManager.grid[cell.row][cell.column].tileIndex !== -1 &&
-          (this.TileManager.grid[cell.row][cell.column].elevationmap === undefined ||
-            this.TileManager.grid[cell.row][cell.column].elevationmap.ElevationMap === undefined)
+          cellData.tileIndex !== -1 &&
+          (cellData.elevationmap === undefined || cellData.elevationmap.ElevationMap === undefined)
         ) {
-          const map = Tile.loadElevationGrid(
-            this.terrainData.Tiles[this.TileManager.grid[cell.row][cell.column].tileIndex],
-          );
-          if (map !== null) {
-            this.TileManager.setElevationMap(cell, map);
-            loadedTiles += 1;
-          }
+          tilesToLoad.push({
+            tile: this.terrainData.Tiles[cellData.tileIndex],
+            row: cell.row,
+            column: cell.column,
+          });
         }
       });
     });
+
+    if (tilesToLoad.length === 0) return false;
+
+    // CompressedData is released once the terrain.map buffer is dropped, so payloads come
+    // back from disk here — a few hundred KB per rebuild instead of 231MB kept resident
+    const payloads = await Promise.all(
+      tilesToLoad.map((entry) =>
+        entry.tile.CompressedData !== null
+          ? Promise.resolve(entry.tile.CompressedData)
+          : this.tileSource !== null
+            ? this.tileSource.read(entry.tile)
+            : Promise.resolve(null),
+      ),
+    );
+
+    const requests: { tile: Tile; row: number; column: number }[] = [];
+    const buffers: Buffer[] = [];
+    for (let i = 0; i < tilesToLoad.length; i++) {
+      if (payloads[i] !== null && payloads[i].byteLength > 0) {
+        requests.push(tilesToLoad[i]);
+        buffers.push(payloads[i]);
+      }
+    }
+    if (buffers.length === 0) return false;
+
+    // decompress all tiles in parallel via OS thread pool
+    const decompressed = await tilePool.decompress(buffers);
+
+    let loadedTiles = 0;
+    for (let i = 0; i < decompressed.length; i++) {
+      // pair by id — never by array position
+      const request = requests[decompressed[i].id];
+      if (request !== undefined && decompressed[i].data !== null) {
+        const tile = request.tile;
+        const grid = tile.GridDimension;
+        const elevationGrid = new ElevationGrid(
+          tile.Southwest,
+          {
+            latitude: tile.Southwest.latitude + this.terrainData.AngularSteps.latitude,
+            longitude: tile.Southwest.longitude + this.terrainData.AngularSteps.longitude,
+          },
+          grid.columns,
+          grid.rows,
+          decompressed[i].data,
+        );
+        this.TileManager.setElevationMap({ row: request.row, column: request.column }, elevationGrid);
+        loadedTiles += 1;
+      }
+    }
 
     return loadedTiles !== 0;
   }
