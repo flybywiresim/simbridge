@@ -332,11 +332,11 @@ export function renderNavigationDisplay(
 
   // the pixel is disabled at all or the areas are clipped. Be sure not to overdraw the metadata line though
   if (patternValue === 0 && this.thread.y !== height) {
-    return [4, 4, 5, 0][colorChannel];
+    return colorChannel === 0 ? 4 : colorChannel === 1 ? 4 : colorChannel === 2 ? 5 : 0;
   }
 
   if (maxElevation >= referenceAltitude - gearDownAltitudeOffset) {
-    return renderNormalMode(
+    const rn = renderNormalMode(
       pixelElevation,
       patternValue,
       height,
@@ -348,10 +348,11 @@ export function renderNavigationDisplay(
       lowerPercentileElevation,
       halfElevation,
       cutOffAltitude,
-    )[colorChannel];
+    );
+    return colorChannel === 0 ? rn[0] : colorChannel === 1 ? rn[1] : colorChannel === 2 ? rn[2] : rn[3];
   }
 
-  return renderPeaksMode(
+  const rp = renderPeaksMode(
     pixelElevation,
     patternValue,
     height,
@@ -360,5 +361,6 @@ export function renderNavigationDisplay(
     halfElevation,
     minElevation,
     maxElevation,
-  )[colorChannel];
+  );
+  return colorChannel === 0 ? rp[0] : colorChannel === 1 ? rp[1] : colorChannel === 2 ? rp[2] : rp[3];
 }
