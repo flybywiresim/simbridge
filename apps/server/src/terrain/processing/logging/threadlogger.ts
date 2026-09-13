@@ -5,6 +5,10 @@ import { WorkerToMainThreadMessageTypes } from '../../types';
 export class ThreadLogger implements ProcessingLogger {
   constructor() {}
 
+  public debug(message: string): void {
+    parentPort.postMessage({ type: WorkerToMainThreadMessageTypes.LogDebug, content: message });
+  }
+
   public info(message: string): void {
     parentPort.postMessage({ type: WorkerToMainThreadMessageTypes.LogInfo, content: message });
   }

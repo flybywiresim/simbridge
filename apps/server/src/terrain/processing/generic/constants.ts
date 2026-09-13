@@ -1,5 +1,5 @@
-// execution parameters
-export const GpuProcessingActive = true;
+﻿// execution parameters
+export const GpuProcessingActive: boolean = true;
 
 // mathematical conversion constants
 export const FeetPerNauticalMile = 6076.12;
@@ -44,3 +44,12 @@ export const RenderingMapFrameValidityTimeArcMode =
   RenderingMapTransitionDurationArcMode + RenderingMapUpdateTimeoutArcMode;
 export const RenderingMapFrameValidityTimeScanlineMode =
   RenderingMapTransitionDurationScanlineMode + RenderingMapUpdateTimeoutScanlineMode;
+
+/*
+ * Opt-in terrain diagnostics. Off by default so a normal install logs nothing extra;
+ * set SIMBRIDGE_TERRAIN_DEBUG=1 to get the world map size and coverage, ND colour
+ * thresholds, and memory breakdowns. These are the lines that identify a wrong-colour
+ * or memory report, so they are worth asking a user to enable rather than deleting.
+ * Errors and warnings are never gated by this.
+ */
+export const TerrainDiagnosticsEnabled = process.env.SIMBRIDGE_TERRAIN_DEBUG === '1';

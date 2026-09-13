@@ -9,6 +9,7 @@ export enum MainToWorkerThreadMessageTypes {
 export enum WorkerToMainThreadMessageTypes {
   Unknown = '',
   FrameData = 'RES_FRAME_DATA',
+  LogDebug = 'LOGDEBUG',
   LogInfo = 'LOGINFO',
   LogWarn = 'LOGWARN',
   LogError = 'LOGERROR',
