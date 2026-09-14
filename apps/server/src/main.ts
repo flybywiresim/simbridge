@@ -25,7 +25,14 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Shutdown listener
-  app.get(ShutDownService).subscribeToShutdown(() => app.close());
+  app.get(ShutDownService).subscribeToShutdown(async () => {
+    await app.close();
+    // app.close() only tears down Nest providers/listeners; it does not guarantee the Node
+    // process exits (open handles from GPU.js kernels, worker threads, the systray child
+    // process, or mDNS sockets can keep the event loop alive). Force-terminate so "Exit" in
+    // the tray reliably kills the process instead of leaving a blank/zombie tray item behind.
+    process.exit(0);
+  });
 
   // Gateway Adapter
   app.useWebSocketAdapter(new WsAdapter(app));
