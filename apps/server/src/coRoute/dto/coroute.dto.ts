@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDefined, ValidateNested } from 'class-validator';
+import { IsDefined, IsOptional, ValidateNested } from 'class-validator';
 import { Navlog } from './navlog.dto';
 import { General } from './general.dto';
 import { Airport } from './airport.dto';
@@ -19,10 +19,10 @@ export class CoRouteDto {
   @IsDefined()
   destination: Airport;
 
-  @ApiProperty({ description: 'The alternate airport dto' })
+  @ApiProperty({ description: 'The alternate airport dto', required: false })
   @ValidateNested()
-  @IsDefined()
-  alternate: Airport;
+  @IsOptional()
+  alternate?: Airport;
 
   @ApiProperty({ description: 'General information' })
   @ValidateNested()
