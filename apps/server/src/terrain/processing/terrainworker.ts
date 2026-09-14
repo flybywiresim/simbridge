@@ -545,7 +545,12 @@ class TerrainWorker {
             channels: RenderingColorChannelCount,
           },
         })
-          .png()
+          // This buffer goes straight over local IPC to SimConnect and is immediately
+          // consumed - it's never stored or transmitted over a network, so there is no
+          // reason to pay for tight zlib compression on every ~40ms transition frame.
+          // Lowest compression level trades a larger (still tiny, in-memory) buffer for
+          // significantly less CPU time per frame.
+          .png({ compressionLevel: 1, adaptiveFiltering: false })
           .toBuffer()
           .then((buffer) => {
             const displayData = this.displayRendering[side].navigationDisplay.displayData();
