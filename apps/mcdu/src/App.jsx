@@ -92,6 +92,16 @@ const App = () => {
       const messageType = lastMessage.data.split(':')[0];
       if (messageType === 'update') {
         setContent(JSON.parse(lastMessage.data.substring(lastMessage.data.indexOf(':') + 1)).left);
+      } else if (lastMessage.data === 'mcduDisconnected') {
+        setContent((previous) => ({
+          ...previous,
+          lines: previous.lines.map((line) => line.map(() => '')),
+          scratchpad: '',
+          title: '',
+          titleLeft: '',
+          page: '',
+          arrows: [false, false, false, false],
+        }));
       }
     }
   }, [lastMessage]);
