@@ -481,11 +481,11 @@ class TerrainWorker {
     this.terrainActive = false;
     this.initializing = false;
 
-    // measure instead of claiming a number: GPU kernels are deliberately kept alive
-    // (dual-GPU workaround) and the tile worker pool outlives the unload, so what is
-    // actually returned is the terrain.map buffer and the decompressed tiles, not
-    // everything the terrain subsystem is holding.
-    this.reportMemory('after unload', true);
+    // Sampled synchronously, so it shows references dropped rather than memory returned:
+    // V8 reclaims lazily and rss falls over the following seconds. Compare the two lines
+    // for what was released, not for the final figure. GPU kernels are also deliberately
+    // kept alive (dual-GPU workaround) and the tile worker pool outlives the unload.
+    this.reportMemory('after unload, pre-GC', true);
     this.logging.info('Terrain unloaded');
   }
 
