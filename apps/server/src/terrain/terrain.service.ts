@@ -34,13 +34,9 @@ export class TerrainService implements OnApplicationShutdown {
           frames: Uint8ClampedArray[];
         };
 
-        this.frameDataCallbacks.every((callback, index) => {
-          if (callback(response.side, response)) {
-            this.frameDataCallbacks.splice(index, 1);
-            return false;
-          }
-          return true;
-        });
+        this.frameDataCallbacks = this.frameDataCallbacks.filter(
+          (callback) => !callback(response.side, response),
+        );
       } else if (data.type === WorkerToMainThreadMessageTypes.LogInfo) {
         this.logger.log(data.content);
       } else if (data.type === WorkerToMainThreadMessageTypes.LogWarn) {
@@ -50,6 +46,11 @@ export class TerrainService implements OnApplicationShutdown {
       } else {
         this.logger.error(`Unknown type: ${data.type} - ${data.content}`);
       }
+    });
+    this.terrainWorker.on('error', (err) => {
+      this.logger.error(`Terrain worker crashed: ${err.message}`);
+      this.frameDataCallbacks = [];
+      this.terrainWorker = null;
     });
   }
 
@@ -68,11 +69,23 @@ export class TerrainService implements OnApplicationShutdown {
     if (!this.terrainWorker) return undefined;
 
     return new Promise<{ timestamp: number; frames: Uint8ClampedArray[]; thresholds: NavigationDisplayThresholdsDto }>(
-      (resolve, _reject) => {
-        this.frameDataCallbacks.push((side, data) => {
-          if (side === display) resolve(data);
-          return side === display;
-        });
+      (resolve, reject) => {
+        const timeout = setTimeout(() => {
+          this.frameDataCallbacks = this.frameDataCallbacks.filter(
+            (cb) => cb !== callback,
+          );
+          reject(new Error('Terrain worker frame data timeout'));
+        }, 5000);
+
+        const callback = (side: DisplaySide, data: { timestamp: number; frames: Uint8ClampedArray[]; thresholds: NavigationDisplayThresholdsDto }) => {
+          if (side === display) {
+            clearTimeout(timeout);
+            resolve(data);
+            return true;
+          }
+          return false;
+        };
+        this.frameDataCallbacks.push(callback);
         this.terrainWorker.postMessage({ type: MainToWorkerThreadMessageTypes.FrameData, content: display });
       },
     );
