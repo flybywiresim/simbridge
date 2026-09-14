@@ -27,6 +27,9 @@ export class McduGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @WebSocketServer() server: Server;
 
+  // tracks the client (if any) that has identified itself as the simulator, so we can tell
+  // remote MCDU displays when the simulator connection is actually gone (see issue #85 -
+  // without this, the browser just keeps showing the last received data forever)
   private simulatorClient: WebSocket | undefined;
 
   async afterInit(server: Server) {
