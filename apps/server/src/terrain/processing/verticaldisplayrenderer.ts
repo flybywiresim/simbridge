@@ -1,4 +1,4 @@
-import { GPU, IKernelRunShortcut } from 'gpu.js';
+﻿import { GPU, IKernelRunShortcut } from 'gpu.js';
 import {
   RenderingColorChannelCount,
   InvalidElevation,
@@ -9,7 +9,6 @@ import {
   RenderingMapFrameValidityTimeScanlineMode,
   RenderingMapTransitionDurationScanlineMode,
 } from './generic/constants';
-import { fastFlatten } from './generic/helper';
 import { renderVerticalDisplay } from './gpu/rendering/verticaldisplay';
 import { VerticalDisplayConstants } from './gpu/interfaces';
 import { Logger } from './logging/logger';
@@ -44,6 +43,7 @@ export class VerticalDisplayRenderer {
     finalFrame: Uint8ClampedArray;
     lastFrame: Uint8ClampedArray;
     currentFrame: Uint8ClampedArray;
+    forceFullSweep: boolean;
   } = {
     startTransitionBorder: 0,
     currentTransitionBorder: 0,
@@ -51,7 +51,20 @@ export class VerticalDisplayRenderer {
     finalFrame: null,
     lastFrame: null,
     currentFrame: null,
+    forceFullSweep: false,
   };
+
+  // see NavigationDisplayRenderer: two buffers so a transition never writes into the
+  // frame it is reading from, and neither is reallocated every 40ms tick
+  private transitionBuffers: [Uint8ClampedArray, Uint8ClampedArray] = [null, null];
+
+  private acquireTransitionBuffer(length: number): Uint8ClampedArray {
+    const free = this.transitionBuffers[0] === this.renderingData.lastFrame ? 1 : 0;
+    if (this.transitionBuffers[free] === null || this.transitionBuffers[free].length !== length) {
+      this.transitionBuffers[free] = new Uint8ClampedArray(length);
+    }
+    return this.transitionBuffers[free];
+  }
 
   constructor(
     private readonly maphandler: MapHandler,
@@ -126,7 +139,8 @@ export class VerticalDisplayRenderer {
     return this.elevationConfig.waypointsLatitudes.length;
   }
 
-  public reset(resetPath: boolean = false): void {
+  // immediate=true for a pilot-initiated change: see NavigationDisplayRenderer.reset()
+  public reset(resetPath: boolean = false, immediate = false): void {
     this.renderingData = {
       startTransitionBorder: 0,
       currentTransitionBorder: 0,
@@ -134,6 +148,7 @@ export class VerticalDisplayRenderer {
       finalFrame: null,
       lastFrame: null,
       currentFrame: null,
+      forceFullSweep: immediate,
     };
 
     if (resetPath) {
@@ -173,19 +188,44 @@ export class VerticalDisplayRenderer {
           )
         : -1;
 
-    const verticaldisplay = this.renderer(
-      profile,
-      this.displayConfig.minimumAltitude,
-      this.displayConfig.maximumAltitude,
-      greyAreaStartsAtX,
-    ) as number[][];
+    let verticaldisplay: number[][];
 
-    // some GPU drivers require the flush call to release internal memory
-    if (GpuProcessingActive) this.renderer.context.flush();
+    if (!GpuProcessingActive) {
+      const extractData = (obj: any): any => {
+        if (Array.isArray(obj)) return obj;
+        if (typeof obj?.toArray === 'function') return obj.toArray();
+        if (obj?.data) return obj.data;
+        return obj;
+      };
+      const profileArr = extractData(profile) as number[];
+      verticaldisplay = this.renderVerticalDisplayCPU(
+        profileArr,
+        this.displayConfig.minimumAltitude,
+        this.displayConfig.maximumAltitude,
+        greyAreaStartsAtX,
+      );
+    } else {
+      verticaldisplay = this.renderer(
+        profile,
+        this.displayConfig.minimumAltitude,
+        this.displayConfig.maximumAltitude,
+        greyAreaStartsAtX,
+      ) as number[][];
+      // some GPU drivers require the flush call to release internal memory
+      if (this.renderer.context) this.renderer.context.flush();
+    }
 
-    this.renderingData.finalFrame = new Uint8ClampedArray(fastFlatten(verticaldisplay));
+    // row-by-row into a reused buffer — see NavigationDisplayRenderer.startNewMapCycle
+    const frameWidth = verticaldisplay[0].length;
+    const frameLength = verticaldisplay.length * frameWidth;
+    if (this.renderingData.finalFrame === null || this.renderingData.finalFrame.length !== frameLength) {
+      this.renderingData.finalFrame = new Uint8ClampedArray(frameLength);
+    }
+    for (let y = 0; y < verticaldisplay.length; ++y) {
+      this.renderingData.finalFrame.set(verticaldisplay[y], y * frameWidth);
+    }
 
-    if (this.renderingData.lastFrame === null) {
+    if (this.renderingData.lastFrame === null && !this.renderingData.forceFullSweep) {
       const timeSinceStart = currentTime - this.startupTime;
       const frameUpdateCount = timeSinceStart / RenderingMapFrameValidityTimeScanlineMode;
       const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
@@ -196,12 +236,79 @@ export class VerticalDisplayRenderer {
     }
 
     this.renderingData.currentTransitionBorder = this.renderingData.startTransitionBorder;
+    this.renderingData.forceFullSweep = false;
+  }
+
+  private renderVerticalDisplayCPU(
+    elevationProfile: number[],
+    minimumAltitude: number,
+    maximumAltitude: number,
+    greyBackgroundFromX: number,
+  ): number[][] {
+    const width = RenderingElevationProfileWidth;
+    const height = RenderingElevationProfileHeight;
+    const stepY = (maximumAltitude - minimumAltitude) / height;
+    const output: number[][] = new Array(height);
+
+    for (let y = 0; y < height; y++) {
+      const row = new Array(width * RenderingColorChannelCount);
+      const altitude = (height - y) * stepY + minimumAltitude;
+
+      for (let pixelX = 0; pixelX < width; pixelX++) {
+        const elevation = elevationProfile[pixelX];
+
+        let r: number, g: number, b: number, a: number;
+        if (elevation === InvalidElevation || elevation === UnknownElevation) {
+          r = 0;
+          g = 0;
+          b = 0;
+          a = 0;
+        } else if (altitude > elevation) {
+          if (greyBackgroundFromX >= 0 && pixelX >= greyBackgroundFromX) {
+            r = 78;
+            g = 78;
+            b = 97;
+            a = 255;
+          } else {
+            r = 0;
+            g = 0;
+            b = 0;
+            a = 0;
+          }
+        } else if (elevation === WaterElevation) {
+          if (altitude <= 0) {
+            r = 0;
+            g = 255;
+            b = 255;
+            a = 255;
+          } else {
+            r = 0;
+            g = 0;
+            b = 0;
+            a = 0;
+          }
+        } else {
+          r = 110;
+          g = 51;
+          b = 14;
+          a = 255;
+        }
+
+        const baseX = pixelX * RenderingColorChannelCount;
+        row[baseX] = r;
+        row[baseX + 1] = g;
+        row[baseX + 2] = b;
+        row[baseX + 3] = a;
+      }
+      output[y] = row;
+    }
+    return output;
   }
 
   private transitionFrame(oldFrame: Uint8ClampedArray, newFrame: Uint8ClampedArray): Uint8ClampedArray {
     if (newFrame === null) return null;
 
-    const result = new Uint8ClampedArray(
+    const result = this.acquireTransitionBuffer(
       RenderingElevationProfileWidth * RenderingColorChannelCount * RenderingElevationProfileHeight,
     );
 

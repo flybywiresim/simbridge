@@ -4,6 +4,10 @@ import { Logger as ProcessingLogger } from './logger';
 export class NestLogger implements ProcessingLogger {
   constructor(private logger: Logger) {}
 
+  public debug(message: string): void {
+    this.logger.debug(message);
+  }
+
   public info(message: string): void {
     this.logger.log(message);
   }

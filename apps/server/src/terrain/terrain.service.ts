@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+﻿import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Worker } from 'worker_threads';
 import * as path from 'path';
 import { NavigationDisplayThresholdsDto } from './dto/navigationdisplaythresholds.dto';
@@ -41,6 +41,8 @@ export class TerrainService implements OnApplicationShutdown {
           }
           return true;
         });
+      } else if (data.type === WorkerToMainThreadMessageTypes.LogDebug) {
+        this.logger.debug(data.content);
       } else if (data.type === WorkerToMainThreadMessageTypes.LogInfo) {
         this.logger.log(data.content);
       } else if (data.type === WorkerToMainThreadMessageTypes.LogWarn) {

@@ -1,4 +1,4 @@
-import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
+﻿import { GPU, IKernelRunShortcut, KernelOutput, Texture } from 'gpu.js';
 import {
   FeetPerNauticalMile,
   GpuProcessingActive,
@@ -14,6 +14,7 @@ import {
   NavigationDisplayRoseModePixelHeightA380X,
   RenderingColorChannelCount,
   RenderingMapFrameValidityTimeArcMode,
+  TerrainDiagnosticsEnabled,
   RenderingMapFrameValidityTimeScanlineMode,
   RenderingMapTransitionDeltaTime,
   RenderingMapTransitionDurationArcMode,
@@ -22,7 +23,7 @@ import {
   UnknownElevation,
   WaterElevation,
 } from './generic/constants';
-import { distanceWgs84, fastFlatten } from './generic/helper';
+import { distanceWgs84 } from './generic/helper';
 import { HistogramConstants, NavigationDisplayConstants } from './gpu/interfaces';
 import {
   calculateNormalModeGreenThresholds,
@@ -52,7 +53,7 @@ const HistogramBinRange = 100;
 const HistogramMinimumElevation = -500; // some areas in the world are below water level
 const HistogramMaximumElevation = 29040; // mount everest
 const HistogramBinCount = Math.ceil((HistogramMaximumElevation - HistogramMinimumElevation + 1) / HistogramBinRange);
-const HistogramPatchSize = 128;
+const HistogramPatchSize = 256;
 
 // rendering parameters
 const RenderingArcModePixelWidth = 756;
@@ -104,6 +105,7 @@ export class NavigationDisplayRenderer {
     lastFrame: Uint8ClampedArray;
     currentFrame: Uint8ClampedArray;
     frameValidityDuration: number;
+    forceFullSweep: boolean;
   } = {
     startTransitionBorder: 0,
     currentTransitionBorder: 0,
@@ -113,7 +115,24 @@ export class NavigationDisplayRenderer {
     lastFrame: null,
     currentFrame: null,
     frameValidityDuration: 1000,
+    forceFullSweep: false,
   };
+
+  // transition frames are rebuilt every RenderingMapTransitionDeltaTime (40ms); allocating
+  // a fresh ~1.5MB array per tick per side is the single largest source of GC pressure in
+  // the render loop. Two buffers, because a transition reads lastFrame while writing the
+  // next one — acquireTransitionBuffer() always hands back the one lastFrame is not using.
+  private transitionBuffers: [Uint8ClampedArray, Uint8ClampedArray] = [null, null];
+
+  private lastThresholdReport = 0;
+
+  private acquireTransitionBuffer(length: number): Uint8ClampedArray {
+    const free = this.transitionBuffers[0] === this.renderingData.lastFrame ? 1 : 0;
+    if (this.transitionBuffers[free] === null || this.transitionBuffers[free].length !== length) {
+      this.transitionBuffers[free] = new Uint8ClampedArray(length);
+    }
+    return this.transitionBuffers[free];
+  }
 
   constructor(
     private readonly maphandler: MapHandler,
@@ -197,9 +216,8 @@ export class NavigationDisplayRenderer {
   }
 
   public shutdown(): void {
-    if (this.pixelPattern !== null) {
-      this.pixelPattern.delete();
-    }
+    // pixelPattern belongs to patternUpload — destroying the kernel releases it
+    this.pixelPattern = null;
     this.patternUpload.destroy();
     this.localHistogram.destroy();
     this.histogram.destroy();
@@ -269,9 +287,11 @@ export class NavigationDisplayRenderer {
       }
 
       if (patternData !== null) {
+        // no delete() — patternUpload is immutable:false, so this is the kernel's own
+        // output texture, reused on every run. See MapHandler.cleanupMemory().
         this.pixelPattern = this.patternUpload(patternData, NavigationDisplayMaxPixelWidth) as Texture;
         // some GPU drivers require the flush call to release internal memory
-        if (GpuProcessingActive) this.patternUpload.context.flush();
+        if (GpuProcessingActive && this.patternUpload.context) this.patternUpload.context.flush();
       }
     }
 
@@ -283,10 +303,35 @@ export class NavigationDisplayRenderer {
     }
   }
 
-  private createElevationHistogram(localElevationMap: Texture): Texture {
+  private createElevationHistogram(localElevationMap: Texture | number[][]): Texture | number[] {
     if (localElevationMap === null) return null;
 
-    // create the histogram statistics
+    if (!GpuProcessingActive) {
+      const width = this.configuration.mapWidth;
+      const height = this.configuration.mapHeight;
+      const extractData = (obj: any): any => {
+        if (Array.isArray(obj)) return obj;
+        if (typeof obj?.toArray === 'function') return obj.toArray();
+        if (obj?.data) return obj.data;
+        return obj;
+      };
+      const elevGrid = extractData(localElevationMap) as number[][];
+      const histogram = new Array(HistogramBinCount).fill(0);
+      for (let y = 0; y < height; y++) {
+        const row = elevGrid[y];
+        for (let x = 0; x < width; x++) {
+          let elevation = row[x];
+          if (elevation !== UnknownElevation && elevation !== InvalidElevation && elevation !== WaterElevation) {
+            elevation -= HistogramMinimumElevation;
+            const bin = Math.max(Math.min(Math.ceil(elevation / HistogramBinRange), HistogramBinCount), 0);
+            histogram[bin] += 1;
+          }
+        }
+      }
+      return histogram;
+    }
+
+    // GPU mode
     const patchesInX = Math.ceil(this.configuration.mapWidth / HistogramPatchSize);
     const patchesInY = Math.ceil(this.configuration.mapHeight / HistogramPatchSize);
     const patchCount = patchesInX * patchesInY;
@@ -296,7 +341,7 @@ export class NavigationDisplayRenderer {
     }
 
     const localHistograms = this.localHistogram(
-      localElevationMap,
+      localElevationMap as Texture,
       this.configuration.mapWidth,
       this.configuration.mapHeight,
     ) as Texture;
@@ -304,8 +349,8 @@ export class NavigationDisplayRenderer {
 
     // some GPU drivers require the flush call to release internal memory
     if (GpuProcessingActive) {
-      this.localHistogram.context.flush();
-      this.histogram.context.flush();
+      if (this.localHistogram.context) this.localHistogram.context.flush();
+      if (this.histogram.context) this.histogram.context.flush();
     }
 
     return histogram;
@@ -341,7 +386,7 @@ export class NavigationDisplayRenderer {
           glideRadian = Math.atan(opposite / distanceFeet);
         }
 
-        // check if the glide is greater or equal 3°
+        // check if the glide is greater or equal 3Â°
         if (glideRadian < 0.0523599) {
           if (distance <= 1.0 || glideRadian === 0.0) {
             // use the minimum value close to the airport
@@ -413,8 +458,17 @@ export class NavigationDisplayRenderer {
    *   The reduction increases the system performance and an additional row is less time consuming than transmitting the histogram
    * - The red channel of the first pixel in the last row defines the rendering mode (0 === normal mode, 1 === peaks mode)
    */
-  private createNavigationDisplayMap(elevationMap: Texture, histogram: Texture, cutOffAltitude: number): KernelOutput {
+  private createNavigationDisplayMap(
+    elevationMap: Texture | number[][],
+    histogram: Texture | number[],
+    cutOffAltitude: number,
+  ): KernelOutput {
     if (elevationMap === null || histogram === null) return null;
+
+    // GPU.js CPU mode has ~1.5M thread invocations overhead (~3s), vanilla JS does same work in ~200ms
+    if (!GpuProcessingActive) {
+      return this.createNavigationDisplayMapCPU(elevationMap, histogram, cutOffAltitude);
+    }
 
     if (
       this.renderer.output === null ||
@@ -440,7 +494,7 @@ export class NavigationDisplayRenderer {
     ) as KernelOutput;
 
     // some GPU drivers require the flush call to release internal memory
-    if (GpuProcessingActive) this.renderer.context.flush();
+    if (GpuProcessingActive && this.renderer.context) this.renderer.context.flush();
 
     return terrainmap;
   }
@@ -467,6 +521,172 @@ export class NavigationDisplayRenderer {
     return angles;
   }
 
+  private createNavigationDisplayMapCPU(
+    elevationMap: Texture | number[][],
+    histogram: Texture | number[],
+    cutOffAltitude: number,
+  ): number[][] {
+    const width = this.configuration.mapWidth;
+    const height = this.configuration.mapHeight;
+    const altitude = this.aircraftStatus.altitude;
+    const verticalSpeed = this.aircraftStatus.verticalSpeed;
+    const gearDownAltitudeOffset = this.aircraftStatus.gearIsDown
+      ? RenderingGearDownOffset
+      : RenderingNonGearDownOffset;
+
+    const extractData = (obj: any): any => {
+      if (Array.isArray(obj)) return obj;
+      if (typeof obj?.toArray === 'function') return obj.toArray();
+      if (obj?.data) return obj.data;
+      return obj;
+    };
+
+    const elevGrid = extractData(elevationMap) as number[][];
+    const histArr = extractData(histogram) as number[];
+    const patternArr = extractData(this.pixelPattern) as number[][];
+
+    const outputWidth = width * RenderingColorChannelCount;
+    const outputHeight = height + 1;
+
+    const cutOffAltitudeBin = Math.floor((cutOffAltitude - HistogramMinimumElevation) / HistogramBinRange);
+    const referenceAltitude = altitude + (verticalSpeed <= -1000 ? verticalSpeed * 0.5 : 0);
+
+    let totalFrequency = 0;
+    for (let b = cutOffAltitudeBin; b < HistogramBinCount; b++) totalFrequency += histArr[b];
+
+    let minElevationBin = -1;
+    let maxElevationBin = -1;
+    let lowerBin = -1;
+    let upperBin = -1;
+    let currentPercentile = 0;
+    for (let b = cutOffAltitudeBin; b < HistogramBinCount; b++) {
+      if (totalFrequency > 0) {
+        currentPercentile += histArr[b] / totalFrequency;
+        if (lowerBin === -1 && currentPercentile >= RenderingLowerPercentile) lowerBin = b;
+        if (upperBin === -1 && currentPercentile >= RenderingUpperPercentile) upperBin = b;
+      }
+      if (histArr[b] > 0) {
+        if (minElevationBin < 0) minElevationBin = b;
+        maxElevationBin = b;
+      }
+    }
+    if (lowerBin > HistogramBinCount) lowerBin = HistogramBinCount - 1;
+    if (upperBin < 0) upperBin = HistogramBinCount - 1;
+
+    const lowerPercentileElevation = lowerBin * HistogramBinRange + HistogramMinimumElevation;
+    const upperPercentileElevation = upperBin * HistogramBinRange + HistogramMinimumElevation;
+    const minElevation = minElevationBin >= 0 ? minElevationBin * HistogramBinRange + HistogramMinimumElevation : -1;
+    const maxElevation =
+      maxElevationBin >= 0 ? (maxElevationBin + 1) * HistogramBinRange + HistogramMinimumElevation : 0;
+    const flatEarth = RenderingFlatEarthThreshold - (maxElevation - minElevation);
+    const halfElevation = maxElevation * 0.5;
+
+    // precompute thresholds
+    const useNormalMode = maxElevation >= referenceAltitude - gearDownAltitudeOffset;
+
+    let warningThresholds: [number, number, number];
+    let greenThresholds: [number, number];
+    let peaksThresholds: [number, number, number];
+
+    if (useNormalMode) {
+      warningThresholds = calculateNormalModeWarningThresholdsCPU(
+        referenceAltitude,
+        minElevation,
+        gearDownAltitudeOffset,
+      );
+      greenThresholds = calculateNormalModeGreenThresholdsCPU(
+        referenceAltitude,
+        minElevation,
+        flatEarth,
+        lowerPercentileElevation,
+        halfElevation,
+      );
+    } else {
+      peaksThresholds = calculatePeaksModeThresholdsCPU(
+        lowerPercentileElevation,
+        upperPercentileElevation,
+        halfElevation,
+        minElevation,
+        maxElevation,
+      );
+    }
+
+    const output: number[][] = new Array(outputHeight);
+    for (let y = 0; y < outputHeight; y++) {
+      output[y] = new Array(outputWidth);
+      for (let x = 0; x < outputWidth; x++) {
+        const pixelX = Math.floor(x / RenderingColorChannelCount);
+        const colorChannel = x % RenderingColorChannelCount;
+
+        if (y >= height) {
+          // metadata row
+          if (useNormalMode) {
+            output[y][x] =
+              x < 4
+                ? [0, minElevation, maxElevation, warningThresholds[2]][colorChannel]
+                : [warningThresholds[1], warningThresholds[0], greenThresholds[1], greenThresholds[0]][colorChannel];
+          } else {
+            output[y][x] =
+              x < 4
+                ? [1, minElevation, maxElevation, peaksThresholds[2]][colorChannel]
+                : [peaksThresholds[1], peaksThresholds[0], 0, 0][colorChannel];
+          }
+          continue;
+        }
+
+        // 8x8 patch scan for max elevation
+        let pixelElevation = -1000;
+        const patchXStart = pixelX - (pixelX % 8);
+        const patchXEnd = Math.min(width, patchXStart + 8);
+        const patchYStart = y - (y % 8);
+        const patchYEnd = Math.min(height, patchYStart + 8);
+        for (let py = patchYStart; py < patchYEnd; py++) {
+          const row = elevGrid[py];
+          for (let px = patchXStart; px < patchXEnd; px++) {
+            const elev = row[px];
+            if (elev > pixelElevation && elev !== InvalidElevation) pixelElevation = elev;
+          }
+        }
+
+        const patternValue = patternArr[y][pixelX];
+        if (patternValue === 0) {
+          output[y][x] = colorChannel === 0 ? 4 : colorChannel === 1 ? 4 : colorChannel === 2 ? 5 : 0;
+          continue;
+        }
+
+        let r: number, g: number, b: number, a: number;
+        if (useNormalMode) {
+          [r, g, b, a] = renderNormalModeCPU(
+            pixelElevation,
+            patternValue,
+            height,
+            referenceAltitude,
+            minElevation,
+            maxElevation,
+            flatEarth,
+            gearDownAltitudeOffset,
+            lowerPercentileElevation,
+            halfElevation,
+            cutOffAltitude,
+          );
+        } else {
+          [r, g, b, a] = renderPeaksModeCPU(
+            pixelElevation,
+            patternValue,
+            height,
+            lowerPercentileElevation,
+            upperPercentileElevation,
+            halfElevation,
+            minElevation,
+            maxElevation,
+          );
+        }
+        output[y][x] = colorChannel === 0 ? r : colorChannel === 1 ? g : colorChannel === 2 ? b : a;
+      }
+    }
+    return output;
+  }
+
   private arcModeTransitionFrame(
     oldFrame: Uint8ClampedArray,
     newFrame: Uint8ClampedArray,
@@ -475,7 +695,7 @@ export class NavigationDisplayRenderer {
   ): Uint8ClampedArray {
     if (newFrame === null) return null;
 
-    const result = new Uint8ClampedArray(
+    const result = this.acquireTransitionBuffer(
       this.configuration.mapWidth * RenderingColorChannelCount * this.configuration.mapHeight,
     );
 
@@ -539,7 +759,7 @@ export class NavigationDisplayRenderer {
   private scanlineModeTransitionFrame(oldFrame: Uint8ClampedArray, newFrame: Uint8ClampedArray): Uint8ClampedArray {
     if (newFrame === null) return null;
 
-    const result = new Uint8ClampedArray(
+    const result = this.acquireTransitionBuffer(
       this.configuration.mapWidth * RenderingColorChannelCount * this.configuration.mapHeight,
     );
 
@@ -601,7 +821,9 @@ export class NavigationDisplayRenderer {
     return true;
   }
 
-  public reset(): void {
+  // immediate=true for a pilot-initiated change (range/mode/TERR toggle): skip sweep
+  // phase alignment so the new picture starts drawing straight away
+  public reset(immediate = false): void {
     this.renderingData = {
       startTransitionBorder: 0,
       currentTransitionBorder: 0,
@@ -620,6 +842,7 @@ export class NavigationDisplayRenderer {
       lastFrame: null,
       currentFrame: null,
       frameValidityDuration: 1000,
+      forceFullSweep: immediate,
     };
   }
 
@@ -649,19 +872,59 @@ export class NavigationDisplayRenderer {
       return;
     }
 
+    const t0 = Date.now();
     const elevationMap = this.maphandler.createLocalElevationMap(this.configuration);
+    const t1 = Date.now();
     const histogram = this.createElevationHistogram(elevationMap);
+    const t2 = Date.now();
     const cutOffAltitude = this.calculateAbsoluteCutOffAltitude();
+    const t3 = Date.now();
 
     // create the final map
     const renderingData = this.createNavigationDisplayMap(elevationMap, histogram, cutOffAltitude);
+    const t4 = Date.now();
     if (renderingData === null) return;
+
+    this.logging.debug(
+      `startNewMapCycle kernels: elevMap=${t1 - t0}ms hist=${t2 - t1}ms cutoff=${t3 - t2}ms render=${t4 - t3}ms total=${t4 - t0}ms`,
+    );
 
     const frame = renderingData as number[][];
     const metadata = frame.splice(frame.length - 1)[0];
 
-    this.renderingData.finalFrame = new Uint8ClampedArray(fastFlatten(frame));
+    // copy row-by-row into a reused buffer instead of fastFlatten(): that built a boxed
+    // JS Array of ~1.5M numbers (~12MB) per cycle purely to feed the Uint8ClampedArray
+    // constructor. set() clamps identically.
+    const frameWidth = frame[0].length;
+    const frameLength = frame.length * frameWidth;
+    if (this.renderingData.finalFrame === null || this.renderingData.finalFrame.length !== frameLength) {
+      this.renderingData.finalFrame = new Uint8ClampedArray(frameLength);
+    }
+    for (let y = 0; y < frame.length; ++y) {
+      this.renderingData.finalFrame.set(frame[y], y * frameWidth);
+    }
+
     this.renderingData.thresholdData = this.analyzeMetadata(metadata, cutOffAltitude);
+
+    // Elevations and thresholds are in feet. If these read as metres (~3x low), as raw
+    // sentinels (32766/32767) or as 0..255, the fault is upstream of the colour logic —
+    // in the tile conversion or the world map texture precision, not in the thresholds.
+    // info, not debug: this is the line that identifies a wrong-colour report, and debug
+    // is filtered out of the shipped log. Throttled so it stays readable.
+    if (TerrainDiagnosticsEnabled && Date.now() - this.lastThresholdReport > 10_000) {
+      this.lastThresholdReport = Date.now();
+      const normalMode = metadata[0] === 0;
+      this.logging.info(
+        `ND thresholds: mode=${normalMode ? 'normal' : 'PEAKS(all green)'} ` +
+          `min=${Math.round(this.renderingData.thresholdData.MinimumElevation)}ft ` +
+          `max=${Math.round(this.renderingData.thresholdData.MaximumElevation)}ft ` +
+          `cutOff=${Math.round(cutOffAltitude)}ft alt=${Math.round(this.aircraftStatus.altitude)}ft ` +
+          `gear=${this.aircraftStatus.gearIsDown ? 'down' : 'up'} ` +
+          `raw=[${Array.from(metadata.slice(0, 8))
+            .map((v: number) => Math.round(v))
+            .join(',')}]`,
+      );
+    }
 
     if (!this.configuration.terrOnNd) {
       // metadata is used in the TERRONND WASM module to detect frame changes, so we still have to send it even though ND TERR would be disabled on the A380X
@@ -673,7 +936,12 @@ export class NavigationDisplayRenderer {
     this.renderingData.thresholdData.DisplayRange = this.configuration.ndRange;
     this.renderingData.thresholdData.DisplayMode = this.configuration.efisMode;
 
-    if (this.renderingData.lastFrame === null) {
+    // Phase alignment exists so the sweep looks like it has been running all along at
+    // startup. On a pilot-initiated change (range, mode, TERR toggle) it is wrong: the
+    // sweep resumes mid-arc, so only the remaining wedge gets the new picture and the
+    // rest of the display stays blank until the *next* cycle — up to ~2.8s of visible
+    // lag on e.g. 20nm -> 10nm. A deliberate reconfiguration sweeps from the start.
+    if (this.renderingData.lastFrame === null && !this.renderingData.forceFullSweep) {
       const timeSinceStart = currentTime - this.startupTime;
       const frameUpdateCount = timeSinceStart / this.renderingData.frameValidityDuration;
       const ratioSinceLastFrame = frameUpdateCount - Math.floor(frameUpdateCount);
@@ -699,6 +967,7 @@ export class NavigationDisplayRenderer {
     }
 
     this.renderingData.currentTransitionBorder = this.renderingData.startTransitionBorder;
+    this.renderingData.forceFullSweep = false;
   }
 
   public render(): boolean {
@@ -728,4 +997,142 @@ export class NavigationDisplayRenderer {
   public currentFrame(): Uint8ClampedArray {
     return this.renderingData.currentFrame;
   }
+}
+
+// these run when GpuProcessingActive=false, avoiding ~1.5M GPU.js thread invocations
+
+function drawDensityPixelCPU(
+  patternValue: number,
+  patternIndex: number,
+  color: [number, number, number, number],
+): [number, number, number, number] {
+  if (Math.round(patternValue % patternIndex) === 0) return color;
+  return [4, 4, 5, 0];
+}
+
+function calculateNormalModeGreenThresholdsCPU(
+  referenceAltitude: number,
+  minimumElevation: number,
+  flatEarth: number,
+  lowerPercentile: number,
+  halfElevation: number,
+): [number, number] {
+  let lowDensityGreen =
+    referenceAltitude - RenderingNormalModeLowDensityGreenOffset <= minimumElevation
+      ? minimumElevation + 200
+      : referenceAltitude - RenderingNormalModeLowDensityGreenOffset;
+  const highDensityGreen =
+    referenceAltitude - RenderingNormalModeHighDensityGreenOffset <= minimumElevation
+      ? minimumElevation + 200
+      : referenceAltitude - RenderingNormalModeHighDensityGreenOffset;
+  if (flatEarth >= 0) {
+    if (halfElevation <= lowerPercentile && lowDensityGreen > halfElevation) lowDensityGreen = halfElevation;
+    else if (halfElevation > lowerPercentile && lowDensityGreen > lowerPercentile) lowDensityGreen = lowerPercentile;
+  }
+  return [lowDensityGreen, highDensityGreen];
+}
+
+function calculateNormalModeWarningThresholdsCPU(
+  referenceAltitude: number,
+  minimumElevation: number,
+  gearDownAltitudeOffset: number,
+): [number, number, number] {
+  let lowDensityYellow = referenceAltitude - gearDownAltitudeOffset;
+  if (lowDensityYellow <= minimumElevation) lowDensityYellow = minimumElevation + 200;
+  return [
+    lowDensityYellow,
+    referenceAltitude + RenderingNormalModeHighDensityYellowOffset,
+    referenceAltitude + RenderingNormalModeHighDensityRedOffset,
+  ];
+}
+
+function calculatePeaksModeThresholdsCPU(
+  lowerPercentile: number,
+  upperPercentile: number,
+  halfElevation: number,
+  minimumElevation: number,
+  maximumElevation: number,
+): [number, number, number] {
+  const lowerDensity = Math.min(lowerPercentile, halfElevation);
+  let higherDensity = Math.min(upperPercentile, (maximumElevation - minimumElevation) * 0.65 + minimumElevation);
+  let solidDensity = (maximumElevation - minimumElevation) * 0.95 + minimumElevation;
+  if (
+    lowerDensity >= higherDensity ||
+    lowerDensity >= solidDensity ||
+    higherDensity >= solidDensity ||
+    lowerPercentile >= upperPercentile ||
+    lowerPercentile >= solidDensity ||
+    upperPercentile >= solidDensity
+  ) {
+    higherDensity = maximumElevation + 100;
+    solidDensity = maximumElevation + 100;
+  }
+  return [lowerDensity, higherDensity, solidDensity];
+}
+
+function renderNormalModeCPU(
+  elevation: number,
+  patternValue: number,
+  height: number,
+  referenceAltitude: number,
+  minimumElevation: number,
+  maximumElevation: number,
+  flatEarth: number,
+  gearDownAltitudeOffset: number,
+  lowerPercentile: number,
+  halfElevation: number,
+  absoluteCutOffAltitude: number,
+): [number, number, number, number] {
+  const wt = calculateNormalModeWarningThresholdsCPU(referenceAltitude, minimumElevation, gearDownAltitudeOffset);
+  const gt = calculateNormalModeGreenThresholdsCPU(
+    referenceAltitude,
+    minimumElevation,
+    flatEarth,
+    lowerPercentile,
+    halfElevation,
+  );
+
+  if (
+    elevation !== InvalidElevation &&
+    elevation !== UnknownElevation &&
+    elevation !== WaterElevation &&
+    elevation >= absoluteCutOffAltitude
+  ) {
+    if (elevation >= wt[2]) return drawDensityPixelCPU(patternValue, 5, [255, 0, 0, 255]);
+    if (elevation >= wt[1]) return drawDensityPixelCPU(patternValue, 5, [255, 255, 50, 255]);
+    if (elevation >= gt[1] && elevation < wt[0]) return drawDensityPixelCPU(patternValue, 5, [0, 255, 0, 255]);
+    if (elevation >= wt[0] && elevation < wt[1]) return drawDensityPixelCPU(patternValue, 3, [255, 255, 50, 255]);
+    if (elevation >= gt[0] && elevation < gt[1]) return drawDensityPixelCPU(patternValue, 3, [0, 255, 0, 255]);
+  } else if (elevation === WaterElevation) {
+    return drawDensityPixelCPU(patternValue, 7, [0, 255, 255, 255]);
+  }
+  return [0, 0, 0, 255];
+}
+
+function renderPeaksModeCPU(
+  elevation: number,
+  patternValue: number,
+  height: number,
+  lowerPercentile: number,
+  upperPercentile: number,
+  halfElevation: number,
+  minimumElevation: number,
+  maximumElevation: number,
+): [number, number, number, number] {
+  const pt = calculatePeaksModeThresholdsCPU(
+    lowerPercentile,
+    upperPercentile,
+    halfElevation,
+    minimumElevation,
+    maximumElevation,
+  );
+
+  if (elevation !== InvalidElevation && elevation !== UnknownElevation && elevation !== WaterElevation) {
+    if (pt[2] <= elevation) return [0, 255, 0, 255];
+    if (pt[1] <= elevation) return drawDensityPixelCPU(patternValue, 5, [0, 255, 0, 255]);
+    if (pt[0] <= elevation) return drawDensityPixelCPU(patternValue, 3, [0, 255, 0, 255]);
+  } else if (elevation === WaterElevation) {
+    return drawDensityPixelCPU(patternValue, 7, [0, 255, 255, 255]);
+  }
+  return [0, 0, 0, 255];
 }
