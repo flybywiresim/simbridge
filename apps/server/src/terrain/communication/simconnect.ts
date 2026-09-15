@@ -85,6 +85,22 @@ export class SimConnect {
 
   private pauseStateEvent: SystemEvent = null;
 
+  private reconnectDelay = 10000;
+
+  private reconnectTimer: NodeJS.Timeout | null = null;
+
+  private static readonly MAX_RECONNECT_DELAY = 60000;
+
+  private scheduleReconnect(): void {
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connectToSim();
+    }, this.reconnectDelay);
+
+    this.logging.info(`Reconnect in ${this.reconnectDelay / 1000}s`);
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, SimConnect.MAX_RECONNECT_DELAY);
+  }
+
   private registerSystemEvents(): boolean {
     this.simulatorStateEvent = new SystemEvent(this.connection, SystemEventId.SimulatorState, SystemEventType.Sim);
     this.pauseStateEvent = new SystemEvent(this.connection, SystemEventId.PauseState, SystemEventType.PauseEX1);
@@ -257,7 +273,7 @@ export class SimConnect {
     this.resetConnection();
     this.logging.info('Received a quit signal. Trying to reconnect...');
 
-    this.connectToSim();
+    this.scheduleReconnect();
   }
 
   private simConnectError(message: ErrorMessage): void {
@@ -270,7 +286,7 @@ export class SimConnect {
 
   private simConnectException(_message: ExceptionMessage): void {
     this.resetConnection();
-    setTimeout(() => this.connectToSim(), 10000);
+    this.scheduleReconnect();
   }
 
   private simConnectReceivedClientData(message: ClientDataRequestMessage): void {
@@ -358,9 +374,9 @@ export class SimConnect {
     this.connection = new Connection();
     if (this.connection.open(SimConnectClientName) === false) {
       if (this.showConnectionError === true) {
-        this.logging.error(`Connection to MSFS failed: ${this.connection.lastError()} - Retry every 10 seconds`);
+        this.logging.error(`Connection to MSFS failed: ${this.connection.lastError()} - Retry every ${this.reconnectDelay / 1000} seconds`);
       }
-      setTimeout(() => this.connectToSim(), 10000);
+      this.scheduleReconnect();
       this.showConnectionError = false;
       return;
     }
@@ -377,8 +393,11 @@ export class SimConnect {
     this.receiver.addCallback('error', (message: ErrorMessage) => this.simConnectError(message));
     this.receiver.start();
 
+    this.reconnectDelay = 10000;
+
     if (!this.registerEgpwcAircraftStatus()) {
-      setTimeout(() => this.resetConnection(), 10000);
+      this.resetConnection();
+      this.scheduleReconnect();
       return;
     }
 
@@ -388,7 +407,8 @@ export class SimConnect {
       DataDefinitionId.NavigationDisplayMetadataAreaLeft,
     );
     if (this.frameMetadataLeft === null) {
-      setTimeout(() => this.connectToSim(), 10000);
+      this.resetConnection();
+      this.scheduleReconnect();
       return;
     }
 
@@ -398,14 +418,15 @@ export class SimConnect {
       DataDefinitionId.NavigationDisplayMetadataAreaRight,
     );
     if (this.frameMetadataRight === null) {
-      setTimeout(() => this.connectToSim(), 10000);
+      this.resetConnection();
+      this.scheduleReconnect();
       return;
     }
 
     if (!this.registerNavigationDisplayData() || !this.registerSystemEvents()) {
       this.receiver.stop();
       this.connection.close();
-      setTimeout(() => this.connectToSim(), 10000);
+      this.scheduleReconnect();
     }
   }
 
@@ -414,6 +435,11 @@ export class SimConnect {
   }
 
   public terminate(): void {
+    this.shutdown = true;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.receiver !== null) this.receiver.stop();
     if (this.connection !== null) this.connection.close();
   }
