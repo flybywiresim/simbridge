@@ -1,6 +1,7 @@
 ﻿import { GPU } from 'gpu.js';
 import { parentPort } from 'worker_threads';
 import * as sharp from 'sharp';
+import * as koffi from 'koffi';
 import {
   AircraftStatus,
   DisplaySide,
@@ -34,6 +35,20 @@ import { MapHandler } from './maphandler';
 import { NavigationDisplayRenderer } from './navigationdisplayrenderer';
 import { VerticalDisplayRenderer } from './verticaldisplayrenderer';
 import { projectWgs84 } from 'apps/server/src/terrain/processing/gpu/helper';
+
+// worker_threads share the process PID, so os.setPriority() can't target just this thread.
+// Drop only this thread below normal so MSFS gets scheduler priority during render bursts.
+if (process.platform === 'win32') {
+  try {
+    const kernel32 = koffi.load('kernel32.dll');
+    const GetCurrentThread = kernel32.func('void *GetCurrentThread()');
+    const SetThreadPriority = kernel32.func('bool SetThreadPriority(void *hThread, int nPriority)');
+    const THREAD_PRIORITY_BELOW_NORMAL = -1;
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+  } catch {
+    // best-effort; not fatal if the OS denies the priority change or koffi fails to load
+  }
+}
 
 const DisplayScreenPixelHeightWithoutVerticalDisplay = 768;
 const DisplayScreenPixelHeightWithVerticalDisplay = 1024;
