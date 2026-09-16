@@ -23,9 +23,42 @@ export class TerrainService implements OnApplicationShutdown {
     data: { timestamp: number; frames: Uint8ClampedArray[]; thresholds: NavigationDisplayThresholdsDto },
   ) => boolean)[] = [];
 
+  // guards against a respawn storm if the worker keeps crashing immediately on startup
+  private restartCount = 0;
+
+  private shuttingDown = false;
+
   constructor() {
+    this.spawnWorker();
+  }
+
+  private spawnWorker(): void {
     this.terrainWorker = new Worker(path.resolve(__dirname, './processing/terrainworker.js'));
-    this.terrainWorker.on('message', (data: WorkerToMainThreadMessage) => {
+    this.attachWorkerHandlers(this.terrainWorker);
+  }
+
+  private attachWorkerHandlers(worker: Worker): void {
+    // Node.js Worker instances are EventEmitters: an uncaught exception inside the worker
+    // thread is surfaced as an 'error' event. If no 'error' listener is attached, Node re-throws it
+    // on the MAIN thread, which crashes the entire SimBridge process.
+    // Attaching a listener here prevents that crash; instead we log it and respawn the
+    // worker so terrain rendering recovers on its own.
+    worker.on('error', (err) => {
+      this.logger.error(`Terrain worker crashed: ${err?.stack ?? err}`);
+      this.respawnAfterCrash();
+    });
+
+    worker.on('exit', (code) => {
+      if (this.shuttingDown) {
+        return;
+      }
+      if (code !== 0) {
+        this.logger.error(`Terrain worker exited unexpectedly with code ${code}`);
+        this.respawnAfterCrash();
+      }
+    });
+
+    worker.on('message', (data: WorkerToMainThreadMessage) => {
       if (data.type === WorkerToMainThreadMessageTypes.FrameData) {
         const response = data.content as {
           side: DisplaySide;
@@ -53,8 +86,34 @@ export class TerrainService implements OnApplicationShutdown {
     });
   }
 
+  private respawnAfterCrash(): void {
+    if (this.shuttingDown) {
+      return;
+    }
+
+    this.frameDataCallbacks = [];
+    this.terrainWorker = null;
+
+    // avoid a tight respawn loop if the worker is crashing immediately on every startup
+    // (e.g. a persistently broken GPU driver) - cap restarts and back off
+    this.restartCount += 1;
+    if (this.restartCount > 5) {
+      this.logger.error('Terrain worker has crashed repeatedly, giving up on automatic restarts');
+      return;
+    }
+
+    const delayMs = Math.min(1000 * 2 ** (this.restartCount - 1), 30000);
+    this.logger.warn(`Restarting terrain worker in ${delayMs}ms (attempt ${this.restartCount})`);
+    setTimeout(() => {
+      if (!this.shuttingDown) {
+        this.spawnWorker();
+      }
+    }, delayMs);
+  }
+
   onApplicationShutdown(_signal?: string) {
     this.logger.log(`Destroying ${TerrainService.name}`);
+    this.shuttingDown = true;
     if (this.terrainWorker) {
       this.terrainWorker.postMessage({ type: MainToWorkerThreadMessageTypes.Shutdown });
       this.terrainWorker.terminate();
