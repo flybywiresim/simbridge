@@ -95,6 +95,7 @@ function generateDefaultProperties() {
   const defaultProperties = {
     server: {
       port: 8380,
+      ip: null,
       hidden: true,
       closeWithMSFS: false,
     },

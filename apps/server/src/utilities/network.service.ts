@@ -1,11 +1,13 @@
-import { AddressInfo, createConnection } from 'net';
+import { AddressInfo, createConnection, isIP } from 'net';
 import { platform } from 'os';
 import { execSync } from 'child_process';
-import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import * as createMDNSServer from 'multicast-dns';
 import { MulticastDNS, QueryPacket } from 'multicast-dns';
 import { StringAnswer } from 'dns-packet';
 import { RemoteInfo } from 'dgram';
+import serverConfig from '../config/server.config';
 
 @Injectable()
 export class NetworkService implements OnApplicationShutdown {
@@ -13,7 +15,7 @@ export class NetworkService implements OnApplicationShutdown {
 
   private mDNSServer: MulticastDNS | undefined;
 
-  constructor() {
+  constructor(@Inject(serverConfig.KEY) private readonly serverConf: ConfigType<typeof serverConfig>) {
     this.startMDNSServer();
   }
 
@@ -130,6 +132,16 @@ export class NetworkService implements OnApplicationShutdown {
    * @returns the local IP address, undefined or 'localhost'
    */
   async getLocalIp(defaultToLocalhost = false): Promise<string | undefined> {
+    const configuredIp = this.serverConf.ip?.trim();
+    if (configuredIp) {
+      if (isIP(configuredIp) !== 0) {
+        return configuredIp;
+      }
+      this.logger.warn(
+        `Configured server.ip "${configuredIp}" is not a valid IP address; falling back to auto-detection`,
+      );
+    }
+
     return new Promise<string | undefined>((resolve) => {
       const conn = createConnection({ host: 'api.flybywiresim.com', port: 443, timeout: 1000, family: 4 })
         .on('connect', () => {

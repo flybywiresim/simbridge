@@ -11,6 +11,7 @@ export default registerAs('server', () => {
 
   return {
     port: properties.server.port,
+    ip: properties.server.ip ?? null,
     hidden: properties.server.hidden,
     closeWithMSFS: properties.server.closeWithMSFS,
   };
