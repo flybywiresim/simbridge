@@ -42,7 +42,7 @@ export function bearingWgs84(latitude0: number, longitude0: number, latitude1: n
   const y = Math.sin(endLong - startLong) * Math.cos(endLat);
   const x =
     Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLong - startLong);
-  const bearing = Math.atan2(y, x) + Math.PI;
+  const bearing = Math.atan2(y, x);
 
   return (rad2deg(bearing) + 360) % 360;
 }
