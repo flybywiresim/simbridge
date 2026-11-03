@@ -1,6 +1,6 @@
 ﻿import { GPU } from 'gpu.js';
 import { parentPort } from 'worker_threads';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 import {
   AircraftStatus,
   DisplaySide,
