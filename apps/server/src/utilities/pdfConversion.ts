@@ -1,8 +1,13 @@
-import { Canvas } from 'skia-canvas';
+import { Canvas, DOMMatrix, ImageData, Path2D } from 'skia-canvas';
 
-import { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
+import { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-class NodeCanvasFactory {
+// PDF.js paths and image data must use the same backend as the rendering canvas.
+globalThis.DOMMatrix = DOMMatrix;
+globalThis.ImageData = ImageData;
+globalThis.Path2D = Path2D;
+
+export class NodeCanvasFactory {
   create(width: number, height: number) {
     const canvas = new Canvas(width, height);
     const context = canvas.getContext('2d');
@@ -37,9 +42,9 @@ export const pdfToPng = async (document: PDFDocumentProxy, pageNumber: any, scal
     const canvasFactory = new NodeCanvasFactory();
     const canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
     const renderContext = {
-      canvasContext: canvasAndContext.context,
+      // PDF.js uses DOM types, but Skia provides the canvas API needed for rendering in Node.
+      canvas: canvasAndContext.canvas as unknown as HTMLCanvasElement,
       viewport,
-      canvasFactory,
     };
 
     const renderTask = page.render(renderContext);
