@@ -112,6 +112,7 @@ export class MapHandler {
       pipeline: true,
       immutable: false,
       tactic: 'speed',
+      optimizeFloatMemory: true,
     });
 
     // register kernel to create the local map
