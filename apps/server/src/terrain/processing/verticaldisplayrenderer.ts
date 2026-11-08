@@ -15,7 +15,7 @@ import { VerticalDisplayConstants } from './gpu/interfaces';
 import { Logger } from './logging/logger';
 import { MapHandler } from './maphandler';
 import { AircraftStatus, DisplaySide, ElevationProfile, VerticalDisplay, VerticalPathData } from '../types';
-import { verticalDisplayDistanceToPixelX } from 'apps/server/src/terrain/processing/gpu/helper';
+import { verticalDisplayDistanceToPixelX } from './gpu/helper';
 
 const RenderingElevationProfileWidth = 540;
 const RenderingElevationProfileHeight = 200;
@@ -65,6 +65,8 @@ export class VerticalDisplayRenderer {
         dynamicOutput: false,
         pipeline: false,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
       })
       .setConstants<VerticalDisplayConstants>({
         elevationProfileEntryCount: RenderingElevationProfileWidth,

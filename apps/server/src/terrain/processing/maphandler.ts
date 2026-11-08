@@ -1,7 +1,7 @@
 import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath } from '../../utilities/pathUtil';
 import { AircraftStatus, ElevationProfile, EfisData, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -20,7 +20,7 @@ import { createLocalElevationMap } from './gpu/elevationmap';
 import { createElevationProfile } from './gpu/elevationprofile';
 import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } from './gpu/helper';
 import { ElevationProfileConstants, LocalElevationMapConstants } from './gpu/interfaces';
-import { uploadTextureData } from './gpu/upload';
+import { TerrainElevationData, TerrainTexture } from './gpu/terraintexture';
 import { Logger } from './logging/logger';
 
 // defines the maximum dimension length of the world map
@@ -33,10 +33,10 @@ export class MapHandler {
 
   private currentGroundTruthPosition: PositionData = undefined;
 
-  private uploadWorldMapToGPU: IKernelRunShortcut = null;
+  private terrainTexture: TerrainTexture = null;
 
   private cachedElevationData: {
-    gpuData: Texture;
+    gpuData: TerrainElevationData;
     cpuData: Float32Array;
     cachedTiles: number;
   } = {
@@ -71,10 +71,8 @@ export class MapHandler {
 
   private cleanupMemory(): void {
     this.worldmap.resetInternalData();
-    if (this.cachedElevationData.gpuData !== null) {
-      this.cachedElevationData.gpuData.delete();
-      this.cachedElevationData.gpuData = null;
-    }
+    this.terrainTexture?.reset();
+    this.cachedElevationData.gpuData = null;
     this.cachedElevationData.cachedTiles = 0;
     this.cachedElevationData.cpuData = null;
 
@@ -104,16 +102,7 @@ export class MapHandler {
   }
 
   private createKernels(): void {
-    // register kernel to upload the map data
-    this.uploadWorldMapToGPU = this.gpu.createKernel(uploadTextureData, {
-      argumentTypes: { texture: 'Array', width: 'Integer' },
-      dynamicArguments: true,
-      dynamicOutput: true,
-      pipeline: true,
-      immutable: false,
-      tactic: 'speed',
-      optimizeFloatMemory: true,
-    });
+    this.terrainTexture = new TerrainTexture(this.gpu);
 
     // register kernel to create the local map
     this.extractLocalElevationMap = this.gpu
@@ -122,6 +111,8 @@ export class MapHandler {
         dynamicOutput: true,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
         tactic: 'speed',
       })
       .setConstants<LocalElevationMapConstants>({
@@ -136,6 +127,8 @@ export class MapHandler {
         dynamicOutput: true,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
         tactic: 'speed',
       })
       .setConstants<ElevationProfileConstants>({
@@ -167,10 +160,10 @@ export class MapHandler {
     this.initialized = false;
 
     // destroy all generic GPU related instances
-    if (this.cachedElevationData.gpuData !== null) this.cachedElevationData.gpuData.delete();
+    this.terrainTexture?.reset();
+    this.cachedElevationData.gpuData = null;
     if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
     if (this.extractElevationProfile !== null) this.extractElevationProfile.destroy();
-    if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
   }
 
   public async initialize(): Promise<boolean> {
@@ -298,13 +291,13 @@ export class MapHandler {
       this.worldMapMetadata.width = worldWidth;
       this.worldMapMetadata.height = worldHeight;
 
-      this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
-      this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(
+      this.cachedElevationData.gpuData = this.terrainTexture.upload(
         this.cachedElevationData.cpuData,
         worldWidth,
-      ) as Texture;
+        worldHeight,
+      );
       // some GPU drivers require the flush call to release internal memory
-      if (GpuProcessingActive) this.uploadWorldMapToGPU.context.flush();
+      if (GpuProcessingActive) this.gpu.context.flush();
 
       this.worldmap.TileManager.cleanupElevationCache(lookup.grid);
       this.cachedElevationData.cachedTiles = relevantTileCount;

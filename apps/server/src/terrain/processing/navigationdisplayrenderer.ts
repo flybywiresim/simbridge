@@ -128,6 +128,8 @@ export class NavigationDisplayRenderer {
         dynamicOutput: false,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
         tactic: 'speed',
       })
       .setOutput([NavigationDisplayMaxPixelWidth, NavigationDisplayMaxPixelHeight]);
@@ -138,6 +140,8 @@ export class NavigationDisplayRenderer {
         dynamicOutput: true,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
       })
       .setLoopMaxIterations(1000)
       .setConstants<HistogramConstants>({
@@ -155,6 +159,8 @@ export class NavigationDisplayRenderer {
         dynamicArguments: true,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
       })
       .setLoopMaxIterations(500)
       .setOutput([HistogramBinCount]);
@@ -165,6 +171,8 @@ export class NavigationDisplayRenderer {
         dynamicOutput: true,
         pipeline: false,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
       })
       .setConstants<NavigationDisplayConstants>({
         histogramBinRange: HistogramBinRange,

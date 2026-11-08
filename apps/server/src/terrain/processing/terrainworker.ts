@@ -1,5 +1,6 @@
 ﻿import { GPU } from 'gpu.js';
 import { parentPort } from 'worker_threads';
+import { createTerrainGpu } from './gpu/resources';
 import sharp from 'sharp';
 import {
   AircraftStatus,
@@ -259,7 +260,7 @@ class TerrainWorker {
       }
     });
 
-    this.gpu = new GPU({ mode: GpuProcessingActive === true ? 'gpu' : 'cpu' });
+    this.gpu = createTerrainGpu(GpuProcessingActive === true ? 'gpu' : 'cpu');
 
     const startupTime = new Date().getTime();
 
