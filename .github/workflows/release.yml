@@ -22,8 +22,10 @@ jobs:
         with:
           node-version: 26
       - name: Build Local API
+        # rebuild needed as npm does not run post install anymore
         run: |
           npm install
+          npm rebuild
           npm run build:exec
       - name: Build ZIP File
         run: |
