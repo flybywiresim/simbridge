@@ -1,7 +1,7 @@
-import { GPU, IKernelRunShortcut, Texture } from 'gpu.js';
+import { CPUKernel, GPU, IKernelRunShortcut, Texture } from 'gpu.js';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { getExecutablePath } from 'apps/server/src/utilities/pathUtil';
+import { getExecutablePath } from '../../utilities/pathUtil';
 import { AircraftStatus, ElevationProfile, EfisData, PositionData, TerrainRenderingMode } from '../types';
 import { TerrainMap } from '../fileformat/terrainmap';
 import { Worldmap } from '../mapdata/worldmap';
@@ -20,8 +20,18 @@ import { createLocalElevationMap } from './gpu/elevationmap';
 import { createElevationProfile } from './gpu/elevationprofile';
 import { bearingWgs84, normalizeHeading, projectWgs84, wgs84toPixelCoordinate } from './gpu/helper';
 import { ElevationProfileConstants, LocalElevationMapConstants } from './gpu/interfaces';
-import { uploadTextureData } from './gpu/upload';
+import { decodeTerrainElevation } from './gpu/terrainsampling';
+import { TerrainElevationData, TerrainTexture } from './gpu/terraintexture';
 import { Logger } from './logging/logger';
+import {
+  containsTerrainBounds,
+  extractTerrainDetail,
+  reduceTerrain,
+  terrainDetailBounds,
+  TerrainDetailBounds,
+  TerrainDetailMargin,
+  terrainDetailRange,
+} from './terrainlod';
 
 // defines the maximum dimension length of the world map
 const GpuMaxPixelSize = 16384;
@@ -33,16 +43,22 @@ export class MapHandler {
 
   private currentGroundTruthPosition: PositionData = undefined;
 
-  private uploadWorldMapToGPU: IKernelRunShortcut = null;
+  private terrainTexture: TerrainTexture = null;
+
+  private detailTexture: TerrainTexture = null;
+
+  private detailData: TerrainElevationData = null;
+
+  private detailBounds: TerrainDetailBounds = null;
 
   private cachedElevationData: {
-    gpuData: Texture;
-    cpuData: Float32Array;
-    cachedTiles: number;
+    gpuData: TerrainElevationData;
+    cpuData: Int16Array;
+    gridKey: string;
   } = {
     gpuData: null,
     cpuData: null,
-    cachedTiles: 0,
+    gridKey: '',
   };
 
   private worldMapMetadata: {
@@ -71,11 +87,12 @@ export class MapHandler {
 
   private cleanupMemory(): void {
     this.worldmap.resetInternalData();
-    if (this.cachedElevationData.gpuData !== null) {
-      this.cachedElevationData.gpuData.delete();
-      this.cachedElevationData.gpuData = null;
-    }
-    this.cachedElevationData.cachedTiles = 0;
+    this.terrainTexture?.reset();
+    this.detailTexture?.reset();
+    this.detailData = null;
+    this.detailBounds = null;
+    this.cachedElevationData.gpuData = null;
+    this.cachedElevationData.gridKey = '';
     this.cachedElevationData.cpuData = null;
 
     this.worldMapMetadata = {
@@ -104,15 +121,8 @@ export class MapHandler {
   }
 
   private createKernels(): void {
-    // register kernel to upload the map data
-    this.uploadWorldMapToGPU = this.gpu.createKernel(uploadTextureData, {
-      argumentTypes: { texture: 'Array', width: 'Integer' },
-      dynamicArguments: true,
-      dynamicOutput: true,
-      pipeline: true,
-      immutable: false,
-      tactic: 'speed',
-    });
+    this.terrainTexture = new TerrainTexture(this.gpu);
+    this.detailTexture = new TerrainTexture(this.gpu);
 
     // register kernel to create the local map
     this.extractLocalElevationMap = this.gpu
@@ -121,13 +131,24 @@ export class MapHandler {
         dynamicOutput: true,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
         tactic: 'speed',
       })
       .setConstants<LocalElevationMapConstants>({
         unknownElevation: UnknownElevation,
         invalidElevation: InvalidElevation,
+        packedTerrain: this.gpu.Kernel !== CPUKernel,
       })
-      .setFunctions([deg2rad, degreesPerPixel, normalizeHeading, rad2deg, projectWgs84, wgs84toPixelCoordinate]);
+      .setFunctions([
+        deg2rad,
+        degreesPerPixel,
+        normalizeHeading,
+        rad2deg,
+        projectWgs84,
+        wgs84toPixelCoordinate,
+        decodeTerrainElevation,
+      ]);
 
     this.extractElevationProfile = this.gpu
       .createKernel(createElevationProfile, {
@@ -135,13 +156,24 @@ export class MapHandler {
         dynamicOutput: true,
         pipeline: true,
         immutable: false,
+        precision: 'single',
+        optimizeFloatMemory: true,
         tactic: 'speed',
       })
       .setConstants<ElevationProfileConstants>({
         unknownElevation: UnknownElevation,
         invalidElevation: InvalidElevation,
+        packedTerrain: this.gpu.Kernel !== CPUKernel,
       })
-      .setFunctions([deg2rad, rad2deg, bearingWgs84, distanceWgs84, projectWgs84, wgs84toPixelCoordinate]);
+      .setFunctions([
+        deg2rad,
+        rad2deg,
+        bearingWgs84,
+        distanceWgs84,
+        projectWgs84,
+        wgs84toPixelCoordinate,
+        decodeTerrainElevation,
+      ]);
   }
 
   private async readTerrainMap(): Promise<TerrainMap | undefined> {
@@ -166,10 +198,13 @@ export class MapHandler {
     this.initialized = false;
 
     // destroy all generic GPU related instances
-    if (this.cachedElevationData.gpuData !== null) this.cachedElevationData.gpuData.delete();
+    this.terrainTexture?.reset();
+    this.detailTexture?.reset();
+    this.detailData = null;
+    this.detailBounds = null;
+    this.cachedElevationData.gpuData = null;
     if (this.extractLocalElevationMap !== null) this.extractLocalElevationMap.destroy();
     if (this.extractElevationProfile !== null) this.extractElevationProfile.destroy();
-    if (this.uploadWorldMapToGPU !== null) this.uploadWorldMapToGPU.destroy();
   }
 
   public async initialize(): Promise<boolean> {
@@ -233,9 +268,13 @@ export class MapHandler {
     this.currentGroundTruthPosition = position;
     const lookup = this.worldmap.createGridLookupTable(position, GpuMaxPixelSize, GpuMaxPixelSize, DefaultTileSize);
     const tilesLoaded = this.worldmap.updatePosition(lookup.grid);
-    const relevantTileCount = lookup.grid.length * lookup.grid[0].length;
+    // A shifted grid can contain the same number of tiles without loading new land.
+    // Every grid row is one tile row over the same contiguous column window, so
+    // the window and the tile row of each grid row identify the whole grid.
+    const gridKey =
+      lookup.grid[0][0].column + ':' + lookup.grid[0].length + ':' + lookup.grid.map((row) => row[0].row).join(',');
 
-    if (tilesLoaded || this.cachedElevationData.cachedTiles !== relevantTileCount) {
+    if (tilesLoaded || this.cachedElevationData.gridKey !== gridKey) {
       const southwestGrid = this.worldmap.worldMapIndices(lookup.southwest.latitude, lookup.southwest.longitude);
       const northeastGrid = this.worldmap.worldMapIndices(lookup.northeast.latitude, lookup.northeast.longitude);
 
@@ -244,7 +283,7 @@ export class MapHandler {
 
       const worldWidth = this.worldMapMetadata.minWidthPerTile * lookup.grid[0].length;
       const worldHeight = this.worldMapMetadata.minHeightPerTile * lookup.grid.length;
-      this.cachedElevationData.cpuData = new Float32Array(worldWidth * worldHeight);
+      this.cachedElevationData.cpuData = new Int16Array(worldWidth * worldHeight);
       let targetIndex = 0;
 
       lookup.grid.forEach((row) => {
@@ -297,16 +336,17 @@ export class MapHandler {
       this.worldMapMetadata.width = worldWidth;
       this.worldMapMetadata.height = worldHeight;
 
-      this.uploadWorldMapToGPU = this.uploadWorldMapToGPU.setOutput([worldWidth, worldHeight]);
-      this.cachedElevationData.gpuData = this.uploadWorldMapToGPU(
-        this.cachedElevationData.cpuData,
-        worldWidth,
-      ) as Texture;
+      this.cachedElevationData.gpuData = this.terrainTexture.upload(
+        reduceTerrain(this.cachedElevationData.cpuData, worldWidth, worldHeight),
+        Math.ceil(worldWidth / 2),
+        Math.ceil(worldHeight / 2),
+      );
       // some GPU drivers require the flush call to release internal memory
-      if (GpuProcessingActive) this.uploadWorldMapToGPU.context.flush();
+      if (GpuProcessingActive) this.gpu.context.flush();
 
       this.worldmap.TileManager.cleanupElevationCache(lookup.grid);
-      this.cachedElevationData.cachedTiles = relevantTileCount;
+      this.cachedElevationData.gridKey = gridKey;
+      this.detailBounds = null;
     }
 
     // calculate the correct pixel coordinate in every step
@@ -348,6 +388,36 @@ export class MapHandler {
         y: this.worldMapMetadata.height / 2,
       };
     }
+    this.updateDetailMap();
+  }
+
+  private updateDetailMap(): void {
+    if (!this.cachedElevationData.cpuData) return;
+    const metadata = this.worldMapMetadata;
+    const boundsForRange = (range: number) =>
+      terrainDetailBounds(
+        this.currentGroundTruthPosition.latitude,
+        metadata.currentGridPosition.x,
+        metadata.currentGridPosition.y,
+        metadata.width,
+        metadata.height,
+        this.worldmap.GridData.latitudeStep / metadata.minHeightPerTile,
+        this.worldmap.GridData.longitudeStep / metadata.minWidthPerTile,
+        range,
+      );
+    // The A380X needs a larger crop, and the vertical-display flag is how it is
+    // recognised. Before the first aircraft status arrives the aircraft is unknown,
+    // so the smaller radius is used; the next position update enlarges the crop.
+    const renderingMode = this.aircraftStatus?.navigationDisplayRenderingMode ?? TerrainRenderingMode.ArcMode;
+    const range = terrainDetailRange(
+      (renderingMode & TerrainRenderingMode.VerticalDisplayRequired) === TerrainRenderingMode.VerticalDisplayRequired,
+    );
+    if (containsTerrainBounds(this.detailBounds, boundsForRange(range))) return;
+    const bounds = boundsForRange(range + TerrainDetailMargin);
+    const data = extractTerrainDetail(this.cachedElevationData.cpuData, metadata.width, bounds);
+    this.detailData = this.detailTexture.upload(data, bounds[2], bounds[3]);
+    this.detailBounds = bounds;
+    if (GpuProcessingActive) this.gpu.context.flush();
   }
 
   public extractElevation(latitude: number, longitude: number): number {
@@ -415,6 +485,8 @@ export class MapHandler {
       metresPerPixel,
       config.arcMode,
       config.centerOffsetY,
+      this.detailData,
+      ...this.detailBounds,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory
@@ -456,6 +528,8 @@ export class MapHandler {
       profile.waypointsLongitudes,
       profile.waypointsLatitudes.length,
       profile.range / profileWidth,
+      this.detailData,
+      ...this.detailBounds,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory

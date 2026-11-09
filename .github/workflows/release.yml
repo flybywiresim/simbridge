@@ -20,7 +20,7 @@ jobs:
       - name: set Node version
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 26
       - name: Build Local API
         run: |
           npm install

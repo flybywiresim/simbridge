@@ -3,6 +3,7 @@
 import { bearingWgs84, projectWgs84, wgs84toPixelCoordinate } from './helper';
 import { distanceWgs84 } from '../generic/helper';
 import { ElevationProfileParameters } from './interfaces';
+import { decodeTerrainElevation } from './terrainsampling';
 
 export function createElevationProfile(
   this: ElevationProfileParameters,
@@ -24,6 +25,13 @@ export function createElevationProfile(
   waypointsLongitudes: number[],
   waypointsPointCount: number,
   distancePerPixel: number,
+  detailMap: number[][],
+  // Detail crop in original-grid coordinates. Scalars stay uniforms; an array
+  // argument would be uploaded as a texture and sampled on every line step.
+  detailLeft: number,
+  detailTop: number,
+  detailWidth: number,
+  detailHeight: number,
 ): number {
   const distanceForPixel = distancePerPixel * this.thread.x;
   let routeSegmentIndex = waypointsPointCount;
@@ -114,10 +122,25 @@ export function createElevationProfile(
   let maxElevation = -1000;
   let x = startPixel[0];
   let y = startPixel[1];
+  const detailRight = detailLeft + detailWidth;
+  const detailBottom = detailTop + detailHeight;
 
   while (true) {
     if (y >= 0 && y < worldMapHeight && x >= 0 && x < worldMapWidth) {
-      const elevation = worldMap[y][x];
+      let elevation = 0;
+      if (x >= detailLeft && y >= detailTop && x < detailRight && y < detailBottom) {
+        const detailX = x - detailLeft;
+        const detailY = y - detailTop;
+        elevation = this.constants.packedTerrain
+          ? decodeTerrainElevation(detailMap[detailY][detailX * 2], detailMap[detailY][detailX * 2 + 1])
+          : detailMap[detailY][detailX];
+      } else {
+        const coarseX = Math.floor(x / 2);
+        const coarseY = Math.floor(y / 2);
+        elevation = this.constants.packedTerrain
+          ? decodeTerrainElevation(worldMap[coarseY][coarseX * 2], worldMap[coarseY][coarseX * 2 + 1])
+          : worldMap[coarseY][coarseX];
+      }
       if (
         elevation !== this.constants.invalidElevation &&
         elevation !== this.constants.unknownElevation &&

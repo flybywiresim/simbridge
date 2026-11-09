@@ -15,7 +15,9 @@ This repo contains the source code to SimBridge
 
 Please make sure you have:
 
-NodeJS 18 - [Homepage](https://nodejs.org/en/)
+NodeJS 26 - [Homepage](https://nodejs.org/en/)
+
+On Windows, installing native dependencies also requires Python and Visual Studio Build Tools with the Desktop development with C++ workload. After switching Node.js major versions, run `npm rebuild` to rebuild existing native modules for the new runtime.
 
 ```bash
 # Install all dependencies
@@ -34,6 +36,12 @@ $ npm run build:exec
 $ npm run install:exec
 
 ```
+
+The Windows executable is packaged with `@yao-pkg/pkg` in Node SEA mode. The build embeds the Node 26 runtime and application dependencies, then applies the FlyByWire icon and the version from `package.json`.
+
+Set `SIMBRIDGE_PORT` to override the configured server port for one process, for example when testing a packaged build alongside the development server.
+
+Distribute the complete `build/` folder, including `node_modules/`, `resources/`, `terrain/`, and the versioned tray-helper directory, alongside `fbw-simbridge.exe`. PDF.js workers, decoder assets, the tray helper, and the terrain database are loaded from that folder. Node.js is not required on the destination machine.
 
 ## Documentation
 Start the server and direct to `localhost:8380/api` for API documentation
