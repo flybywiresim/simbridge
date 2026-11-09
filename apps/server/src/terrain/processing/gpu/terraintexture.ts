@@ -80,32 +80,24 @@ export class TerrainTexture {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureWidth, textureHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       }
 
-      // Two signed elevations per RGBA8 texel, low byte first. Encode explicitly
-      // so this does not depend on host byte order. Limit staging memory to ~1 MiB.
+      // Two signed elevations per RGBA8 texel, low byte first. On the little-endian
+      // hosts this runs on, the samples already have that byte layout: upload
+      // views of them in ~1 MiB steps without copying.
       const rowBytes = textureWidth * 4;
-      const chunkRows = Math.min(textureHeight, Math.max(1, Math.floor((1024 * 1024) / rowBytes)));
-      const staging = new Uint8Array(chunkRows * rowBytes);
-      for (let row = 0; row < textureHeight; row += chunkRows) {
-        const rows = Math.min(chunkRows, textureHeight - row);
-        const sampleOffset = row * textureWidth * 2;
-        const samples = Math.min(rows * textureWidth * 2, data.length - sampleOffset);
-        staging.fill(0);
-        for (let i = 0; i < samples; i++) {
-          const value = data[sampleOffset + i] < 0 ? data[sampleOffset + i] + 65536 : data[sampleOffset + i];
-          staging[i * 2] = value % 256;
-          staging[i * 2 + 1] = Math.floor(value / 256);
-        }
-        gl.texSubImage2D(
-          gl.TEXTURE_2D,
-          0,
-          0,
-          row,
-          textureWidth,
-          rows,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          staging.subarray(0, rows * rowBytes),
-        );
+      const chunkRows = Math.max(1, Math.floor((1024 * 1024) / rowBytes));
+      const uploadRows = (row: number, rows: number, pixels: Uint8Array) =>
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, row, textureWidth, rows, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+      const fullRows = Math.floor(bytes.length / rowBytes);
+      for (let row = 0; row < fullRows; row += chunkRows) {
+        const rows = Math.min(chunkRows, fullRows - row);
+        uploadRows(row, rows, bytes.subarray(row * rowBytes, (row + rows) * rowBytes));
+      }
+      // Only a partial last row needs zero padding.
+      if (fullRows < textureHeight) {
+        const lastRow = new Uint8Array(rowBytes);
+        lastRow.set(bytes.subarray(fullRows * rowBytes));
+        uploadRows(fullRows, 1, lastRow);
       }
       this.storageSize = [textureWidth, textureHeight];
       texture.size = [textureWidth, textureHeight];

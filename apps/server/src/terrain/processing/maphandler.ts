@@ -30,7 +30,7 @@ import {
   terrainDetailBounds,
   TerrainDetailBounds,
   TerrainDetailMargin,
-  TerrainDetailRange,
+  terrainDetailRange,
 } from './terrainlod';
 
 // defines the maximum dimension length of the world map
@@ -269,7 +269,10 @@ export class MapHandler {
     const lookup = this.worldmap.createGridLookupTable(position, GpuMaxPixelSize, GpuMaxPixelSize, DefaultTileSize);
     const tilesLoaded = this.worldmap.updatePosition(lookup.grid);
     // A shifted grid can contain the same number of tiles without loading new land.
-    const gridKey = lookup.grid.map((row) => row.map((cell) => cell.row + ',' + cell.column).join(';')).join('|');
+    // Every grid row is one tile row over the same contiguous column window, so
+    // the window and the tile row of each grid row identify the whole grid.
+    const gridKey =
+      lookup.grid[0][0].column + ':' + lookup.grid[0].length + ':' + lookup.grid.map((row) => row[0].row).join(',');
 
     if (tilesLoaded || this.cachedElevationData.gridKey !== gridKey) {
       const southwestGrid = this.worldmap.worldMapIndices(lookup.southwest.latitude, lookup.southwest.longitude);
@@ -402,8 +405,15 @@ export class MapHandler {
         this.worldmap.GridData.longitudeStep / metadata.minWidthPerTile,
         range,
       );
-    if (containsTerrainBounds(this.detailBounds, boundsForRange(TerrainDetailRange))) return;
-    const bounds = boundsForRange(TerrainDetailRange + TerrainDetailMargin);
+    // The A380X needs a larger crop, and the vertical-display flag is how it is
+    // recognised. Before the first aircraft status arrives the aircraft is unknown,
+    // so the smaller radius is used; the next position update enlarges the crop.
+    const renderingMode = this.aircraftStatus?.navigationDisplayRenderingMode ?? TerrainRenderingMode.ArcMode;
+    const range = terrainDetailRange(
+      (renderingMode & TerrainRenderingMode.VerticalDisplayRequired) === TerrainRenderingMode.VerticalDisplayRequired,
+    );
+    if (containsTerrainBounds(this.detailBounds, boundsForRange(range))) return;
+    const bounds = boundsForRange(range + TerrainDetailMargin);
     const data = extractTerrainDetail(this.cachedElevationData.cpuData, metadata.width, bounds);
     this.detailData = this.detailTexture.upload(data, bounds[2], bounds[3]);
     this.detailBounds = bounds;
@@ -476,7 +486,7 @@ export class MapHandler {
       config.arcMode,
       config.centerOffsetY,
       this.detailData,
-      this.detailBounds,
+      ...this.detailBounds,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory
@@ -519,7 +529,7 @@ export class MapHandler {
       profile.waypointsLatitudes.length,
       profile.range / profileWidth,
       this.detailData,
-      this.detailBounds,
+      ...this.detailBounds,
     ) as Texture;
 
     // some GPU drivers require the flush call to release internal memory

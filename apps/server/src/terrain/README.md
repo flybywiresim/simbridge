@@ -20,7 +20,9 @@ or to stop the worker thread and to cleanup all GPU related storage.
 
 The GPU retains the 800 NM terrain cache at half resolution in each direction, plus a
 full-resolution crop around the aircraft. The crop covers at least 160 NM, with a 32 NM
-movement margin to avoid uploading it on every position update. These distances are
+movement margin to avoid uploading it on every position update. For the A380X it covers
+at least 203 NM, because the corners of its arc-mode navigation display show terrain
+beyond the selected range. These distances are
 defined in `processing/terrainlod.ts`. Both navigation displays and the vertical profile
 sample the detailed crop where available and the reduced map elsewhere; display output
 dimensions do not change.

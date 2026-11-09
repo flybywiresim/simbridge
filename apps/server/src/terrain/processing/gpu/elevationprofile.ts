@@ -26,7 +26,12 @@ export function createElevationProfile(
   waypointsPointCount: number,
   distancePerPixel: number,
   detailMap: number[][],
-  detailBounds: number[],
+  // Detail crop in original-grid coordinates. Scalars stay uniforms; an array
+  // argument would be uploaded as a texture and sampled on every line step.
+  detailLeft: number,
+  detailTop: number,
+  detailWidth: number,
+  detailHeight: number,
 ): number {
   const distanceForPixel = distancePerPixel * this.thread.x;
   let routeSegmentIndex = waypointsPointCount;
@@ -117,18 +122,15 @@ export function createElevationProfile(
   let maxElevation = -1000;
   let x = startPixel[0];
   let y = startPixel[1];
+  const detailRight = detailLeft + detailWidth;
+  const detailBottom = detailTop + detailHeight;
 
   while (true) {
     if (y >= 0 && y < worldMapHeight && x >= 0 && x < worldMapWidth) {
       let elevation = 0;
-      if (
-        x >= detailBounds[0] &&
-        y >= detailBounds[1] &&
-        x < detailBounds[0] + detailBounds[2] &&
-        y < detailBounds[1] + detailBounds[3]
-      ) {
-        const detailX = x - detailBounds[0];
-        const detailY = y - detailBounds[1];
+      if (x >= detailLeft && y >= detailTop && x < detailRight && y < detailBottom) {
+        const detailX = x - detailLeft;
+        const detailY = y - detailTop;
         elevation = this.constants.packedTerrain
           ? decodeTerrainElevation(detailMap[detailY][detailX * 2], detailMap[detailY][detailX * 2 + 1])
           : detailMap[detailY][detailX];
