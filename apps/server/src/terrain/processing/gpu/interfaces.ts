@@ -1,6 +1,7 @@
 import { IKernelFunctionThis } from 'gpu.js';
 
 export type LocalElevationMapConstants = {
+  packedTerrain: boolean;
   unknownElevation: number;
   invalidElevation: number;
 };
@@ -8,6 +9,7 @@ export type LocalElevationMapConstants = {
 export type LocalElevationMapParameters = IKernelFunctionThis<LocalElevationMapConstants>;
 
 export type ElevationProfileConstants = {
+  packedTerrain: boolean;
   unknownElevation: number;
   invalidElevation: number;
 };

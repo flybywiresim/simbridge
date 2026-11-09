@@ -1,6 +1,7 @@
 import { normalizeHeading, projectWgs84, wgs84toPixelCoordinate } from './helper';
 import { rad2deg } from '../generic/helper';
 import { LocalElevationMapParameters } from './interfaces';
+import { decodeTerrainElevation } from './terrainsampling';
 
 export function createLocalElevationMap(
   this: LocalElevationMapParameters,
@@ -23,6 +24,8 @@ export function createLocalElevationMap(
   meterPerPixel: number,
   arcMode: boolean,
   centerOffsetY: number,
+  detailMap: number[][],
+  detailBounds: number[],
 ): number {
   const centerX = ndWidth / 2.0;
   const delta = [this.thread.x - centerX, ndHeight - this.thread.y - centerOffsetY];
@@ -63,5 +66,19 @@ export function createLocalElevationMap(
   if (pixel[1] < 0 || pixel[1] >= worldMapHeight || pixel[0] < 0 || pixel[0] >= worldMapWidth)
     return this.constants.unknownElevation;
 
-  return worldMap[pixel[1]][pixel[0]];
+  if (
+    pixel[0] >= detailBounds[0] &&
+    pixel[1] >= detailBounds[1] &&
+    pixel[0] < detailBounds[0] + detailBounds[2] &&
+    pixel[1] < detailBounds[1] + detailBounds[3]
+  ) {
+    const x = pixel[0] - detailBounds[0];
+    const y = pixel[1] - detailBounds[1];
+    if (!this.constants.packedTerrain) return detailMap[y][x];
+    return decodeTerrainElevation(detailMap[y][x * 2], detailMap[y][x * 2 + 1]);
+  }
+  const coarseX = Math.floor(pixel[0] / 2);
+  const coarseY = Math.floor(pixel[1] / 2);
+  if (!this.constants.packedTerrain) return worldMap[coarseY][coarseX];
+  return decodeTerrainElevation(worldMap[coarseY][coarseX * 2], worldMap[coarseY][coarseX * 2 + 1]);
 }

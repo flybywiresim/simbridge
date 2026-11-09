@@ -11,15 +11,21 @@ interface PackedTexture extends Texture {
   output: number[];
 }
 
-/** Owns one packed terrain texture, without an upload kernel's full-size input copy. */
+/**
+ * Owns one RGBA8 texture containing two signed 16-bit elevations per texel.
+ * GPU consumers must decode the normalized byte channels with decodeTerrainElevation;
+ * CPU consumers receive ordinary elevation rows. No full-size upload copy is retained.
+ */
 export class TerrainTexture {
   private owner: IKernelRunShortcut = null;
 
   private texture: PackedTexture = null;
 
+  private storageSize: number[] = [0, 0];
+
   constructor(private readonly gpu: GPU) {}
 
-  public upload(data: Float32Array, width: number, height: number): TerrainElevationData {
+  public upload(data: Int16Array, width: number, height: number): TerrainElevationData {
     if (
       !Number.isInteger(width) ||
       !Number.isInteger(height) ||
@@ -30,11 +36,11 @@ export class TerrainTexture {
       throw new Error('Invalid terrain texture dimensions');
     }
     if (this.gpu.Kernel === CPUKernel) {
-      return Array.from({ length: height }, (_, y) => data.subarray(y * width, (y + 1) * width));
+      return Array.from({ length: height }, (_, y) => Float32Array.from(data.subarray(y * width, (y + 1) * width)));
     }
 
     const gl = this.gpu.context as WebGLRenderingContext;
-    const pixelCount = Math.ceil(data.length / 4);
+    const pixelCount = Math.ceil(data.length / 2);
     const textureWidth = Math.ceil(Math.sqrt(pixelCount));
     const textureHeight = Math.ceil(pixelCount / textureWidth);
     if (Math.max(textureWidth, textureHeight) > gl.getParameter(gl.MAX_TEXTURE_SIZE)) {
@@ -42,7 +48,7 @@ export class TerrainTexture {
     }
 
     if (!this.owner) {
-      // Let GPU.js own a real packed 2D Texture, including readback and destruction.
+      // Let GPU.js own a packed 2D Texture for sampling and destruction.
       // Run this tiny, argument-free kernel only once; later uploads write its
       // texture directly. The default drawing buffer stays small.
       this.owner = this.gpu.createKernel(
@@ -70,36 +76,43 @@ export class TerrainTexture {
     try {
       gl.bindTexture(gl.TEXTURE_2D, texture.texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-      if (texture.size[0] !== textureWidth || texture.size[1] !== textureHeight) {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
+      if (this.storageSize[0] !== textureWidth || this.storageSize[1] !== textureHeight) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureWidth, textureHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       }
 
-      // Upload full rows from the CPU cache; only the final partial row needs
-      // padding. Avoid a terrain-sized staging array on the CPU as well.
-      const rowLength = textureWidth * 4;
-      const fullRows = Math.floor(data.length / rowLength);
-      const fullLength = fullRows * rowLength;
-      if (fullRows > 0) {
+      // Two signed elevations per RGBA8 texel, low byte first. Encode explicitly
+      // so this does not depend on host byte order. Limit staging memory to ~1 MiB.
+      const rowBytes = textureWidth * 4;
+      const chunkRows = Math.min(textureHeight, Math.max(1, Math.floor((1024 * 1024) / rowBytes)));
+      const staging = new Uint8Array(chunkRows * rowBytes);
+      for (let row = 0; row < textureHeight; row += chunkRows) {
+        const rows = Math.min(chunkRows, textureHeight - row);
+        const sampleOffset = row * textureWidth * 2;
+        const samples = Math.min(rows * textureWidth * 2, data.length - sampleOffset);
+        staging.fill(0);
+        for (let i = 0; i < samples; i++) {
+          const value = data[sampleOffset + i] < 0 ? data[sampleOffset + i] + 65536 : data[sampleOffset + i];
+          staging[i * 2] = value % 256;
+          staging[i * 2 + 1] = Math.floor(value / 256);
+        }
         gl.texSubImage2D(
           gl.TEXTURE_2D,
           0,
           0,
-          0,
+          row,
           textureWidth,
-          fullRows,
+          rows,
           gl.RGBA,
-          gl.FLOAT,
-          data.subarray(0, fullLength),
+          gl.UNSIGNED_BYTE,
+          staging.subarray(0, rows * rowBytes),
         );
       }
-      if (fullLength < data.length) {
-        const tail = new Float32Array(Math.ceil((data.length - fullLength) / 4) * 4);
-        tail.set(data.subarray(fullLength));
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, fullRows, tail.length / 4, 1, gl.RGBA, gl.FLOAT, tail);
-      }
+      this.storageSize = [textureWidth, textureHeight];
       texture.size = [textureWidth, textureHeight];
-      texture.dimensions = [width, height, 1];
-      texture.output = [width, height];
+      // GPU.js exposes normalized byte channels as scalar samples. Only the
+      // terrain sampling helper decodes these back into signed elevations.
+      texture.dimensions = [width * 2, height, 1];
+      texture.output = [width * 2, height];
       return texture;
     } finally {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, previousFlip);
@@ -111,5 +124,6 @@ export class TerrainTexture {
     if (this.owner) this.owner.destroy();
     this.owner = null;
     this.texture = null;
+    this.storageSize = [0, 0];
   }
 }

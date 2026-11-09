@@ -3,6 +3,7 @@
 import { bearingWgs84, projectWgs84, wgs84toPixelCoordinate } from './helper';
 import { distanceWgs84 } from '../generic/helper';
 import { ElevationProfileParameters } from './interfaces';
+import { decodeTerrainElevation } from './terrainsampling';
 
 export function createElevationProfile(
   this: ElevationProfileParameters,
@@ -24,6 +25,8 @@ export function createElevationProfile(
   waypointsLongitudes: number[],
   waypointsPointCount: number,
   distancePerPixel: number,
+  detailMap: number[][],
+  detailBounds: number[],
 ): number {
   const distanceForPixel = distancePerPixel * this.thread.x;
   let routeSegmentIndex = waypointsPointCount;
@@ -117,7 +120,25 @@ export function createElevationProfile(
 
   while (true) {
     if (y >= 0 && y < worldMapHeight && x >= 0 && x < worldMapWidth) {
-      const elevation = worldMap[y][x];
+      let elevation = 0;
+      if (
+        x >= detailBounds[0] &&
+        y >= detailBounds[1] &&
+        x < detailBounds[0] + detailBounds[2] &&
+        y < detailBounds[1] + detailBounds[3]
+      ) {
+        const detailX = x - detailBounds[0];
+        const detailY = y - detailBounds[1];
+        elevation = this.constants.packedTerrain
+          ? decodeTerrainElevation(detailMap[detailY][detailX * 2], detailMap[detailY][detailX * 2 + 1])
+          : detailMap[detailY][detailX];
+      } else {
+        const coarseX = Math.floor(x / 2);
+        const coarseY = Math.floor(y / 2);
+        elevation = this.constants.packedTerrain
+          ? decodeTerrainElevation(worldMap[coarseY][coarseX * 2], worldMap[coarseY][coarseX * 2 + 1])
+          : worldMap[coarseY][coarseX];
+      }
       if (
         elevation !== this.constants.invalidElevation &&
         elevation !== this.constants.unknownElevation &&

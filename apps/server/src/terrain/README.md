@@ -16,6 +16,21 @@ It is possible to request specific information from the thread
 (like the terrain map with transition frames)
 or to stop the worker thread and to cleanup all GPU related storage.
 
+## GPU terrain storage
+
+The GPU retains the 800 NM terrain cache at half resolution in each direction, plus a
+full-resolution crop around the aircraft. The crop covers at least 160 NM, with a 32 NM
+movement margin to avoid uploading it on every position update. These distances are
+defined in `processing/terrainlod.ts`. Both navigation displays and the vertical profile
+sample the detailed crop where available and the reduced map elsewhere; display output
+dimensions do not change.
+
+Each reduced cell stores the highest land elevation in its original 2x2 block. Missing
+data remains marked as missing, water-only cells remain water, and mixed coastal cells
+retain land even below sea level. This preserves distant peaks but broadens their footprint.
+Both GPU maps use two bytes per elevation. The CPU cache retains the original resolution
+for point queries and rebuilding the moving detail crop.
+
 ## Terrain map file format
 
 In a preprocessing step is the SRTM dataset converted into an internal format to reduce the
