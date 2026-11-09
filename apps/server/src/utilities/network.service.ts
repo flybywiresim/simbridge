@@ -2,7 +2,7 @@ import { AddressInfo, createConnection } from 'net';
 import { platform } from 'os';
 import { execSync } from 'child_process';
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import * as createMDNSServer from 'multicast-dns';
+import createMDNSServer from 'multicast-dns';
 import { MulticastDNS, QueryPacket } from 'multicast-dns';
 import { StringAnswer } from 'dns-packet';
 import { RemoteInfo } from 'dgram';

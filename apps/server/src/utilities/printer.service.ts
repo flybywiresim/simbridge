@@ -3,9 +3,11 @@ import { ConfigType } from '@nestjs/config';
 import { join } from 'path';
 import { tmpdir, platform } from 'os';
 import * as print from 'pdf-to-printer';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument = require('pdfkit');
 import { createWriteStream, readFileSync } from 'fs';
-import { getExecutablePath, getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
+import { mkdtemp, rm } from 'fs/promises';
+import { pipeline } from 'stream/promises';
+import { getExecutablePath } from './pathUtil';
 import printerConfig from '../config/printer.config';
 
 @Injectable()
@@ -50,13 +52,14 @@ export class PrinterService {
   }
 
   async print(lines: any) {
+    let tempDirectory: string;
     try {
       const foundPrinter = await this.selectedPrinter;
       if (foundPrinter) {
+        tempDirectory = await mkdtemp(join(tmpdir(), 'a32nxPrint-'));
         const doc = new PDFDocument({ size: this.printerConf.paperSize, margin: this.printerConf.margin });
-        const pdfPath = join(tmpdir(), 'a32nxPrint.pdf');
+        const pdfPath = join(tempDirectory, 'a32nxPrint.pdf');
 
-        doc.pipe(createWriteStream(pdfPath));
         doc.font(this.fontBuffer);
         doc.fontSize(this.printerConf.fontSize);
         for (let i = 0; i < lines.length; i++) {
@@ -64,13 +67,23 @@ export class PrinterService {
           doc.moveDown();
         }
         doc.end();
-        print.print(pdfPath, {
+        // Wait for the complete PDF and the file handle to close before launching Sumatra.
+        await pipeline(doc, createWriteStream(pdfPath));
+        await print.print(pdfPath, {
           printer: foundPrinter.name,
           sumatraPdfPath: `${getExecutablePath()}/resources/SumatraPDF.exe`,
         });
       }
     } catch (error) {
       this.logger.error('Error printing document', error);
+    } finally {
+      if (tempDirectory) {
+        try {
+          await rm(tempDirectory, { recursive: true, force: true });
+        } catch (error) {
+          this.logger.error('Error removing temporary print document', error);
+        }
+      }
     }
   }
 }

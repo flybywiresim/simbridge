@@ -1,7 +1,7 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
-import { access, mkdirSync } from 'fs';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { ConfigService } from '@nestjs/config';
@@ -13,7 +13,7 @@ import { getSimbridgeDir } from 'apps/server/src/utilities/pathUtil';
 import { ShutDownService } from './utilities/shutdown.service';
 import { AppModule } from './app.module';
 import { NetworkService } from './utilities/network.service';
-import { existsSync, writeFileSync } from 'fs';
+import { defaultProperties } from './config/properties-loader';
 
 declare const module: any;
 
@@ -83,31 +83,22 @@ bootstrap();
 function generateResourceFolders() {
   dirs.forEach((dir) => {
     const actualDir = path.join(getSimbridgeDir(), dir);
-    access(actualDir, (error) => {
-      if (error) mkdirSync(actualDir, { recursive: true });
-    });
+    try {
+      mkdirSync(actualDir, { recursive: true });
+    } catch (error) {
+      Logger.warn(`Could not create resource directory "${actualDir}": ${error}`, 'Configuration');
+    }
   });
 }
 
 function generateDefaultProperties() {
   const propertiesFilePath = path.join(getSimbridgeDir(), '/resources', '/properties.json');
 
-  const defaultProperties = {
-    server: {
-      port: 8380,
-      hidden: true,
-      closeWithMSFS: false,
-    },
-    printer: {
-      enabled: false,
-      printerName: null,
-      fontSize: 19,
-      paperSize: 'A4',
-      margin: 30,
-    },
-  };
-
-  if (!existsSync(propertiesFilePath)) {
-    writeFileSync(propertiesFilePath, JSON.stringify(defaultProperties));
+  try {
+    if (!existsSync(propertiesFilePath)) {
+      writeFileSync(propertiesFilePath, JSON.stringify(defaultProperties), { flag: 'wx' });
+    }
+  } catch (error) {
+    Logger.warn(`Could not create configuration file "${propertiesFilePath}": ${error}`, 'Configuration');
   }
 }

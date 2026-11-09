@@ -2,21 +2,19 @@ import { readdir, readFile } from 'fs/promises';
 import { HttpException, HttpStatus, Injectable, Logger, StreamableFile } from '@nestjs/common';
 import { readFileSync, lstatSync } from 'fs';
 import * as xml2js from 'xml2js';
-import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import { getExecutablePath, getSimbridgeDir } from './pathUtil';
-import { pdfToPng } from './pdfConversion';
+import { NodeCanvasFactory, pdfToPng } from './pdfConversion';
+import { NodeBinaryDataFactory } from './pdfBinaryDataFactory';
+import { getDocument, GlobalWorkerOptions, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+// The legacy library and worker include polyfills required by the Node runtime in the executable.
+GlobalWorkerOptions.workerSrc = pathToFileURL(
+  join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.min.mjs'),
+).href;
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = join(
-  getExecutablePath(),
-  'node_modules',
-  'pdfjs-dist',
-  'build',
-  'pdf.worker.min.js',
-);
+const WASM_URL = pathToFileURL(`${join(getExecutablePath(), 'node_modules', 'pdfjs-dist', 'wasm')}/`).href;
 
 @Injectable()
 export class FileService {
@@ -110,7 +108,12 @@ export class FileService {
 
   async getNumberOfPdfPages(Directory: string, fileName: string): Promise<number> {
     const retrievedFile = await this.getFile(Directory, fileName);
-    return getDocument({ data: retrievedFile, isEvalSupported: false }).promise.then((document) => document.numPages);
+    return getDocument({
+      data: new Uint8Array(retrievedFile),
+      CanvasFactory: NodeCanvasFactory,
+      BinaryDataFactory: NodeBinaryDataFactory,
+      wasmUrl: WASM_URL,
+    }).promise.then((document) => document.numPages);
   }
 
   /**
@@ -157,10 +160,12 @@ export class FileService {
         // Load the PDF file.
         const pdfDocument = await getDocument({
           data,
+          CanvasFactory: NodeCanvasFactory,
+          BinaryDataFactory: NodeBinaryDataFactory,
           cMapUrl: CMAP_URL,
           cMapPacked: CMAP_PACKED,
           standardFontDataUrl: STANDARD_FONT_DATA_URL,
-          isEvalSupported: false,
+          wasmUrl: WASM_URL,
         }).promise;
 
         this.pdfCache.set(conversionFilePath, pdfDocument);

@@ -1,24 +1,20 @@
 import { IKernelFunctionThis } from 'gpu.js';
 
-export interface LocalElevationMapConstants {
+export type LocalElevationMapConstants = {
   unknownElevation: number;
   invalidElevation: number;
-}
+};
 
-export type LocalElevationMapParameters = {
-  constants: LocalElevationMapConstants;
-} & IKernelFunctionThis;
+export type LocalElevationMapParameters = IKernelFunctionThis<LocalElevationMapConstants>;
 
-export interface ElevationProfileConstants {
+export type ElevationProfileConstants = {
   unknownElevation: number;
   invalidElevation: number;
-}
+};
 
-export type ElevationProfileParameters = {
-  constants: ElevationProfileConstants;
-} & IKernelFunctionThis;
+export type ElevationProfileParameters = IKernelFunctionThis<ElevationProfileConstants>;
 
-export interface HistogramConstants {
+export type HistogramConstants = {
   minimumElevation: number;
   invalidElevation: number;
   unknownElevation: number;
@@ -26,13 +22,11 @@ export interface HistogramConstants {
   binRange: number;
   binCount: number;
   patchSize: number;
-}
+};
 
-export type HistogramParameters = {
-  constants: HistogramConstants;
-} & IKernelFunctionThis;
+export type HistogramParameters = IKernelFunctionThis<HistogramConstants>;
 
-export interface NavigationDisplayConstants {
+export type NavigationDisplayConstants = {
   histogramBinRange: number;
   histogramMinElevation: number;
   histogramBinCount: number;
@@ -51,20 +45,16 @@ export interface NavigationDisplayConstants {
   densityPatchSize: number;
   patternMapWidth: number;
   patternMapHeight: number;
-}
+};
 
-export type NavigationDisplayParameters = {
-  constants: NavigationDisplayConstants;
-} & IKernelFunctionThis;
+export type NavigationDisplayParameters = IKernelFunctionThis<NavigationDisplayConstants>;
 
-export interface VerticalDisplayConstants {
+export type VerticalDisplayConstants = {
   elevationProfileEntryCount: number;
   invalidElevation: number;
   unknownElevation: number;
   waterElevation: number;
   maxImageHeight: number;
-}
+};
 
-export type VerticalDisplayParameters = {
-  constants: VerticalDisplayConstants;
-} & IKernelFunctionThis;
+export type VerticalDisplayParameters = IKernelFunctionThis<VerticalDisplayConstants>;
